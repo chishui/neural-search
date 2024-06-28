@@ -42,6 +42,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     private static final String DESCRIPTION = "description";
     private static final String MAP_KEY = "map_key";
     private static final String MODEL_ID = "model_id";
+    private static final int BATCH_SIZE = 10;
     private static final Map<String, Object> FIELD_MAP = Map.of("key1", "embedding_key1", "key2", "embedding_key2");
 
     @Before
@@ -54,7 +55,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     }
 
     public void test_batchExecute_emptyInput() {
-        TestInferenceProcessor processor = new TestInferenceProcessor(createMockVectorResult(), null);
+        TestInferenceProcessor processor = new TestInferenceProcessor(createMockVectorResult(), BATCH_SIZE, null);
         Consumer resultHandler = mock(Consumer.class);
         processor.batchExecute(Collections.emptyList(), resultHandler);
         ArgumentCaptor<List<IngestDocumentWrapper>> captor = ArgumentCaptor.forClass(List.class);
@@ -65,7 +66,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
 
     public void test_batchExecute_allFailedValidation() {
         final int docCount = 2;
-        TestInferenceProcessor processor = new TestInferenceProcessor(createMockVectorResult(), null);
+        TestInferenceProcessor processor = new TestInferenceProcessor(createMockVectorResult(), BATCH_SIZE, null);
         List<IngestDocumentWrapper> wrapperList = createIngestDocumentWrappers(docCount);
         wrapperList.get(0).getIngestDocument().setFieldValue("key1", Arrays.asList("", "value1"));
         wrapperList.get(1).getIngestDocument().setFieldValue("key1", Arrays.asList("", "value1"));
@@ -83,7 +84,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
 
     public void test_batchExecute_partialFailedValidation() {
         final int docCount = 2;
-        TestInferenceProcessor processor = new TestInferenceProcessor(createMockVectorResult(), null);
+        TestInferenceProcessor processor = new TestInferenceProcessor(createMockVectorResult(), BATCH_SIZE, null);
         List<IngestDocumentWrapper> wrapperList = createIngestDocumentWrappers(docCount);
         wrapperList.get(0).getIngestDocument().setFieldValue("key1", Arrays.asList("", "value1"));
         wrapperList.get(1).getIngestDocument().setFieldValue("key1", Arrays.asList("value3", "value4"));
@@ -105,7 +106,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     public void test_batchExecute_happyCase() {
         final int docCount = 2;
         List<List<Float>> inferenceResults = createMockVectorWithLength(6);
-        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, null);
+        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, BATCH_SIZE, null);
         List<IngestDocumentWrapper> wrapperList = createIngestDocumentWrappers(docCount);
         wrapperList.get(0).getIngestDocument().setFieldValue("key1", Arrays.asList("value1", "value2"));
         wrapperList.get(1).getIngestDocument().setFieldValue("key1", Arrays.asList("value3", "value4"));
@@ -126,7 +127,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     public void test_batchExecute_sort() {
         final int docCount = 2;
         List<List<Float>> inferenceResults = createMockVectorWithLength(100);
-        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, null);
+        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, BATCH_SIZE, null);
         List<IngestDocumentWrapper> wrapperList = createIngestDocumentWrappers(docCount);
         wrapperList.get(0).getIngestDocument().setFieldValue("key1", Arrays.asList("aaaaa", "bbb"));
         wrapperList.get(1).getIngestDocument().setFieldValue("key1", Arrays.asList("cc", "ddd"));
@@ -158,7 +159,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     public void test_doBatchExecute_exception() {
         final int docCount = 2;
         List<List<Float>> inferenceResults = createMockVectorWithLength(6);
-        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, new RuntimeException());
+        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, BATCH_SIZE, new RuntimeException());
         List<IngestDocumentWrapper> wrapperList = createIngestDocumentWrappers(docCount);
         wrapperList.get(0).getIngestDocument().setFieldValue("key1", Arrays.asList("value1", "value2"));
         wrapperList.get(1).getIngestDocument().setFieldValue("key1", Arrays.asList("value3", "value4"));
@@ -178,8 +179,8 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
         List<?> vectors;
         Exception exception;
 
-        public TestInferenceProcessor(List<?> vectors, Exception exception) {
-            super(TAG, DESCRIPTION, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, clusterService);
+        public TestInferenceProcessor(List<?> vectors, int batchSize, Exception exception) {
+            super(TAG, DESCRIPTION, batchSize, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, clusterService);
             this.vectors = vectors;
             this.exception = exception;
         }

@@ -26,7 +26,7 @@ import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.env.Environment;
 import org.opensearch.index.mapper.IndexFieldMapper;
-import org.opensearch.ingest.AbstractProcessor;
+import org.opensearch.ingest.AbstractBatchProcessor;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.IngestDocumentWrapper;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
@@ -43,7 +43,7 @@ import org.opensearch.neuralsearch.util.ProcessorDocumentUtils;
  * and set the target fields according to the field name map.
  */
 @Log4j2
-public abstract class InferenceProcessor extends AbstractProcessor {
+public abstract class InferenceProcessor extends AbstractBatchProcessor {
 
     public static final String MODEL_ID_FIELD = "model_id";
     public static final String FIELD_MAP_FIELD = "field_map";
@@ -66,6 +66,7 @@ public abstract class InferenceProcessor extends AbstractProcessor {
     public InferenceProcessor(
         String tag,
         String description,
+        int batchSize,
         String type,
         String listTypeNestedMapKey,
         String modelId,
@@ -74,7 +75,7 @@ public abstract class InferenceProcessor extends AbstractProcessor {
         Environment environment,
         ClusterService clusterService
     ) {
-        super(tag, description);
+        super(tag, description, batchSize);
         this.type = type;
         if (StringUtils.isBlank(modelId)) throw new IllegalArgumentException("model_id is null or empty, cannot process it");
         validateEmbeddingConfiguration(fieldMap);
@@ -141,7 +142,7 @@ public abstract class InferenceProcessor extends AbstractProcessor {
     abstract void doBatchExecute(List<String> inferenceList, Consumer<List<?>> handler, Consumer<Exception> onException);
 
     @Override
-    public void batchExecute(List<IngestDocumentWrapper> ingestDocumentWrappers, Consumer<List<IngestDocumentWrapper>> handler) {
+    public void internalBatchExecute(List<IngestDocumentWrapper> ingestDocumentWrappers, Consumer<List<IngestDocumentWrapper>> handler) {
         if (CollectionUtils.isEmpty(ingestDocumentWrappers)) {
             handler.accept(Collections.emptyList());
             return;
