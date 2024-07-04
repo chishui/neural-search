@@ -14,14 +14,14 @@ import java.util.Map;
 
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.env.Environment;
-import org.opensearch.ingest.AbstractBatchProcessor;
+import org.opensearch.ingest.AbstractBatchingProcessor;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
 import org.opensearch.neuralsearch.processor.TextEmbeddingProcessor;
 
 /**
  * Factory for text embedding ingest processor for ingestion pipeline. Instantiates processor based on user provided input.
  */
-public final class TextEmbeddingProcessorFactory extends AbstractBatchProcessor.Factory {
+public final class TextEmbeddingProcessorFactory extends AbstractBatchingProcessor.Factory {
 
     private final MLCommonsClientAccessor clientAccessor;
 
@@ -41,7 +41,7 @@ public final class TextEmbeddingProcessorFactory extends AbstractBatchProcessor.
     }
 
     @Override
-    protected AbstractBatchProcessor newProcessor(String tag, String description, int batchSize, Map<String, Object> config) {
+    protected AbstractBatchingProcessor newProcessor(String tag, String description, int batchSize, Map<String, Object> config) {
         String modelId = readStringProperty(TYPE, tag, config, MODEL_ID_FIELD);
         Map<String, Object> filedMap = readMap(TYPE, tag, config, FIELD_MAP_FIELD);
         return new TextEmbeddingProcessor(tag, description, batchSize, modelId, filedMap, clientAccessor, environment, clusterService);

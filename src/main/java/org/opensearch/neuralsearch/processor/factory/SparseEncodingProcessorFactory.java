@@ -14,7 +14,7 @@ import java.util.Map;
 
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.env.Environment;
-import org.opensearch.ingest.AbstractBatchProcessor;
+import org.opensearch.ingest.AbstractBatchingProcessor;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
 import org.opensearch.neuralsearch.processor.SparseEncodingProcessor;
 
@@ -24,7 +24,7 @@ import lombok.extern.log4j.Log4j2;
  * Factory for sparse encoding ingest processor for ingestion pipeline. Instantiates processor based on user provided input.
  */
 @Log4j2
-public class SparseEncodingProcessorFactory extends AbstractBatchProcessor.Factory {
+public class SparseEncodingProcessorFactory extends AbstractBatchingProcessor.Factory {
     private final MLCommonsClientAccessor clientAccessor;
     private final Environment environment;
     private final ClusterService clusterService;
@@ -37,7 +37,7 @@ public class SparseEncodingProcessorFactory extends AbstractBatchProcessor.Facto
     }
 
     @Override
-    protected AbstractBatchProcessor newProcessor(String tag, String description, int batchSize, Map<String, Object> config) {
+    protected AbstractBatchingProcessor newProcessor(String tag, String description, int batchSize, Map<String, Object> config) {
         String modelId = readStringProperty(TYPE, tag, config, MODEL_ID_FIELD);
         Map<String, Object> fieldMap = readMap(TYPE, tag, config, FIELD_MAP_FIELD);
 

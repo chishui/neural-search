@@ -26,7 +26,7 @@ import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.env.Environment;
 import org.opensearch.index.mapper.IndexFieldMapper;
-import org.opensearch.ingest.AbstractBatchProcessor;
+import org.opensearch.ingest.AbstractBatchingProcessor;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.IngestDocumentWrapper;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
@@ -43,7 +43,7 @@ import org.opensearch.neuralsearch.util.ProcessorDocumentUtils;
  * and set the target fields according to the field name map.
  */
 @Log4j2
-public abstract class InferenceProcessor extends AbstractBatchProcessor {
+public abstract class InferenceProcessor extends AbstractBatchingProcessor {
 
     public static final String MODEL_ID_FIELD = "model_id";
     public static final String FIELD_MAP_FIELD = "field_map";
@@ -142,7 +142,7 @@ public abstract class InferenceProcessor extends AbstractBatchProcessor {
     abstract void doBatchExecute(List<String> inferenceList, Consumer<List<?>> handler, Consumer<Exception> onException);
 
     @Override
-    public void internalBatchExecute(List<IngestDocumentWrapper> ingestDocumentWrappers, Consumer<List<IngestDocumentWrapper>> handler) {
+    public void subBatchExecute(List<IngestDocumentWrapper> ingestDocumentWrappers, Consumer<List<IngestDocumentWrapper>> handler) {
         if (CollectionUtils.isEmpty(ingestDocumentWrappers)) {
             handler.accept(Collections.emptyList());
             return;

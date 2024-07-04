@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.processor;
 
+import lombok.Getter;
 import org.junit.Before;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockitoAnnotations;
@@ -15,6 +16,7 @@ import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.IngestDocumentWrapper;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -175,9 +177,33 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
         verify(clientAccessor).inferenceSentences(anyString(), anyList(), any());
     }
 
+    public void test_batchExecute_subBatches() {
+        final int docCount = 5;
+        List<List<Float>> inferenceResults = createMockVectorWithLength(6);
+        TestInferenceProcessor processor = new TestInferenceProcessor(inferenceResults, 2, null);
+        List<IngestDocumentWrapper> wrapperList = createIngestDocumentWrappers(docCount);
+        for (int i = 0; i < docCount; ++i) {
+            wrapperList.get(i).getIngestDocument().setFieldValue("key1", Collections.singletonList("value" + i));
+        }
+        List<IngestDocumentWrapper> allResults = new ArrayList<>();
+        processor.batchExecute(wrapperList, allResults::addAll);
+        for (int i = 0; i < docCount; ++i) {
+            assertEquals(allResults.get(i).getIngestDocument(), wrapperList.get(i).getIngestDocument());
+            assertEquals(allResults.get(i).getSlot(), wrapperList.get(i).getSlot());
+            assertEquals(allResults.get(i).getException(), wrapperList.get(i).getException());
+        }
+        assertEquals(3, processor.getAllInferenceInputs().size());
+        assertEquals(List.of("value0", "value1"), processor.getAllInferenceInputs().get(0));
+        assertEquals(List.of("value2", "value3"), processor.getAllInferenceInputs().get(1));
+        assertEquals(List.of("value4"), processor.getAllInferenceInputs().get(2));
+    }
+
     private class TestInferenceProcessor extends InferenceProcessor {
         List<?> vectors;
         Exception exception;
+
+        @Getter
+        List<List<String>> allInferenceInputs = new ArrayList<>();
 
         public TestInferenceProcessor(List<?> vectors, int batchSize, Exception exception) {
             super(TAG, DESCRIPTION, batchSize, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, clusterService);
@@ -197,6 +223,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
         void doBatchExecute(List<String> inferenceList, Consumer<List<?>> handler, Consumer<Exception> onException) {
             // use to verify if doBatchExecute is called from InferenceProcessor
             clientAccessor.inferenceSentences(MODEL_ID, inferenceList, ActionListener.wrap(results -> {}, ex -> {}));
+            allInferenceInputs.add(inferenceList);
             if (this.exception != null) {
                 onException.accept(this.exception);
             } else {
