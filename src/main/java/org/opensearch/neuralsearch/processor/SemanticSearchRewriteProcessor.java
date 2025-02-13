@@ -21,7 +21,6 @@ import org.opensearch.search.pipeline.SearchRequestProcessor;
 import java.util.Map;
 
 import static org.opensearch.ingest.ConfigurationUtils.readMap;
-import static org.opensearch.ingest.ConfigurationUtils.readStringProperty;
 
 /**
  * It's a search request processor that rewrite one query to a different one.
@@ -31,19 +30,12 @@ public class SemanticSearchRewriteProcessor extends AbstractProcessor implements
     public static final String TYPE = "semantic_search_rewrite_processor";
     public static final String MODEL_ID_FIELD = "model_id";
     public static final String FIELD_MAP_FIELD = "field_map";
+    public static final String DEFAULT_ANALYZER = "hf_model_tokenizer";
 
-    private String modelId;
     private Map<String, Object> fieldMap;
 
-    protected SemanticSearchRewriteProcessor(
-        String modelId,
-        Map<String, Object> fieldMap,
-        String tag,
-        String description,
-        boolean ignoreFailure
-    ) {
+    protected SemanticSearchRewriteProcessor(Map<String, Object> fieldMap, String tag, String description, boolean ignoreFailure) {
         super(tag, description, ignoreFailure);
-        this.modelId = modelId;
         this.fieldMap = fieldMap;
     }
 
@@ -102,7 +94,7 @@ public class SemanticSearchRewriteProcessor extends AbstractProcessor implements
         return new NeuralSparseQueryBuilder().boost(matchQueryBuilder.boost())
             .fieldName(mappedFieldName)
             .queryText(matchQueryBuilder.value().toString())
-            .modelId(this.modelId);
+            .analyzer(DEFAULT_ANALYZER);
     }
 
     private BoolQueryBuilder copyBoolQueryBuilder(BoolQueryBuilder boolQueryBuilder) {
@@ -175,9 +167,8 @@ public class SemanticSearchRewriteProcessor extends AbstractProcessor implements
             Map<String, Object> config,
             PipelineContext pipelineContext
         ) throws Exception {
-            String modelId = readStringProperty(TYPE, tag, config, MODEL_ID_FIELD);
             Map<String, Object> fieldMap = readMap(TYPE, tag, config, FIELD_MAP_FIELD);
-            return new SemanticSearchRewriteProcessor(modelId, fieldMap, tag, description, ignoreFailure);
+            return new SemanticSearchRewriteProcessor(fieldMap, tag, description, ignoreFailure);
         }
     }
 }

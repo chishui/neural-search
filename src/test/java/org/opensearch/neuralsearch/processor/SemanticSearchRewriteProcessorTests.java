@@ -26,8 +26,7 @@ import java.util.Map;
 public class SemanticSearchRewriteProcessorTests extends OpenSearchTestCase {
     private static final String TAG_FIELD = "tag";
     private static final String DESCRIPTION_FIELD = "description";
-    private static final String MODEL_ID_FIELD = "model_id";
-    private static final String MODEL_VALUE = "model_value";
+    private static final String ANALYZER_VALUE = "hf_model_tokenizer";
     private static final String MAPPING_FIELD = "field_map";
     private static final String MAPPED_FIELD = "text";
     private static final String EMBEDDING_FIELD = "text_embedding";
@@ -58,10 +57,7 @@ public class SemanticSearchRewriteProcessorTests extends OpenSearchTestCase {
         searchRequest.source(new SearchSourceBuilder().query(new MatchQueryBuilder(MAPPED_FIELD, QUERY)));
         SearchRequest returnedRequest = processor.processRequest(searchRequest);
         assertTrue(returnedRequest.source().query() instanceof NeuralSparseQueryBuilder);
-        NeuralSparseQueryBuilder query = (NeuralSparseQueryBuilder) returnedRequest.source().query();
-        assertEquals(MODEL_VALUE, query.modelId());
-        assertEquals(EMBEDDING_FIELD, query.fieldName());
-        assertEquals(QUERY, query.queryText());
+        validateNeuralSparseQueryBuilder((NeuralSparseQueryBuilder) returnedRequest.source().query());
     }
 
     public void testProcessRequest_SourceQueryIsBoolQuery() throws Exception {
@@ -130,7 +126,6 @@ public class SemanticSearchRewriteProcessorTests extends OpenSearchTestCase {
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder();
         neuralSparseQueryBuilder.fieldName(EMBEDDING_FIELD);
         neuralSparseQueryBuilder.queryText(QUERY);
-        neuralSparseQueryBuilder.modelId(MODEL_VALUE);
         searchRequest.source(new SearchSourceBuilder().query(neuralSparseQueryBuilder));
         // run
         SearchRequest returnedRequest = processor.processRequest(searchRequest);
@@ -196,7 +191,7 @@ public class SemanticSearchRewriteProcessorTests extends OpenSearchTestCase {
     }
 
     private void validateNeuralSparseQueryBuilder(NeuralSparseQueryBuilder neuralQuery) {
-        assertEquals(MODEL_VALUE, neuralQuery.modelId());
+        assertEquals(ANALYZER_VALUE, neuralQuery.analyzer());
         assertEquals(EMBEDDING_FIELD, neuralQuery.fieldName());
         assertEquals(QUERY, neuralQuery.queryText());
     }
@@ -207,7 +202,6 @@ public class SemanticSearchRewriteProcessorTests extends OpenSearchTestCase {
         Map<String, Object> configMap = new HashMap<>();
         configMap.put(TAG_FIELD, TAG_FIELD);
         configMap.put(DESCRIPTION_FIELD, DESCRIPTION_FIELD);
-        configMap.put(MODEL_ID_FIELD, MODEL_VALUE);
         Map<String, Object> mappingMap = new HashMap<>();
         mappingMap.put(MAPPED_FIELD, EMBEDDING_FIELD);
         configMap.put(MAPPING_FIELD, mappingMap);
