@@ -29,6 +29,7 @@ import org.opensearch.ml.client.MachineLearningNodeClient;
 import org.opensearch.neuralsearch.executors.HybridQueryExecutor;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
 import org.opensearch.neuralsearch.processor.NeuralQueryEnricherProcessor;
+import org.opensearch.neuralsearch.processor.SemanticSearchRewriteProcessor;
 import org.opensearch.neuralsearch.processor.NeuralSparseTwoPhaseProcessor;
 import org.opensearch.neuralsearch.processor.NormalizationProcessor;
 import org.opensearch.neuralsearch.processor.NormalizationProcessorWorkflow;
@@ -171,7 +172,9 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
             NeuralQueryEnricherProcessor.TYPE,
             new NeuralQueryEnricherProcessor.Factory(),
             NeuralSparseTwoPhaseProcessor.TYPE,
-            new NeuralSparseTwoPhaseProcessor.Factory()
+            new NeuralSparseTwoPhaseProcessor.Factory(),
+            SemanticSearchRewriteProcessor.TYPE,
+            new SemanticSearchRewriteProcessor.Factory()
         );
     }
 
