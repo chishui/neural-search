@@ -28,7 +28,6 @@ import static org.opensearch.ingest.ConfigurationUtils.readMap;
  */
 public class SemanticSearchRewriteProcessor extends AbstractProcessor implements SearchRequestProcessor {
     public static final String TYPE = "semantic_search_rewrite_processor";
-    public static final String MODEL_ID_FIELD = "model_id";
     public static final String FIELD_MAP_FIELD = "field_map";
     public static final String DEFAULT_ANALYZER = "hf_model_tokenizer";
 
