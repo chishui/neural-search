@@ -41,6 +41,7 @@ public class ANNUtils {
                 clusterRepresentatives[i][j] = (float) Math.random();
             }
         }
+        initialized = true;
     }
 
     private float[] getDotProductWithClusterRepresentatives(float[] query_sketch) {
@@ -108,6 +109,9 @@ public class ANNUtils {
     }
 
     public void addDoc(float[] query_sketch) {
+        if (!initialized) {
+            load(clusterRepresentativeFilePath);
+        }
         totalDocCounts += 1;
         clusterDocCounts[findTopCluster(query_sketch)] +=1;
     }
