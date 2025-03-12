@@ -2,12 +2,11 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-
 package org.opensearch.neuralsearch.processor.util;
 
 import java.util.Arrays;
 
-public class ANNUtils {
+public class DocumentClusterUtils {
 
     boolean initialized = false;
 
@@ -16,10 +15,15 @@ public class ANNUtils {
     float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
     String clusterRepresentativeFilePath = "";
 
-    public ANNUtils() {}
-    public ANNUtils(String clusterRepresentativeFilePath) {}
+    public DocumentClusterUtils() {}
 
-    public float dotProduct(float[] sketch_1, float[] sketch_2) {
+    public DocumentClusterUtils(String clusterRepresentativeFilePath) {}
+
+    public static String constructNewToken(String token, String clusterId) {
+        return token + "_" + clusterId;
+    }
+
+    public static float dotProduct(float[] sketch_1, float[] sketch_2) {
         // assume that sketch_1 and sketch_2 share the same length
         float sum = 0;
         for (int i = 0; i < sketch_1.length; i++) {
@@ -46,13 +50,13 @@ public class ANNUtils {
 
     private float[] getDotProductWithClusterRepresentatives(float[] query_sketch) {
         float[] dotProductWithClusterRepresentatives = new float[clusterRepresentatives.length];
-        for (int i = 0; i < clusterRepresentatives.length; i+= 1) {
+        for (int i = 0; i < clusterRepresentatives.length; i += 1) {
             dotProductWithClusterRepresentatives[i] = dotProduct(query_sketch, clusterRepresentatives[i]);
         }
         return dotProductWithClusterRepresentatives;
     }
 
-    public int[] getTopClusters(float[] query_sketch, float ratio) throws IllegalArgumentException{
+    public int[] getTopClusters(float[] query_sketch, float ratio) throws IllegalArgumentException {
         if (ratio > 1 || ratio <= 0) {
             throw new IllegalArgumentException("ratio should be in (0, 1]");
         }
@@ -113,6 +117,6 @@ public class ANNUtils {
             load(clusterRepresentativeFilePath);
         }
         totalDocCounts += 1;
-        clusterDocCounts[findTopCluster(query_sketch)] +=1;
+        clusterDocCounts[findTopCluster(query_sketch)] += 1;
     }
 }
