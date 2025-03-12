@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
@@ -23,7 +24,8 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.Version;
-import org.opensearch.neuralsearch.processor.util.ClusterUtils;
+import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
+import org.opensearch.neuralsearch.processor.util.SinnamonTransformer;
 import org.opensearch.transport.client.Client;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.collect.Tuple;
@@ -337,9 +339,17 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     }
 
     private List<String> getClusterIds(Map<String, Float> queryTokens) {
-        // step 1: transform tokens to dense
+        // step 1: transform query tokens to sketch
         // step 2: call cluster service to get top clusters with ratio
-        return Arrays.asList("cluster_1", "cluster_2", "cluster_3");
+        float[] querySketch = new float[10];
+        for (int i = 0; i < querySketch.length; i++) {
+            querySketch[i] = (float) Math.random();
+        }
+        int[] topClusters = DocumentClusterUtils.getInstance().getTopClusters(querySketch, this.documentRatio);
+
+        return Arrays.stream(topClusters)
+            .mapToObj(id -> "cluster_" + id)
+            .collect(Collectors.toList());
     }
 
     private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {
@@ -350,7 +360,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         Map<String, Float> newQueryTokens = new HashMap<>();
         for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
             for (String clusterId : clusterIds) {
-                String newToken = ClusterUtils.constructNewToken(entry.getKey(), clusterId);
+                String newToken = DocumentClusterUtils.constructNewToken(entry.getKey(), clusterId);
                 newQueryTokens.put(newToken, entry.getValue());
             }
         }

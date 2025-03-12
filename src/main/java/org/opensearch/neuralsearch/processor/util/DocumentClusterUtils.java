@@ -15,9 +15,17 @@ public class DocumentClusterUtils {
     float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
     String clusterRepresentativeFilePath = "";
 
-    public DocumentClusterUtils() {}
 
-    public DocumentClusterUtils(String clusterRepresentativeFilePath) {}
+    // Instance is created at class loading time
+    private static final DocumentClusterUtils INSTANCE = new DocumentClusterUtils();
+
+    private DocumentClusterUtils() {
+        // Private constructor due to singleton
+    }
+
+    public static DocumentClusterUtils getInstance() {
+        return INSTANCE;
+    }
 
     public static String constructNewToken(String token, String clusterId) {
         return token + "_" + clusterId;
@@ -48,22 +56,22 @@ public class DocumentClusterUtils {
         initialized = true;
     }
 
-    private float[] getDotProductWithClusterRepresentatives(float[] query_sketch) {
+    private float[] getDotProductWithClusterRepresentatives(float[] querySketch) {
         float[] dotProductWithClusterRepresentatives = new float[clusterRepresentatives.length];
         for (int i = 0; i < clusterRepresentatives.length; i += 1) {
-            dotProductWithClusterRepresentatives[i] = dotProduct(query_sketch, clusterRepresentatives[i]);
+            dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, clusterRepresentatives[i]);
         }
         return dotProductWithClusterRepresentatives;
     }
 
-    public int[] getTopClusters(float[] query_sketch, float ratio) throws IllegalArgumentException {
+    public int[] getTopClusters(float[] querySketch, float ratio) throws IllegalArgumentException {
         if (ratio > 1 || ratio <= 0) {
             throw new IllegalArgumentException("ratio should be in (0, 1]");
         }
         if (!initialized) {
             load(clusterRepresentativeFilePath);
         }
-        float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(query_sketch);
+        float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(querySketch);
 
         Integer[] indices = new Integer[dotProductWithClusterRepresentatives.length];
         for (int i = 0; i < dotProductWithClusterRepresentatives.length; i++) {
@@ -93,11 +101,11 @@ public class DocumentClusterUtils {
         return topClusters;
     }
 
-    public int findTopCluster(float[] query_sketch) throws IllegalStateException {
+    public int findTopCluster(float[] querySketch) throws IllegalStateException {
         if (!initialized) {
             load(clusterRepresentativeFilePath);
         }
-        float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(query_sketch);
+        float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(querySketch);
         // Find the index of the maximum dot product
         int maxIndex = 0;
         float maxDotProduct = dotProductWithClusterRepresentatives[0];
@@ -112,11 +120,11 @@ public class DocumentClusterUtils {
         return maxIndex;
     }
 
-    public void addDoc(float[] query_sketch) {
+    public void addDoc(float[] querySketch) {
         if (!initialized) {
             load(clusterRepresentativeFilePath);
         }
         totalDocCounts += 1;
-        clusterDocCounts[findTopCluster(query_sketch)] += 1;
+        clusterDocCounts[findTopCluster(querySketch)] += 1;
     }
 }
