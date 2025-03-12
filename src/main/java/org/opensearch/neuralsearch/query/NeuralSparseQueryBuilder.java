@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.query;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,7 @@ import java.util.function.Supplier;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.lucene.document.FeatureField;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -69,6 +71,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     static final ParseField QUERY_TOKENS_FIELD = new ParseField("query_tokens");
     @VisibleForTesting
     static final ParseField MODEL_ID_FIELD = new ParseField("model_id");
+    static final ParseField SEARCH_CLUSTER_FIELD = new ParseField("search_cluster");
+    static final ParseField DOCUMENT_RATIO_FIELD = new ParseField("document_ratio");
     // We use max_token_score field to help WAND scorer prune query clause in lucene 9.7. But in lucene 9.8 the inner
     // logics change, this field is not needed any more.
     @VisibleForTesting
@@ -79,6 +83,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     private String queryText;
     private String modelId;
     private Float maxTokenScore;
+    private Boolean searchCluster;
+    private Float documentRatio;
     private Supplier<Map<String, Float>> queryTokensSupplier;
     // A field that for neural_sparse_two_phase_processor, if twoPhaseSharedQueryToken is not null,
     // it means it's origin NeuralSparseQueryBuilder and should split the low score tokens form itself then put it into
@@ -125,6 +131,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (StringUtils.EMPTY.equals(this.modelId)) {
             this.modelId = null;
         }
+        this.searchCluster = in.readOptionalBoolean();
+        this.documentRatio = in.readOptionalFloat();
     }
 
     /**
@@ -139,7 +147,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .queryText(this.queryText)
             .modelId(this.modelId)
             .maxTokenScore(this.maxTokenScore)
-            .twoPhasePruneRatio(-1f * ratio);
+            .twoPhasePruneRatio(-1f * pruneRatio)
+            .searchCluster(this.searchCluster)
+            .documentRatio(this.documentRatio);
         if (Objects.nonNull(this.queryTokensSupplier)) {
             Map<String, Float> tokens = queryTokensSupplier.get();
             // Splitting tokens based on a threshold value: tokens greater than the threshold are stored in v1,
@@ -172,6 +182,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         } else {
             out.writeBoolean(false);
         }
+        out.writeOptionalBoolean(this.searchCluster);
+        out.writeOptionalFloat(this.documentRatio);
     }
 
     @Override
@@ -189,6 +201,10 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         }
         if (Objects.nonNull(queryTokensSupplier) && Objects.nonNull(queryTokensSupplier.get())) {
             xContentBuilder.field(QUERY_TOKENS_FIELD.getPreferredName(), queryTokensSupplier.get());
+        }
+        xContentBuilder.field(SEARCH_CLUSTER_FIELD.getPreferredName(), searchCluster);
+        if (Objects.nonNull(documentRatio)) {
+            xContentBuilder.field(DOCUMENT_RATIO_FIELD.getPreferredName(), documentRatio);
         }
         printBoostAndQueryName(xContentBuilder);
         xContentBuilder.endObject();
@@ -294,6 +310,10 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
                     sparseEncodingQueryBuilder.modelId(parser.text());
                 } else if (MAX_TOKEN_SCORE_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
                     sparseEncodingQueryBuilder.maxTokenScore(parser.floatValue());
+                } else if (SEARCH_CLUSTER_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                    sparseEncodingQueryBuilder.searchCluster(parser.booleanValue());
+                } else if (DOCUMENT_RATIO_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                    sparseEncodingQueryBuilder.documentRatio(parser.floatValue());
                 } else {
                     throw new ParsingException(
                         parser.getTokenLocation(),
@@ -310,6 +330,27 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
                 );
             }
         }
+    }
+
+    private List<String> getClusterIds(Map<String, Float> queryTokens) {
+        // step 1: transform tokens to dense
+        // step 2: call cluster service to get top clusters with ratio
+        return Arrays.asList("cluster_1", "cluster_2", "cluster_3");
+    }
+
+    private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {
+        if (!BooleanUtils.isTrue(this.searchCluster)) {
+            return queryTokens;
+        }
+        final List<String> clusterIds = getClusterIds(queryTokens);
+        Map<String, Float> newQueryTokens = new HashMap<>();
+        for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
+            for (String clusterId : clusterIds) {
+                String newToken = ClusterUtils.constructNewToken(entry.getKey(), clusterId);
+                newQueryTokens.put(newToken, entry.getValue());
+            }
+        }
+        return newQueryTokens;
     }
 
     @Override
@@ -364,7 +405,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     protected Query doToQuery(QueryShardContext context) throws IOException {
         final MappedFieldType ft = context.fieldMapper(fieldName);
         validateFieldType(ft);
-        Map<String, Float> queryTokens = queryTokensSupplier.get();
+        Map<String, Float> queryTokens = generateNewQueryTokensBasedOnClusters(queryTokensSupplier.get());
         if (Objects.isNull(queryTokens)) {
             throw new IllegalArgumentException("Query tokens cannot be null.");
         }
@@ -414,7 +455,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .append(modelId, obj.modelId)
             .append(maxTokenScore, obj.maxTokenScore)
             .append(twoPhasePruneRatio, obj.twoPhasePruneRatio)
-            .append(twoPhaseSharedQueryToken, obj.twoPhaseSharedQueryToken);
+            .append(twoPhaseSharedQueryToken, obj.twoPhaseSharedQueryToken)
+            .append(searchCluster, obj.searchCluster)
+            .append(documentRatio, obj.documentRatio);
         if (Objects.nonNull(queryTokensSupplier)) {
             equalsBuilder.append(queryTokensSupplier.get(), obj.queryTokensSupplier.get());
         }
@@ -428,7 +471,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .append(modelId)
             .append(maxTokenScore)
             .append(twoPhasePruneRatio)
-            .append(twoPhaseSharedQueryToken);
+            .append(twoPhaseSharedQueryToken)
+            .append(searchCluster)
+            .append(documentRatio);
         if (Objects.nonNull(queryTokensSupplier)) {
             builder.append(queryTokensSupplier.get());
         }

@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.opensearch.client.Client;
+import org.opensearch.neuralsearch.processor.RewriteTokenProcessor;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Setting;
@@ -128,7 +129,9 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
             TextImageEmbeddingProcessor.TYPE,
             new TextImageEmbeddingProcessorFactory(clientAccessor, parameters.env, parameters.ingestService.getClusterService()),
             TextChunkingProcessor.TYPE,
-            new TextChunkingProcessorFactory(parameters.env, parameters.ingestService.getClusterService(), parameters.analysisRegistry)
+            new TextChunkingProcessorFactory(parameters.env, parameters.ingestService.getClusterService(), parameters.analysisRegistry),
+            RewriteTokenProcessor.TYPE,
+            new RewriteTokenProcessor.Factory()
         );
     }
 
