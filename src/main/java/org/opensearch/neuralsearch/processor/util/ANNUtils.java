@@ -43,7 +43,7 @@ public class ANNUtils {
         }
     }
 
-    public float[] getDotProductWithClusterRepresentatives(float[] query_sketch) {
+    private float[] getDotProductWithClusterRepresentatives(float[] query_sketch) {
         float[] dotProductWithClusterRepresentatives = new float[clusterRepresentatives.length];
         for (int i = 0; i < clusterRepresentatives.length; i+= 1) {
             dotProductWithClusterRepresentatives[i] = dotProduct(query_sketch, clusterRepresentatives[i]);
@@ -55,7 +55,9 @@ public class ANNUtils {
         if (ratio > 1 || ratio <= 0) {
             throw new IllegalArgumentException("ratio should be in (0, 1]");
         }
-
+        if (!initialized) {
+            load(clusterRepresentativeFilePath);
+        }
         float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(query_sketch);
 
         Integer[] indices = new Integer[dotProductWithClusterRepresentatives.length];
@@ -88,7 +90,7 @@ public class ANNUtils {
 
     public int findTopCluster(float[] query_sketch) throws IllegalStateException {
         if (!initialized) {
-            throw new IllegalStateException("ANN Clusters have not been initialized");
+            load(clusterRepresentativeFilePath);
         }
         float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(query_sketch);
         // Find the index of the maximum dot product
