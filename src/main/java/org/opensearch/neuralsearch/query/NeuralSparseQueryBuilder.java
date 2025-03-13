@@ -24,6 +24,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.Version;
+import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
 import org.opensearch.neuralsearch.processor.util.SinnamonTransformer;
 import org.opensearch.transport.client.Client;
@@ -345,7 +346,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         for (int i = 0; i < querySketch.length; i++) {
             querySketch[i] = (float) Math.random();
         }
-        int[] topClusters = DocumentClusterUtils.getInstance().getTopClusters(querySketch, this.documentRatio);
+        int[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
 
         return Arrays.stream(topClusters)
             .mapToObj(id -> "cluster_" + id)
