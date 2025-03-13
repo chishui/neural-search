@@ -4,11 +4,13 @@
  */
 package org.opensearch.neuralsearch.processor.util;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
+import java.security.AccessController;
 import java.nio.file.Paths;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 
 public class DocumentClusterManager {
@@ -17,8 +19,8 @@ public class DocumentClusterManager {
     int[] clusterDocCounts; // number of documents across each cluster
     float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
 
-    String clusterAssignmentFilePath = "/Users/yuyezhu/Desktop/Code/neural-search/assignment.bin";
-    String clusterRepresentativeFilePath = "/Users/yuyezhu/Desktop/Code/neural-search/representative.bin";
+    String clusterAssignmentFilePath = "/Users/yuyezhu/Desktop/Code/neural-search/build/resources/test/assignment.bin";
+    String clusterRepresentativeFilePath = "/Users/yuyezhu/Desktop/Code/neural-search/build/resources/test/representatives.bin";
 
     // Instance is created at class loading time
     private static final DocumentClusterManager INSTANCE = new DocumentClusterManager();
@@ -42,45 +44,48 @@ public class DocumentClusterManager {
         return sum;
     }
 
-    public void loadClusterAssignment() {
-        // read cluster assignments from a bin file
+    private void loadClusterAssignment() {
         try {
-            byte[] assignmentBytes = Files.readAllBytes(Paths.get("assignment.bin"));
-            ByteBuffer assignmentBuffer = ByteBuffer.wrap(assignmentBytes).order(ByteOrder.nativeOrder());
-            clusterDocCounts = new int[assignmentBytes.length / 4];
-            for (int i = 0; i < clusterDocCounts.length; i++) {
-                clusterDocCounts[i] = assignmentBuffer.getInt(i * 4);
-                totalDocCounts += clusterDocCounts[i];
-            }
-        } catch (IOException e) {
-            System.err.println("Error loading cluster assignment data: " + e.getMessage());
-            // Initialize with empty array to prevent NullPointerException
-            clusterDocCounts = new int[0];
-            // You might want to log this error or handle it differently based on your needs
-        } catch (OutOfMemoryError e) {
-            System.err.println("Not enough memory to load cluster assignment data: " + e.getMessage());
-            clusterDocCounts = new int[0];
+            // Use AccessController to perform privileged file operations
+            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                byte[] assignmentBytes = Files.readAllBytes(Paths.get(clusterAssignmentFilePath));
+                ByteBuffer assignmentBuffer = ByteBuffer.wrap(assignmentBytes).order(ByteOrder.nativeOrder());
+                clusterDocCounts = new int[assignmentBytes.length / 4];
+                for (int i = 0; i < clusterDocCounts.length; i++) {
+                    clusterDocCounts[i] = assignmentBuffer.getInt(i * 4);
+                    totalDocCounts += clusterDocCounts[i];
+                }
+                return null;
+            });
+
+            System.out.println("Loaded " + clusterDocCounts.length + " cluster assignments");
+            System.out.println("Total document count: " + totalDocCounts);
+
+        } catch (PrivilegedActionException e) {
+            System.err.println("Error during privileged file access " + e.getException());
         }
     }
 
     public void loadClusterRepresentative() {
-        // read cluster representatives from a bin file
         try {
-            int rows = 11896;
-            int cols = 30109;
-            byte[] representativeBytes = Files.readAllBytes(Paths.get("representative.bin"));
-            ByteBuffer representativeBuffer = ByteBuffer.wrap(representativeBytes).order(ByteOrder.nativeOrder());
-            clusterRepresentatives = new float[rows][cols];
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < cols; j++) {
-                    clusterRepresentatives[i][j] = representativeBuffer.getFloat((i * cols + j) * 4);
+            // Use AccessController to perform privileged file operations
+            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                int rows = 11896;
+                int cols = 1024;
+                byte[] representativeBytes = Files.readAllBytes(Paths.get(clusterRepresentativeFilePath));
+                ByteBuffer representativeBuffer = ByteBuffer.wrap(representativeBytes).order(ByteOrder.nativeOrder());
+                clusterRepresentatives = new float[rows][cols];
+                for (int i = 0; i < rows; i++) {
+                    for (int j = 0; j < cols; j++) {
+                        clusterRepresentatives[i][j] = representativeBuffer.getFloat((i * cols + j) * 4);
+                    }
                 }
-            }
-        } catch (IOException e) {
+                return null;
+            });
+
+        } catch (PrivilegedActionException e) {
             System.err.println("Error loading cluster representative data: " + e.getMessage());
-            // Initialize with empty array to prevent NullPointerException
             clusterRepresentatives = new float[0][0];
-            // You might want to log this error or handle it differently based on your needs
         } catch (OutOfMemoryError e) {
             System.err.println("Not enough memory to load cluster representative data: " + e.getMessage());
             clusterRepresentatives = new float[0][0];
