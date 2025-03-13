@@ -4,11 +4,12 @@
  */
 package org.opensearch.neuralsearch.processor.util;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.file.Files;
 import java.security.AccessController;
-import java.nio.file.Paths;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
@@ -19,14 +20,18 @@ public class DocumentClusterManager {
     int[] clusterDocCounts; // number of documents across each cluster
     float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
 
-    String clusterAssignmentFilePath = "/Users/yuyezhu/Desktop/Code/neural-search/build/resources/test/assignment.bin";
-    String clusterRepresentativeFilePath = "/Users/yuyezhu/Desktop/Code/neural-search/build/resources/test/representatives.bin";
+    // Resource paths relative to classpath
+    private static final int SKETCH_SIZE = 1024;
+    private static final int CLUSTER_NUM = 11896;
+    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "assignment.bin";
+    private static final String CLUSTER_REPRESENTATIVE_RESOURCE = "representatives.bin";
 
     // Instance is created at class loading time
     private static final DocumentClusterManager INSTANCE = new DocumentClusterManager();
 
     private DocumentClusterManager() {
         // Private constructor due to singleton
+
         loadClusterAssignment();
         loadClusterRepresentative();
     }
@@ -44,45 +49,93 @@ public class DocumentClusterManager {
         return sum;
     }
 
+    /**
+     * Loads cluster assignment data from a file in the temporary directory
+     */
     private void loadClusterAssignment() {
         try {
-            // Use AccessController to perform privileged file operations
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                byte[] assignmentBytes = Files.readAllBytes(Paths.get(clusterAssignmentFilePath));
-                ByteBuffer assignmentBuffer = ByteBuffer.wrap(assignmentBytes).order(ByteOrder.nativeOrder());
-                clusterDocCounts = new int[assignmentBytes.length / 4];
-                for (int i = 0; i < clusterDocCounts.length; i++) {
-                    clusterDocCounts[i] = assignmentBuffer.getInt(i * 4);
-                    totalDocCounts += clusterDocCounts[i];
+                String tempDir = System.getProperty("java.io.tmpdir");
+                File file = new File(tempDir, CLUSTER_ASSIGNMENT_RESOURCE);
+
+                if (!file.exists() || !file.canRead()) {
+                    System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
+                    return null;
+                }
+
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    byte[] assignmentBytes = fis.readAllBytes();
+                    ByteBuffer assignmentBuffer = ByteBuffer.wrap(assignmentBytes).order(ByteOrder.nativeOrder());
+
+                    totalDocCounts = assignmentBytes.length / 4;
+                    clusterDocCounts = new int[CLUSTER_NUM];
+
+                    for (int i = 0; i < totalDocCounts; i++) {
+                        int clusterId = assignmentBuffer.getInt(i * 4);
+                        clusterDocCounts[clusterId] += 1;
+                    }
+
+                    System.out.println(
+                        "Successfully loaded cluster assignment data: {} clusters with {} total documents"
+                            + clusterDocCounts.length
+                            + " "
+                            + totalDocCounts
+                    );
+                } catch (IOException e) {
+                    System.err.println("Error reading cluster assignment file: " + e.getMessage());
                 }
                 return null;
             });
-
-            System.out.println("Loaded " + clusterDocCounts.length + " cluster assignments");
-            System.out.println("Total document count: " + totalDocCounts);
-
         } catch (PrivilegedActionException e) {
-            System.err.println("Error during privileged file access " + e.getException());
+            System.err.println("Security error while loading cluster assignment data: " + e.getException());
         }
     }
 
+    /**
+     * Loads cluster representative data from a file in the temporary directory
+     *
+     */
     public void loadClusterRepresentative() {
         try {
             // Use AccessController to perform privileged file operations
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                int rows = 11896;
-                int cols = 1024;
-                byte[] representativeBytes = Files.readAllBytes(Paths.get(clusterRepresentativeFilePath));
-                ByteBuffer representativeBuffer = ByteBuffer.wrap(representativeBytes).order(ByteOrder.nativeOrder());
-                clusterRepresentatives = new float[rows][cols];
-                for (int i = 0; i < rows; i++) {
-                    for (int j = 0; j < cols; j++) {
-                        clusterRepresentatives[i][j] = representativeBuffer.getFloat((i * cols + j) * 4);
+                String tempDir = System.getProperty("java.io.tmpdir");
+                File file = new File(tempDir, CLUSTER_REPRESENTATIVE_RESOURCE);
+
+                if (!file.exists() || !file.canRead()) {
+                    System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
+                    return null;
+                }
+
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    byte[] representativeBytes = fis.readAllBytes();
+                    ByteBuffer representativeBuffer = ByteBuffer.wrap(representativeBytes).order(ByteOrder.nativeOrder());
+
+                    // Verify file size matches expected dimensions
+                    if (representativeBytes.length != CLUSTER_NUM * SKETCH_SIZE * 4) {
+                        System.err.println("Warning: File size doesn't match expected dimensions!");
+                        System.err.println("Expected: " + (CLUSTER_NUM * SKETCH_SIZE * 4) + " bytes");
+                        System.err.println("Actual: " + representativeBytes.length + " bytes");
                     }
+
+                    clusterRepresentatives = new float[CLUSTER_NUM][SKETCH_SIZE];
+                    for (int i = 0; i < CLUSTER_NUM; i++) {
+                        for (int j = 0; j < SKETCH_SIZE; j++) {
+                            clusterRepresentatives[i][j] = representativeBuffer.getFloat((i * SKETCH_SIZE + j) * 4);
+                        }
+                    }
+
+                    System.out.println(
+                        "Successfully loaded cluster assignment data: {} clusters with {} total documents"
+                            + clusterDocCounts.length
+                            + " "
+                            + totalDocCounts
+                    );
+                } catch (IOException e) {
+                    System.err.println("Error reading cluster assignment file: " + e.getMessage());
                 }
                 return null;
             });
-
         } catch (PrivilegedActionException e) {
             System.err.println("Error loading cluster representative data: " + e.getMessage());
             clusterRepresentatives = new float[0][0];
