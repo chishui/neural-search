@@ -33,7 +33,9 @@ public class RewriteTokenProcessor extends AbstractProcessor {
         String clusterId = ingestDocument.getFieldValue(CLUSTER_ID, String.class);
         Map<String, Float> newTokens = tokens.entrySet()
             .stream()
-            .collect(java.util.stream.Collectors.toMap(e -> DocumentClusterUtils.constructNewToken(e.getKey(), clusterId), Map.Entry::getValue));
+            .collect(
+                java.util.stream.Collectors.toMap(e -> DocumentClusterUtils.constructNewToken(e.getKey(), clusterId), Map.Entry::getValue)
+            );
         ingestDocument.setFieldValue(tokenField, newTokens);
         return ingestDocument;
     }

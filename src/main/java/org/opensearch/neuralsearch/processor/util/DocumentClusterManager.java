@@ -12,7 +12,7 @@ public class DocumentClusterManager {
     int[] clusterDocCounts; // number of documents across each cluster
     float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
     String clusterRepresentativeFilePath = "";
-    
+
     // Instance is created at class loading time
     private static final DocumentClusterManager INSTANCE = new DocumentClusterManager();
 

@@ -4,8 +4,6 @@
  */
 package org.opensearch.neuralsearch.processor.util;
 
-import java.util.Arrays;
-
 public class DocumentClusterUtils {
 
     public static String constructNewToken(String token, String clusterId) {

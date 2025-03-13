@@ -26,7 +26,6 @@ import org.apache.lucene.search.Query;
 import org.opensearch.Version;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
-import org.opensearch.neuralsearch.processor.util.SinnamonTransformer;
 import org.opensearch.transport.client.Client;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.collect.Tuple;
@@ -348,9 +347,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         }
         int[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
 
-        return Arrays.stream(topClusters)
-            .mapToObj(id -> "cluster_" + id)
-            .collect(Collectors.toList());
+        return Arrays.stream(topClusters).mapToObj(id -> "cluster_" + id).collect(Collectors.toList());
     }
 
     private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {
