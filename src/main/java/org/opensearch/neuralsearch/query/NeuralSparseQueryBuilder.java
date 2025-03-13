@@ -340,6 +340,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
 
     private List<String> getClusterIds(Map<String, Float> queryTokens) {
         // step 1: transform query tokens to sketch
+        // Assume that the key of queryTokens is a
         // step 2: call cluster service to get top clusters with ratio
         float[] querySketch = new float[10];
         for (int i = 0; i < querySketch.length; i++) {
