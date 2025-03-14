@@ -353,9 +353,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             querySketch[i % query.length] = max(querySketch[i % query.length], query[i]);
         }
         // step 3: call cluster service to get top clusters with ratio
-        int[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
+        Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
 
-        return Arrays.stream(topClusters).mapToObj(id -> "cluster_" + id).collect(Collectors.toList());
+        return Arrays.stream(topClusters).map(id -> "cluster_" + id).collect(Collectors.toList());
     }
 
     private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {

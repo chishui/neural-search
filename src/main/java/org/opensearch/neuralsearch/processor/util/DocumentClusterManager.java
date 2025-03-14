@@ -14,6 +14,8 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 
+import static org.apache.lucene.util.VectorUtil.dotProduct;
+
 /**
  * Helper class with cluster representatives and assignments. Often used to getTopClusters from a query sketch.
  */
@@ -40,15 +42,6 @@ public class DocumentClusterManager {
 
     public static DocumentClusterManager getInstance() {
         return INSTANCE;
-    }
-
-    public static float dotProduct(float[] sketch_1, float[] sketch_2) {
-        // assume that sketch_1 and sketch_2 with length SKETCH_SIZE
-        float sum = 0;
-        for (int i = 0; i < SKETCH_SIZE; i++) {
-            sum += sketch_1[i] * sketch_2[i];
-        }
-        return sum;
     }
 
     /**
@@ -147,7 +140,7 @@ public class DocumentClusterManager {
         }
     }
 
-    private float[] getDotProductWithClusterRepresentatives(float[] querySketch) {
+    private float[] computeDotProductWithClusterRepresentatives(float[] querySketch) {
         float[] dotProductWithClusterRepresentatives = new float[clusterRepresentatives.length];
         for (int i = 0; i < clusterRepresentatives.length; i += 1) {
             dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, clusterRepresentatives[i]);
@@ -155,11 +148,11 @@ public class DocumentClusterManager {
         return dotProductWithClusterRepresentatives;
     }
 
-    public int[] getTopClusters(float[] querySketch, float ratio) throws IllegalArgumentException {
+    public Integer[] getTopClusters(float[] querySketch, float ratio) throws IllegalArgumentException {
         if (ratio > 1 || ratio <= 0) {
             throw new IllegalArgumentException("ratio should be in (0, 1]");
         }
-        float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(querySketch);
+        float[] dotProductWithClusterRepresentatives = computeDotProductWithClusterRepresentatives(querySketch);
 
         Integer[] indices = new Integer[dotProductWithClusterRepresentatives.length];
         for (int i = 0; i < dotProductWithClusterRepresentatives.length; i++) {
@@ -183,11 +176,11 @@ public class DocumentClusterManager {
         }
 
         // Return result array with the top cluster IDs
-        return Arrays.stream(indices).limit(numClustersNeeded).mapToInt(Integer::intValue).toArray();
+        return Arrays.copyOfRange(indices, 0, numClustersNeeded);;
     }
 
-    public int getTopCluster(float[] querySketch) throws IllegalStateException {
-        float[] dotProductWithClusterRepresentatives = getDotProductWithClusterRepresentatives(querySketch);
+    public int getTopCluster(float[] querySketch) {
+        float[] dotProductWithClusterRepresentatives = computeDotProductWithClusterRepresentatives(querySketch);
         // Find the index of the maximum dot product
         int maxIndex = 0;
         float maxDotProduct = dotProductWithClusterRepresentatives[0];

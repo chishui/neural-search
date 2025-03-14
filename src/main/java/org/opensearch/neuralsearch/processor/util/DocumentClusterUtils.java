@@ -5,7 +5,7 @@
 package org.opensearch.neuralsearch.processor.util;
 
 /**
-  * Utility class for cluster related operations
+ * Utility class for cluster related operations
  */
 public class DocumentClusterUtils {
 
