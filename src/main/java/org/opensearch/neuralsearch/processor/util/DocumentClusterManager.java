@@ -180,7 +180,7 @@ public class DocumentClusterManager {
         }
 
         // Return result array with the top cluster IDs
-        return Arrays.copyOfRange(indices, 0, numClustersNeeded);;
+        return Arrays.copyOfRange(indices, 0, numClustersNeeded);
     }
 
     public int getTopCluster(float[] querySketch) {
