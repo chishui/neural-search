@@ -351,7 +351,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         // step 2: transform query tokens to sketch
         float[] querySketch = new float[SKETCH_SIZE];
         for (int i = 0; i < query.length; i++) {
-            querySketch[i % query.length] = max(querySketch[i % query.length], query[i]);
+            querySketch[i % SKETCH_SIZE] = max(querySketch[i % SKETCH_SIZE], query[i]);
         }
         // step 3: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
