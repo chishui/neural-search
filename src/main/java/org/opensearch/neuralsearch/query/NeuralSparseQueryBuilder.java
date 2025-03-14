@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
@@ -22,6 +23,8 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.Version;
 import org.opensearch.client.Client;
+import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
+import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.core.ParseField;
@@ -49,6 +52,9 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
+
+import static java.lang.Math.max;
+import static org.opensearch.neuralsearch.processor.util.DocumentClusterManager.SKETCH_SIZE;
 
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
@@ -312,6 +318,39 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
                 );
             }
         }
+    }
+
+    private List<String> getClusterIds(Map<String, Float> queryTokens) {
+        // step 1; transform query tokens to a vector
+        // assume that the key of queryTokens is a number
+        float[] query = new float[30109];
+        for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
+            query[Integer.parseInt(entry.getKey())] = entry.getValue();
+        }
+        // step 2: transform query tokens to sketch
+        float[] querySketch = new float[SKETCH_SIZE];
+        for (int i = 0; i < query.length; i++) {
+            querySketch[i % SKETCH_SIZE] = max(querySketch[i % SKETCH_SIZE], query[i]);
+        }
+        // step 3: call cluster service to get top clusters with ratio
+        Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
+
+        return Arrays.stream(topClusters).map(id -> "cluster_" + id).collect(Collectors.toList());
+    }
+
+    private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {
+        if (!BooleanUtils.isTrue(this.searchCluster)) {
+            return queryTokens;
+        }
+        final List<String> clusterIds = getClusterIds(queryTokens);
+        Map<String, Float> newQueryTokens = new HashMap<>();
+        for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
+            for (String clusterId : clusterIds) {
+                String newToken = DocumentClusterUtils.constructNewToken(entry.getKey(), clusterId);
+                newQueryTokens.put(newToken, entry.getValue());
+            }
+        }
+        return newQueryTokens;
     }
 
     @Override
