@@ -342,7 +342,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         // step 1: transform query tokens to sketch
         // Assume that the key of queryTokens is a
         // step 2: call cluster service to get top clusters with ratio
-        float[] querySketch = new float[10];
+        float[] querySketch = new float[1024];
         for (int i = 0; i < querySketch.length; i++) {
             querySketch[i] = (float) Math.random();
         }

@@ -31,7 +31,6 @@ public class DocumentClusterManager {
 
     private DocumentClusterManager() {
         // Private constructor due to singleton
-
         loadClusterAssignment();
         loadClusterRepresentative();
     }
@@ -41,9 +40,9 @@ public class DocumentClusterManager {
     }
 
     public static float dotProduct(float[] sketch_1, float[] sketch_2) {
-        // assume that sketch_1 and sketch_2 share the same length
+        // assume that sketch_1 and sketch_2 with length SKETCH_SIZE
         float sum = 0;
-        for (int i = 0; i < sketch_1.length; i++) {
+        for (int i = 0; i < SKETCH_SIZE; i++) {
             sum += sketch_1[i] * sketch_2[i];
         }
         return sum;
