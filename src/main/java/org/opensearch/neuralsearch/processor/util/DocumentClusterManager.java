@@ -36,6 +36,10 @@ public class DocumentClusterManager {
 
     private DocumentClusterManager() {
         // Private constructor due to singleton
+        initialize();
+    }
+
+    private void initialize() {
         loadClusterAssignment();
         loadClusterRepresentative();
     }
