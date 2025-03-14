@@ -343,7 +343,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     private List<String> getClusterIds(Map<String, Float> queryTokens) {
         // step 1; transform query tokens to a vector
         // assume that the key of queryTokens is a number
-        float[] query = new float [30109];
+        float[] query = new float[30109];
         for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
             query[Integer.parseInt(entry.getKey())] = entry.getValue();
         }
