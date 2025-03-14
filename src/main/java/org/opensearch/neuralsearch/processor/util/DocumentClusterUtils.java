@@ -7,7 +7,8 @@ package org.opensearch.neuralsearch.processor.util;
 /**
  * Utility class for cluster related operations
  */
-public class ClusterUtils {
+public class DocumentClusterUtils {
+
     public static String constructNewToken(String token, String clusterId) {
         return token + "_" + clusterId;
     }
