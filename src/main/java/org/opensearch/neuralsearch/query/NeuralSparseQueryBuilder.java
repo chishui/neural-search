@@ -57,6 +57,7 @@ import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
 
 import static java.lang.Math.max;
+import static org.opensearch.neuralsearch.processor.util.DocumentClusterManager.SKETCH_SIZE;
 
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
@@ -348,7 +349,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             query[Integer.parseInt(entry.getKey())] = entry.getValue();
         }
         // step 2: transform query tokens to sketch
-        float[] querySketch = new float[1024];
+        float[] querySketch = new float[SKETCH_SIZE];
         for (int i = 0; i < query.length; i++) {
             querySketch[i % query.length] = max(querySketch[i % query.length], query[i]);
         }

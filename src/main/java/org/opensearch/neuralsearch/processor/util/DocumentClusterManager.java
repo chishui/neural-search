@@ -21,13 +21,13 @@ import static org.apache.lucene.util.VectorUtil.dotProduct;
  */
 public class DocumentClusterManager {
 
-    int totalDocCounts; // total number of documents within the index
-    int[] clusterDocCounts; // number of documents across each cluster
-    float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
+    private int totalDocCounts; // total number of documents within the index
+    private int[] clusterDocCounts; // number of documents across each cluster
+    private float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
 
     // Resource paths relative to classpath
-    private static final int SKETCH_SIZE = 1024;
-    private static final int CLUSTER_NUM = 11896;
+    public static final int SKETCH_SIZE = 1024;
+    public static final int CLUSTER_NUM = 11896;
     private static final String CLUSTER_ASSIGNMENT_RESOURCE = "assignment.bin";
     private static final String CLUSTER_REPRESENTATIVE_RESOURCE = "representatives.bin";
 
