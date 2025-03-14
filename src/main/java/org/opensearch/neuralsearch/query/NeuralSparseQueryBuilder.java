@@ -58,7 +58,7 @@ import org.opensearch.neuralsearch.util.prune.PruneUtils;
 
 import static java.lang.Math.max;
 import static org.opensearch.neuralsearch.processor.util.DocumentClusterManager.SKETCH_SIZE;
-
+import org.opensearch.neuralsearch.processor.util.JLTransformer;
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
  * or SPARSE_TOKENIZE model to produce a Map with String keys and Float values for input text. Then it will be transformed
@@ -349,9 +349,18 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             query[Integer.parseInt(entry.getKey())] = entry.getValue();
         }
         // step 2: transform query tokens to sketch
-        float[] querySketch = new float[SKETCH_SIZE];
-        for (int i = 0; i < query.length; i++) {
-            querySketch[i % SKETCH_SIZE] = max(querySketch[i % SKETCH_SIZE], query[i]);
+        JLTransformer transformer = new JLTransformer(); // Consider making this a singleton or class member
+        float[] querySketch;
+
+        try {
+            querySketch = transformer.project(query);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error during projection: " + e.getMessage());
+            // Fallback to original sketch method if projection fails
+            querySketch = new float[SKETCH_SIZE];
+            for (int i = 0; i < query.length; i++) {
+                querySketch[i % SKETCH_SIZE] = Math.max(querySketch[i % SKETCH_SIZE], query[i]);
+            }
         }
         // step 3: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
