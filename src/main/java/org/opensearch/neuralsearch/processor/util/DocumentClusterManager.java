@@ -14,6 +14,9 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 
+/**
+ * Helper class with cluster representatives and assignments. Often used to getTopClusters from a query sketch.
+ */
 public class DocumentClusterManager {
 
     int totalDocCounts; // total number of documents within the index
