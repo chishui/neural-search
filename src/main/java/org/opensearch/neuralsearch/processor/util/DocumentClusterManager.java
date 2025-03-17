@@ -64,7 +64,6 @@ public class DocumentClusterManager {
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
                 File file = new File(tempDir, assignmentResourcePath);
-
                 if (!file.exists() || !file.canRead()) {
                     System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
                     return null;
@@ -108,7 +107,6 @@ public class DocumentClusterManager {
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
                 File file = new File(tempDir, representativeResourcePath);
-
                 if (!file.exists() || !file.canRead()) {
                     System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
                     return null;
