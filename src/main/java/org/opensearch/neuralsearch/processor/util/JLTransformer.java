@@ -4,14 +4,13 @@
  */
 package org.opensearch.neuralsearch.processor.util;
 
-import jdk.incubator.vector.VectorOperators;
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorSpecies;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import static org.apache.lucene.util.VectorUtil.dotProduct;
 
 public class JLTransformer {
     private float[][] projectionMatrix;
@@ -19,7 +18,6 @@ public class JLTransformer {
     private static final String PROJECTION_MATRIX_RESOURCE = "transformer.bin"; // default transformer path
     private static final int INPUT_DIMENSION = 30109; // Input dimension
     private static final int OUTPUT_DIMENSION = 1024;  // Output dimension
-    private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
 
     public JLTransformer() {
         initialize();
@@ -71,10 +69,6 @@ public class JLTransformer {
         }
     }
 
-    public float[][] getProjectionMatrix() {
-        return projectionMatrix;
-    }
-
     public float[] project(float[] vector) {
         if (projectionMatrix.length == 0 || vector.length != INPUT_DIMENSION) {
             throw new IllegalArgumentException("Invalid dimensions for projection");
@@ -82,26 +76,9 @@ public class JLTransformer {
 
         float[] result = new float[OUTPUT_DIMENSION];
 
-        for (int i = 0; i < OUTPUT_DIMENSION; i++) {
-            float sum = 0;
-            int j = 0;
-            int upperBound = SPECIES.loopBound(INPUT_DIMENSION);
-
-            // Vectorized computation
-            var sumVector = FloatVector.zero(SPECIES);
-            for (; j < upperBound; j += SPECIES.length()) {
-                var v = FloatVector.fromArray(SPECIES, vector, j);
-                var m = FloatVector.fromArray(SPECIES, projectionMatrix[i], j);
-                sumVector = sumVector.add(v.mul(m));
-            }
-            sum += sumVector.reduceLanes(VectorOperators.ADD);
-
-            // Handle remaining elements
-            for (; j < INPUT_DIMENSION; j++) {
-                sum += projectionMatrix[i][j] * vector[j];
-            }
-
-            result[i] = sum;
+        for (int i = 0; i < projectionMatrix.length; i++) {
+            // Each row of the matrix is multiplied with the vector (dot product)
+            result[i] = dotProduct(projectionMatrix[i], vector);
         }
 
         return result;
