@@ -25,6 +25,7 @@ import org.opensearch.Version;
 import org.opensearch.client.Client;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
+import org.opensearch.neuralsearch.processor.util.SinnamonTransformer;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.core.ParseField;
@@ -74,6 +75,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     static final ParseField QUERY_TOKENS_FIELD = new ParseField("query_tokens");
     @VisibleForTesting
     static final ParseField MODEL_ID_FIELD = new ParseField("model_id");
+    static final ParseField SEARCH_CLUSTER_FIELD = new ParseField("search_cluster");
+    static final ParseField DOCUMENT_RATIO_FIELD = new ParseField("document_ratio");
+    static final ParseField SKETCH_TYPE_FIELD = new ParseField("sketch_type");
     // We use max_token_score field to help WAND scorer prune query clause in lucene 9.7. But in lucene 9.8 the inner
     // logics change, this field is not needed any more.
     @VisibleForTesting
@@ -84,6 +88,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     private String queryText;
     private String modelId;
     private Float maxTokenScore;
+    private Boolean searchCluster;
+    private Float documentRatio;
+    private String sketchType;
     private Supplier<Map<String, Float>> queryTokensSupplier;
     // A field that for neural_sparse_two_phase_processor, if twoPhaseSharedQueryToken is not null,
     // it means it's origin NeuralSparseQueryBuilder and should split the low score tokens form itself then put it into
@@ -131,6 +138,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (StringUtils.EMPTY.equals(this.modelId)) {
             this.modelId = null;
         }
+        this.searchCluster = in.readOptionalBoolean();
+        this.documentRatio = in.readOptionalFloat();
+        this.sketchType = in.readOptionalString();
     }
 
     /**
@@ -148,7 +158,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .maxTokenScore(this.maxTokenScore)
             .twoPhasePruneRatio(-1f * pruneRatio)
             .searchCluster(this.searchCluster)
-            .documentRatio(this.documentRatio);
+            .documentRatio(this.documentRatio)
+            .sketchType(this.sketchType);
         if (Objects.nonNull(this.queryTokensSupplier)) {
             Map<String, Float> tokens = queryTokensSupplier.get();
             // Splitting tokens based on a threshold value: tokens greater than the threshold are stored in v1,
@@ -181,6 +192,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         } else {
             out.writeBoolean(false);
         }
+        out.writeOptionalBoolean(this.searchCluster);
+        out.writeOptionalFloat(this.documentRatio);
+        out.writeOptionalString(this.sketchType);
     }
 
     @Override
@@ -198,6 +212,13 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         }
         if (Objects.nonNull(queryTokensSupplier) && Objects.nonNull(queryTokensSupplier.get())) {
             xContentBuilder.field(QUERY_TOKENS_FIELD.getPreferredName(), queryTokensSupplier.get());
+        }
+        xContentBuilder.field(SEARCH_CLUSTER_FIELD.getPreferredName(), searchCluster);
+        if (Objects.nonNull(documentRatio)) {
+            xContentBuilder.field(DOCUMENT_RATIO_FIELD.getPreferredName(), documentRatio);
+        }
+        if (Objects.nonNull(sketchType)) {
+            xContentBuilder.field(SKETCH_TYPE_FIELD.getPreferredName(), sketchType());
         }
         printBoostAndQueryName(xContentBuilder);
         xContentBuilder.endObject();
@@ -303,6 +324,12 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
                     sparseEncodingQueryBuilder.modelId(parser.text());
                 } else if (MAX_TOKEN_SCORE_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
                     sparseEncodingQueryBuilder.maxTokenScore(parser.floatValue());
+                } else if (SEARCH_CLUSTER_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                    sparseEncodingQueryBuilder.searchCluster(parser.booleanValue());
+                } else if (DOCUMENT_RATIO_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                    sparseEncodingQueryBuilder.documentRatio(parser.floatValue());
+                } else if (SKETCH_TYPE_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                    sparseEncodingQueryBuilder.sketchType(parser.text());
                 } else {
                     throw new ParsingException(
                         parser.getTokenLocation(),
@@ -323,9 +350,16 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
 
     private List<String> getClusterIds(Map<String, Float> queryTokens) {
         // step 1: transform query tokens to sketch
-        JLTransformer transformer = JLTransformer.getInstance();
-        float[] querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, transformer::convertSketchVector);
-        // step 2: call cluster service to get top clusters with ratio
+        JLTransformer jlTransformer = JLTransformer.getInstance();
+        SinnamonTransformer sinnamonTransformer = SinnamonTransformer.getInstance();
+        // step 2: transform query tokens to sketch
+        float[] querySketch;
+        if (Objects.equals(sketchType, "Sinnamon")) {
+            querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, jlTransformer::convertSketchVector);
+        } else {
+            querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, sinnamonTransformer::convertSketchVector);
+        }
+        // step 3: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
         return Arrays.stream(topClusters).map(DocumentClusterUtils::getClusterIdFromIndex).collect(Collectors.toList());
     }
@@ -448,7 +482,10 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .append(modelId, obj.modelId)
             .append(maxTokenScore, obj.maxTokenScore)
             .append(twoPhasePruneRatio, obj.twoPhasePruneRatio)
-            .append(twoPhaseSharedQueryToken, obj.twoPhaseSharedQueryToken);
+            .append(twoPhaseSharedQueryToken, obj.twoPhaseSharedQueryToken)
+            .append(searchCluster, obj.searchCluster)
+            .append(documentRatio, obj.documentRatio)
+            .append(sketchType, obj.sketchType);
         if (Objects.nonNull(queryTokensSupplier)) {
             equalsBuilder.append(queryTokensSupplier.get(), obj.queryTokensSupplier.get());
         }
@@ -462,7 +499,10 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .append(modelId)
             .append(maxTokenScore)
             .append(twoPhasePruneRatio)
-            .append(twoPhaseSharedQueryToken);
+            .append(twoPhaseSharedQueryToken)
+            .append(searchCluster)
+            .append(documentRatio)
+            .append(sketchType);
         if (Objects.nonNull(queryTokensSupplier)) {
             builder.append(queryTokensSupplier.get());
         }
