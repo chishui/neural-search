@@ -9,18 +9,28 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 import static org.apache.lucene.util.VectorUtil.dotProduct;
 
 public class JLTransformer {
     private float[][] projectionMatrix;
 
-    private static final String PROJECTION_MATRIX_RESOURCE = "transformer.bin"; // default transformer path
+    private static final String PROJECTION_MATRIX_RESOURCE = "jl_transformer.bin"; // default transformer path
     private static final int INPUT_DIMENSION = 30109; // Input dimension
     private static final int OUTPUT_DIMENSION = 1024;  // Output dimension
 
+    // Instance is created at class loading time
+    private static final JLTransformer INSTANCE = new JLTransformer();
+
     public JLTransformer() {
         initialize();
+    }
+
+    public static JLTransformer getInstance() {
+        return INSTANCE;
     }
 
     private void initialize() {
@@ -28,40 +38,49 @@ public class JLTransformer {
     }
 
     private void loadProjectionMatrix() {
-        String tempDir = System.getProperty("java.io.tmpdir");
-        File file = new File(tempDir, PROJECTION_MATRIX_RESOURCE);
+        try {
+            // Use AccessController to perform privileged file operations
+            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                String tempDir = System.getProperty("java.io.tmpdir");
+                File file = new File(tempDir, PROJECTION_MATRIX_RESOURCE);
 
-        if (!file.exists() || !file.canRead()) {
-            System.err.println("Projection matrix file doesn't exist or isn't readable: " + file.getAbsolutePath());
-            projectionMatrix = new float[0][0];
-            return;
-        }
-
-        try (FileInputStream fis = new FileInputStream(file)) {
-            byte[] matrixBytes = fis.readAllBytes();
-            ByteBuffer matrixBuffer = ByteBuffer.wrap(matrixBytes).order(ByteOrder.nativeOrder());
-
-            // Verify the size of file
-            int expectedSize = OUTPUT_DIMENSION * INPUT_DIMENSION * 4; // 4 bytes per float
-            if (matrixBytes.length != expectedSize) {
-                System.err.println("Warning: File size doesn't match expected dimensions!");
-                System.err.println("Expected: " + expectedSize + " bytes");
-                System.err.println("Actual: " + matrixBytes.length + " bytes");
-            }
-
-            // Initialize the projection matrix
-            projectionMatrix = new float[OUTPUT_DIMENSION][INPUT_DIMENSION];
-
-            // Read matrix data
-            for (int i = 0; i < OUTPUT_DIMENSION; i++) {
-                for (int j = 0; j < INPUT_DIMENSION; j++) {
-                    projectionMatrix[i][j] = matrixBuffer.getFloat((i * INPUT_DIMENSION + j) * 4);
+                if (!file.exists() || !file.canRead()) {
+                    System.err.println("Projection matrix file doesn't exist or isn't readable: " + file.getAbsolutePath());
+                    projectionMatrix = new float[0][0];
+                    return null;
                 }
-            }
 
-            System.out.println("Successfully loaded projection matrix: " + OUTPUT_DIMENSION + " x " + INPUT_DIMENSION);
-        } catch (IOException e) {
-            System.err.println("Error reading projection matrix file: " + e.getMessage());
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    byte[] matrixBytes = fis.readAllBytes();
+                    ByteBuffer matrixBuffer = ByteBuffer.wrap(matrixBytes).order(ByteOrder.nativeOrder());
+
+                    // Verify the size of file
+                    int expectedSize = OUTPUT_DIMENSION * INPUT_DIMENSION * 4; // 4 bytes per float
+                    if (matrixBytes.length != expectedSize) {
+                        System.err.println("Warning: File size doesn't match expected dimensions!");
+                        System.err.println("Expected: " + expectedSize + " bytes");
+                        System.err.println("Actual: " + matrixBytes.length + " bytes");
+                    }
+
+                    // Initialize the projection matrix
+                    projectionMatrix = new float[OUTPUT_DIMENSION][INPUT_DIMENSION];
+
+                    // Read matrix data
+                    for (int i = 0; i < OUTPUT_DIMENSION; i++) {
+                        for (int j = 0; j < INPUT_DIMENSION; j++) {
+                            projectionMatrix[i][j] = matrixBuffer.getFloat((i * INPUT_DIMENSION + j) * 4);
+                        }
+                    }
+
+                    System.out.println("Successfully loaded projection matrix: " + OUTPUT_DIMENSION + " x " + INPUT_DIMENSION);
+                } catch (IOException e) {
+                    System.err.println("Error reading projection matrix file: " + e.getMessage());
+                    projectionMatrix = new float[0][0];
+                }
+                return null;
+            });
+        } catch (PrivilegedActionException e) {
+            System.err.println("Error jl transformer data: " + e.getMessage());
             projectionMatrix = new float[0][0];
         } catch (OutOfMemoryError e) {
             System.err.println("Not enough memory to load projection matrix: " + e.getMessage());
@@ -69,7 +88,7 @@ public class JLTransformer {
         }
     }
 
-    public float[] project(float[] vector) {
+    public float[] convertSketchVector(float[] vector) {
         if (projectionMatrix.length == 0 || vector.length != INPUT_DIMENSION) {
             throw new IllegalArgumentException("Invalid dimensions for projection");
         }
