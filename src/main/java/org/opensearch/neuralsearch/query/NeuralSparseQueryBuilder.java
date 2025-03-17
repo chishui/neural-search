@@ -56,9 +56,9 @@ import lombok.experimental.Accessors;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
 
-import static java.lang.Math.max;
 import static org.opensearch.neuralsearch.processor.util.DocumentClusterManager.SKETCH_SIZE;
 import org.opensearch.neuralsearch.processor.util.JLTransformer;
+
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
  * or SPARSE_TOKENIZE model to produce a Map with String keys and Float values for input text. Then it will be transformed

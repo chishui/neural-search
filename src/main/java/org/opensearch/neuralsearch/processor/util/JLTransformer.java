@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 package org.opensearch.neuralsearch.processor.util;
+
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
-import java.util.stream.Collectors;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -61,9 +61,7 @@ public class JLTransformer {
                 }
             }
 
-            System.out.println(
-                    "Successfully loaded projection matrix: " + OUTPUT_DIMENSION + " x " + INPUT_DIMENSION
-            );
+            System.out.println("Successfully loaded projection matrix: " + OUTPUT_DIMENSION + " x " + INPUT_DIMENSION);
         } catch (IOException e) {
             System.err.println("Error reading projection matrix file: " + e.getMessage());
             projectionMatrix = new float[0][0];
