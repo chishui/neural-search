@@ -28,8 +28,11 @@ public class DocumentClusterManager {
     // Resource paths relative to classpath
     public static final int SKETCH_SIZE = 1024;
     public static final int CLUSTER_NUM = 11896;
-    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "assignment.bin";
-    private static final String CLUSTER_REPRESENTATIVE_RESOURCE = "representatives.bin";
+
+    private static final String SINNAMON_CLUSTER_ASSIGNMENT_RESOURCE = "sinnamon_assignment.bin";
+    private static final String SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE = "sinnamon_representative.bin";
+    private static final String JL_CLUSTER_ASSIGNMENT_RESOURCE = "jl_assignment.bin";
+    private static final String JL_CLUSTER_REPRESENTATIVE_RESOURCE = "jl_representative.bin";
 
     // Instance is created at class loading time
     private static final DocumentClusterManager INSTANCE = new DocumentClusterManager();
@@ -40,8 +43,8 @@ public class DocumentClusterManager {
     }
 
     private void initialize() {
-        loadClusterAssignment();
-        loadClusterRepresentative();
+        loadClusterAssignment(JL_CLUSTER_ASSIGNMENT_RESOURCE);
+        loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
     }
 
     public static DocumentClusterManager getInstance() {
@@ -51,11 +54,11 @@ public class DocumentClusterManager {
     /**
      * Loads cluster assignment data from a file in the temporary directory
      */
-    private void loadClusterAssignment() {
+    private void loadClusterAssignment(String assignmentResourcePath) {
         try {
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
-                File file = new File(tempDir, CLUSTER_ASSIGNMENT_RESOURCE);
+                File file = new File(tempDir, assignmentResourcePath);
 
                 if (!file.exists() || !file.canRead()) {
                     System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
@@ -94,12 +97,12 @@ public class DocumentClusterManager {
      * Loads cluster representative data from a file in the temporary directory
      *
      */
-    public void loadClusterRepresentative() {
+    public void loadClusterRepresentative(String representativeResourcePath) {
         try {
             // Use AccessController to perform privileged file operations
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
-                File file = new File(tempDir, CLUSTER_REPRESENTATIVE_RESOURCE);
+                File file = new File(tempDir, representativeResourcePath);
 
                 if (!file.exists() || !file.canRead()) {
                     System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
