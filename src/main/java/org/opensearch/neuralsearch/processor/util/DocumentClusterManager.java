@@ -45,8 +45,6 @@ public class DocumentClusterManager {
     private void initialize() {
         loadClusterAssignment(JL_CLUSTER_ASSIGNMENT_RESOURCE);
         loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
-        loadClusterAssignment(SINNAMON_CLUSTER_ASSIGNMENT_RESOURCE);
-        loadClusterRepresentative(SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE);
     }
 
     public static DocumentClusterManager getInstance() {
