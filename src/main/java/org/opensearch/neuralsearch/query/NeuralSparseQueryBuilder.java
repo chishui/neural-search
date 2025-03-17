@@ -59,8 +59,7 @@ import lombok.experimental.Accessors;
 
 import static org.opensearch.neuralsearch.processor.NeuralSparseTwoPhaseProcessor.splitQueryTokensByRatioedMaxScoreAsThreshold;
 
-import static java.lang.Math.max;
-import static org.opensearch.neuralsearch.processor.util.DocumentClusterManager.SKETCH_SIZE;
+import org.opensearch.neuralsearch.processor.util.JLTransformer;
 
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
@@ -350,13 +349,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             query[Integer.parseInt(entry.getKey())] = entry.getValue();
         }
         // step 2: transform query tokens to sketch
-        float[] querySketch = new float[SKETCH_SIZE];
-        for (int i = 0; i < query.length; i++) {
-            querySketch[i % SKETCH_SIZE] = max(querySketch[i % SKETCH_SIZE], query[i]);
-        }
+        float[] querySketch = JLTransformer.getInstance().convertSketchVector(query);
         // step 3: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
-
         return Arrays.stream(topClusters).map(id -> "cluster_" + id).collect(Collectors.toList());
     }
 
