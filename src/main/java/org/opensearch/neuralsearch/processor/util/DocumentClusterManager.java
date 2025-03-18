@@ -13,6 +13,7 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
+import java.util.Objects;
 
 import static org.apache.lucene.util.VectorUtil.dotProduct;
 
@@ -22,26 +23,27 @@ import static org.apache.lucene.util.VectorUtil.dotProduct;
 public class DocumentClusterManager {
 
     private int totalDocCounts; // total number of documents within the index
-    private int[] clusterDocCounts; // number of documents across each cluster
-    private float[][] clusterRepresentatives; // an array of sketch vectors indicating the center of each cluster
+    private int[] clusterDocCounts; // number of documents across each cluster, both jl and sinnamon share the same assignment
+    private float[][] jlClusterRepresentatives; // an array of jl sketch vectors indicating the center of each cluster
+    private float[][] sinnamonClusterRepresentatives; // an array of sinnamon sketch vectors indicating the center of each cluster
 
     // Resource paths relative to classpath
     public static final int SKETCH_SIZE = 1024;
     public static final int CLUSTER_NUM = 11896;
 
-    private static final String SINNAMON_CLUSTER_ASSIGNMENT_RESOURCE = "sinnamon_assignment.bin";
-    private static final String SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE = "sinnamon_representative.bin";
-    private static final String JL_CLUSTER_ASSIGNMENT_RESOURCE = "jl_assignment.bin";
+    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "assignment.bin";
     private static final String JL_CLUSTER_REPRESENTATIVE_RESOURCE = "jl_representative.bin";
+    private static final String SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE = "sinnamon_representative.bin";
 
     // Instance is created at class loading time
     private static volatile DocumentClusterManager INSTANCE;
 
     private DocumentClusterManager() {}
 
-    public void initialize() {
-        loadClusterAssignment(JL_CLUSTER_ASSIGNMENT_RESOURCE);
-        loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
+    private void initialize() {
+        clusterDocCounts = loadClusterAssignment();
+        jlClusterRepresentatives = loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
+        sinnamonClusterRepresentatives = loadClusterRepresentative(SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE);
     }
 
     // lazy load
@@ -59,11 +61,12 @@ public class DocumentClusterManager {
     /**
      * Loads cluster assignment data from a file in the temporary directory
      */
-    private void loadClusterAssignment(String assignmentResourcePath) {
+    private int[] loadClusterAssignment() {
+        clusterDocCounts = new int[CLUSTER_NUM];
         try {
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
-                File file = new File(tempDir, assignmentResourcePath);
+                File file = new File(tempDir, DocumentClusterManager.CLUSTER_ASSIGNMENT_RESOURCE);
                 if (!file.exists() || !file.canRead()) {
                     System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
                     return null;
@@ -74,7 +77,6 @@ public class DocumentClusterManager {
                     ByteBuffer assignmentBuffer = ByteBuffer.wrap(assignmentBytes).order(ByteOrder.nativeOrder());
 
                     totalDocCounts = assignmentBytes.length / 4;
-                    clusterDocCounts = new int[CLUSTER_NUM];
 
                     for (int i = 0; i < totalDocCounts; i++) {
                         int clusterId = assignmentBuffer.getInt(i * 4);
@@ -95,13 +97,15 @@ public class DocumentClusterManager {
         } catch (PrivilegedActionException e) {
             System.err.println("Security error while loading cluster assignment data: " + e.getException());
         }
+        return clusterDocCounts;
     }
 
     /**
      * Loads cluster representative data from a file in the temporary directory
      *
      */
-    public void loadClusterRepresentative(String representativeResourcePath) {
+    public float[][] loadClusterRepresentative(String representativeResourcePath) {
+        float[][] clusterRepresentatives = new float[CLUSTER_NUM][SKETCH_SIZE];
         try {
             // Use AccessController to perform privileged file operations
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
@@ -123,7 +127,6 @@ public class DocumentClusterManager {
                         System.err.println("Actual: " + representativeBytes.length + " bytes");
                     }
 
-                    clusterRepresentatives = new float[CLUSTER_NUM][SKETCH_SIZE];
                     for (int i = 0; i < CLUSTER_NUM; i++) {
                         for (int j = 0; j < SKETCH_SIZE; j++) {
                             clusterRepresentatives[i][j] = representativeBuffer.getFloat((i * SKETCH_SIZE + j) * 4);
@@ -138,6 +141,7 @@ public class DocumentClusterManager {
                     );
                 } catch (IOException e) {
                     System.err.println("Error reading cluster assignment file: " + e.getMessage());
+                    clusterRepresentatives = new float[0][0];
                 }
                 return null;
             });
@@ -148,21 +152,28 @@ public class DocumentClusterManager {
             System.err.println("Not enough memory to load cluster representative data: " + e.getMessage());
             clusterRepresentatives = new float[0][0];
         }
+        return clusterRepresentatives;
     }
 
-    private float[] computeDotProductWithClusterRepresentatives(float[] querySketch) {
-        float[] dotProductWithClusterRepresentatives = new float[clusterRepresentatives.length];
-        for (int i = 0; i < clusterRepresentatives.length; i += 1) {
-            dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, clusterRepresentatives[i]);
+    private float[] computeDotProductWithClusterRepresentatives(float[] querySketch, String sketchType) {
+        float[] dotProductWithClusterRepresentatives = new float[SKETCH_SIZE];
+        if (Objects.equals(sketchType, "Sinnamon")) {
+            for (int i = 0; i < SKETCH_SIZE; i += 1) {
+                dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, sinnamonClusterRepresentatives[i]);
+            }
+            return dotProductWithClusterRepresentatives;
+        }
+        for (int i = 0; i < SKETCH_SIZE; i += 1) {
+            dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, jlClusterRepresentatives[i]);
         }
         return dotProductWithClusterRepresentatives;
     }
 
-    public Integer[] getTopClusters(float[] querySketch, float ratio) throws IllegalArgumentException {
+    public Integer[] getTopClusters(float[] querySketch, float ratio, String sketchType) throws IllegalArgumentException {
         if (ratio > 1 || ratio <= 0) {
             throw new IllegalArgumentException("ratio should be in (0, 1]");
         }
-        float[] dotProductWithClusterRepresentatives = computeDotProductWithClusterRepresentatives(querySketch);
+        float[] dotProductWithClusterRepresentatives = computeDotProductWithClusterRepresentatives(querySketch, sketchType);
 
         Integer[] indices = new Integer[dotProductWithClusterRepresentatives.length];
         for (int i = 0; i < dotProductWithClusterRepresentatives.length; i++) {
@@ -189,8 +200,8 @@ public class DocumentClusterManager {
         return Arrays.copyOfRange(indices, 0, numClustersNeeded);
     }
 
-    public int getTopCluster(float[] querySketch) {
-        float[] dotProductWithClusterRepresentatives = computeDotProductWithClusterRepresentatives(querySketch);
+    public int getTopCluster(float[] querySketch, String sketchType) {
+        float[] dotProductWithClusterRepresentatives = computeDotProductWithClusterRepresentatives(querySketch, sketchType);
         // Find the index of the maximum dot product
         int maxIndex = 0;
         float maxDotProduct = dotProductWithClusterRepresentatives[0];
@@ -205,9 +216,9 @@ public class DocumentClusterManager {
         return maxIndex;
     }
 
-    public int addDoc(float[] querySketch) {
+    public int addDoc(float[] querySketch, String sketchType) {
         totalDocCounts += 1;
-        int clusterId = getTopCluster(querySketch);
+        int clusterId = getTopCluster(querySketch, sketchType);
         clusterDocCounts[clusterId] += 1;
         return clusterId;
     }
