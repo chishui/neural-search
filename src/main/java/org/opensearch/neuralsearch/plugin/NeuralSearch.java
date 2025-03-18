@@ -15,6 +15,8 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.opensearch.neuralsearch.processor.RewriteTokenProcessor;
+import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
+import org.opensearch.neuralsearch.processor.util.JLTransformer;
 import org.opensearch.transport.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
@@ -106,6 +108,11 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
         NeuralSparseQueryBuilder.initialize(clientAccessor);
         HybridQueryExecutor.initialize(threadPool);
         normalizationProcessorWorkflow = new NormalizationProcessorWorkflow(new ScoreNormalizer(), new ScoreCombiner());
+
+        // Cluster initialization
+        DocumentClusterManager.getInstance().initialize();
+        JLTransformer.getInstance().initialize();
+
         return List.of(clientAccessor);
     }
 

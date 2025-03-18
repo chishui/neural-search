@@ -341,17 +341,12 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     }
 
     private List<String> getClusterIds(Map<String, Float> queryTokens) {
-        // step 1; transform query tokens to a vector
-        // assume that the key of queryTokens is a number
-        float[] query = new float[30109];
-        for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
-            query[Integer.parseInt(entry.getKey())] = entry.getValue();
-        }
-        // step 2: transform query tokens to sketch
-        float[] querySketch = JLTransformer.getInstance().convertSketchVector(query);
-        // step 3: call cluster service to get top clusters with ratio
+        // step 1: transform query tokens to sketch
+        JLTransformer transformer = JLTransformer.getInstance();
+        float[] querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, transformer::convertSketchVector);
+        // step 2: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio);
-        return Arrays.stream(topClusters).map(id -> "cluster_" + id).collect(Collectors.toList());
+        return Arrays.stream(topClusters).map(DocumentClusterUtils::getClusterIdFromIndex).collect(Collectors.toList());
     }
 
     private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {
