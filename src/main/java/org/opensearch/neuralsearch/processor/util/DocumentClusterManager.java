@@ -35,19 +35,24 @@ public class DocumentClusterManager {
     private static final String JL_CLUSTER_REPRESENTATIVE_RESOURCE = "jl_representative.bin";
 
     // Instance is created at class loading time
-    private static final DocumentClusterManager INSTANCE = new DocumentClusterManager();
+    private static volatile DocumentClusterManager INSTANCE;
 
-    private DocumentClusterManager() {
-        // Private constructor due to singleton
-        initialize();
-    }
+    private DocumentClusterManager() {}
 
-    private void initialize() {
+    public void initialize() {
         loadClusterAssignment(JL_CLUSTER_ASSIGNMENT_RESOURCE);
         loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
     }
 
+    // lazy load
     public static DocumentClusterManager getInstance() {
+        if (INSTANCE == null) {
+            synchronized (DocumentClusterManager.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = new DocumentClusterManager();
+                }
+            }
+        }
         return INSTANCE;
     }
 
@@ -129,7 +134,7 @@ public class DocumentClusterManager {
 
                     System.out.println(
                         "Successfully loaded cluster assignment data: {} clusters with {} total documents"
-                            + clusterDocCounts.length
+                            + clusterRepresentatives.length
                             + " "
                             + totalDocCounts
                     );
@@ -202,8 +207,10 @@ public class DocumentClusterManager {
         return maxIndex;
     }
 
-    public void addDoc(float[] querySketch) {
+    public int addDoc(float[] querySketch) {
         totalDocCounts += 1;
-        clusterDocCounts[getTopCluster(querySketch)] += 1;
+        int clusterId = getTopCluster(querySketch);
+        clusterDocCounts[clusterId] += 1;
+        return clusterId;
     }
 }

@@ -23,17 +23,22 @@ public class JLTransformer {
     private static final int OUTPUT_DIMENSION = 1024;  // Output dimension
 
     // Instance is created at class loading time
-    private static final JLTransformer INSTANCE = new JLTransformer();
+    private static volatile JLTransformer INSTANCE;
 
-    public JLTransformer() {
-        initialize();
-    }
+    private JLTransformer() {}
 
     public static JLTransformer getInstance() {
+        if (INSTANCE == null) {
+            synchronized (JLTransformer.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = new JLTransformer();
+                }
+            }
+        }
         return INSTANCE;
     }
 
-    private void initialize() {
+    public void initialize() {
         loadProjectionMatrix();
     }
 

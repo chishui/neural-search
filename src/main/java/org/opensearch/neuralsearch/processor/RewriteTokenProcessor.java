@@ -7,7 +7,9 @@ package org.opensearch.neuralsearch.processor;
 import org.opensearch.ingest.AbstractProcessor;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.Processor;
+import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
+import org.opensearch.neuralsearch.processor.util.JLTransformer;
 
 import java.util.Map;
 
@@ -20,7 +22,7 @@ public class RewriteTokenProcessor extends AbstractProcessor {
     public static final String TYPE = "rewrite_token";
     public static final String TOKEN_FIELD_KEY = "token_field";
     public static final String CLUSTER_ID = "cluster_id";
-    private String tokenField;
+    private final String tokenField;
 
     protected RewriteTokenProcessor(String tag, String description, String tokenField) {
         super(tag, description);
@@ -30,13 +32,22 @@ public class RewriteTokenProcessor extends AbstractProcessor {
     @Override
     public IngestDocument execute(IngestDocument ingestDocument) throws Exception {
         Map<String, Float> tokens = ingestDocument.getFieldValue(tokenField, Map.class);
-        String clusterId = ingestDocument.getFieldValue(CLUSTER_ID, String.class);
+        String clusterId;
+        if (ingestDocument.hasField(CLUSTER_ID)) {
+            clusterId = ingestDocument.getFieldValue(CLUSTER_ID, String.class);
+        } else {
+            JLTransformer transformer = JLTransformer.getInstance();
+            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, transformer::convertSketchVector);
+            int clusterIndex = DocumentClusterManager.getInstance().getTopCluster(sketch);
+            clusterId = DocumentClusterUtils.getClusterIdFromIndex(clusterIndex);
+        }
         Map<String, Float> newTokens = tokens.entrySet()
             .stream()
             .collect(
                 java.util.stream.Collectors.toMap(e -> DocumentClusterUtils.constructNewToken(e.getKey(), clusterId), Map.Entry::getValue)
             );
         ingestDocument.setFieldValue(tokenField, newTokens);
+
         return ingestDocument;
     }
 
