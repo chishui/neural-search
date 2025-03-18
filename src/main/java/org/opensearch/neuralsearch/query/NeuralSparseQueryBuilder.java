@@ -24,13 +24,9 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.Version;
-<<<<<<< HEAD
 import org.opensearch.client.Client;
-=======
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
-import org.opensearch.transport.client.Client;
->>>>>>> 0c0d49a8 (Feat: Introduce document cluster manager (#2))
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.core.ParseField;
@@ -156,7 +152,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .queryText(this.queryText)
             .modelId(this.modelId)
             .maxTokenScore(this.maxTokenScore)
-            .twoPhasePruneRatio(-1f * pruneRatio)
+            .twoPhasePruneRatio(-1f * ratio)
             .searchCluster(this.searchCluster)
             .documentRatio(this.documentRatio);
         if (Objects.nonNull(this.queryTokensSupplier)) {
