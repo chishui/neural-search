@@ -146,7 +146,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .queryText(this.queryText)
             .modelId(this.modelId)
             .maxTokenScore(this.maxTokenScore)
-            .twoPhasePruneRatio(-1f * pruneRatio);
+            .twoPhasePruneRatio(-1f * pruneRatio)
+            .searchCluster(this.searchCluster)
+            .documentRatio(this.documentRatio);
         if (Objects.nonNull(this.queryTokensSupplier)) {
             Map<String, Float> tokens = queryTokensSupplier.get();
             // Splitting tokens based on a threshold value: tokens greater than the threshold are stored in v1,
