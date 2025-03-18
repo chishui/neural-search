@@ -31,7 +31,7 @@ public class DocumentClusterManager {
     public static final int SKETCH_SIZE = 1024;
     public static final int CLUSTER_NUM = 11896;
 
-    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "assignment.bin";
+    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "sinnamon_assignment.bin";
     private static final String JL_CLUSTER_REPRESENTATIVE_RESOURCE = "jl_representative.bin";
     private static final String SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE = "sinnamon_representative.bin";
 
@@ -87,8 +87,11 @@ public class DocumentClusterManager {
                     }
 
                     System.out.println(
-                        "Successfully loaded cluster assignment data: " + clusterDocCounts.length +
-                            " clusters with " + totalDocCounts + " total documents"
+                        "Successfully loaded cluster assignment data: "
+                            + clusterDocCounts.length
+                            + " clusters with "
+                            + totalDocCounts
+                            + " total documents"
                     );
 
                     // Store totalDocCounts as a class field if needed
