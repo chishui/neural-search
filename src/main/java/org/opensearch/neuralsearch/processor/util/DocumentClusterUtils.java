@@ -17,7 +17,7 @@ public class DocumentClusterUtils {
     }
 
     public static String getClusterIdFromIndex(int clusterIdx) {
-        return "cluster_" + clusterIdx;
+        return String.valueOf(clusterIdx);
     }
 
     public static float[] sparseToDense(Map<String, Float> tokens, int denseDimension, Function<float[], float[]> convert) {
