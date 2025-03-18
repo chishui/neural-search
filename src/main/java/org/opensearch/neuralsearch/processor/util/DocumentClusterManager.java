@@ -62,21 +62,24 @@ public class DocumentClusterManager {
      * Loads cluster assignment data from a file in the temporary directory
      */
     private int[] loadClusterAssignment() {
-        clusterDocCounts = new int[CLUSTER_NUM];
         try {
-            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+            return AccessController.doPrivileged((PrivilegedExceptionAction<int[]>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
                 File file = new File(tempDir, DocumentClusterManager.CLUSTER_ASSIGNMENT_RESOURCE);
+
+                // Initialize the cluster counts array
+                int[] clusterDocCounts = new int[CLUSTER_NUM];
+
                 if (!file.exists() || !file.canRead()) {
-                    System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
-                    return null;
+                    System.err.println("Cluster assignment file doesn't exist or isn't readable: " + file.getAbsolutePath());
+                    return new int[0];
                 }
 
                 try (FileInputStream fis = new FileInputStream(file)) {
                     byte[] assignmentBytes = fis.readAllBytes();
                     ByteBuffer assignmentBuffer = ByteBuffer.wrap(assignmentBytes).order(ByteOrder.nativeOrder());
 
-                    totalDocCounts = assignmentBytes.length / 4;
+                    int totalDocCounts = assignmentBytes.length / 4;
 
                     for (int i = 0; i < totalDocCounts; i++) {
                         int clusterId = assignmentBuffer.getInt(i * 4);
@@ -84,20 +87,23 @@ public class DocumentClusterManager {
                     }
 
                     System.out.println(
-                        "Successfully loaded cluster assignment data: {} clusters with {} total documents"
-                            + clusterDocCounts.length
-                            + " "
-                            + totalDocCounts
+                        "Successfully loaded cluster assignment data: " + clusterDocCounts.length +
+                            " clusters with " + totalDocCounts + " total documents"
                     );
+
+                    // Store totalDocCounts as a class field if needed
+                    this.totalDocCounts = totalDocCounts;
+
+                    return clusterDocCounts;
                 } catch (IOException e) {
                     System.err.println("Error reading cluster assignment file: " + e.getMessage());
+                    return new int[0];
                 }
-                return null;
             });
         } catch (PrivilegedActionException e) {
             System.err.println("Security error while loading cluster assignment data: " + e.getException());
+            return new int[0];
         }
-        return clusterDocCounts;
     }
 
     /**
@@ -105,15 +111,18 @@ public class DocumentClusterManager {
      *
      */
     public float[][] loadClusterRepresentative(String representativeResourcePath) {
-        float[][] clusterRepresentatives = new float[CLUSTER_NUM][SKETCH_SIZE];
         try {
-            // Use AccessController to perform privileged file operations
-            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+            // Use AccessController to perform privileged file operations and return the result directly
+            return AccessController.doPrivileged((PrivilegedExceptionAction<float[][]>) () -> {
                 String tempDir = System.getProperty("java.io.tmpdir");
                 File file = new File(tempDir, representativeResourcePath);
+
+                // Initialize the result array
+                float[][] clusterRepresentatives = new float[CLUSTER_NUM][SKETCH_SIZE];
+
                 if (!file.exists() || !file.canRead()) {
-                    System.err.println("Cluster assignment file doesn't exist or isn't readable: {}" + file.getAbsolutePath());
-                    return null;
+                    System.err.println("Cluster assignment file doesn't exist or isn't readable: " + file.getAbsolutePath());
+                    return new float[0][0];
                 }
 
                 try (FileInputStream fis = new FileInputStream(file)) {
@@ -139,20 +148,19 @@ public class DocumentClusterManager {
                             + " "
                             + totalDocCounts
                     );
+                    return clusterRepresentatives;
                 } catch (IOException e) {
                     System.err.println("Error reading cluster assignment file: " + e.getMessage());
-                    clusterRepresentatives = new float[0][0];
+                    return new float[0][0];
                 }
-                return null;
             });
         } catch (PrivilegedActionException e) {
             System.err.println("Error loading cluster representative data: " + e.getMessage());
-            clusterRepresentatives = new float[0][0];
+            return new float[0][0];
         } catch (OutOfMemoryError e) {
             System.err.println("Not enough memory to load cluster representative data: " + e.getMessage());
-            clusterRepresentatives = new float[0][0];
+            return new float[0][0];
         }
-        return clusterRepresentatives;
     }
 
     private float[] computeDotProductWithClusterRepresentatives(float[] querySketch, String sketchType) {
