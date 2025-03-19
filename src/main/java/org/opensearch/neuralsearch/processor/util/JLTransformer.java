@@ -62,7 +62,7 @@ public class JLTransformer {
                     // Verify the size of file
                     int expectedSize = OUTPUT_DIMENSION * INPUT_DIMENSION * 4; // 4 bytes per float
                     if (matrixBytes.length != expectedSize) {
-                        System.err.println("Warning: File size doesn't match expected dimensions!");
+                        System.err.println("Warning: JL Transformer file size doesn't match expected dimensions!");
                         System.err.println("Expected: " + expectedSize + " bytes");
                         System.err.println("Actual: " + matrixBytes.length + " bytes");
                     }
