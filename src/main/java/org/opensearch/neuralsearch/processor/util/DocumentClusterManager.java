@@ -41,7 +41,7 @@ public class DocumentClusterManager {
 
     private DocumentClusterManager() {}
 
-    private void initialize() {
+    public void initialize() {
         clusterDocCounts = loadClusterAssignment();
         jlClusterRepresentatives = loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
         sinnamonClusterRepresentatives = loadClusterRepresentative(SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE);
