@@ -168,14 +168,14 @@ public class DocumentClusterManager {
     }
 
     private float[] computeDotProductWithClusterRepresentatives(float[] querySketch, String sketchType) {
-        float[] dotProductWithClusterRepresentatives = new float[SKETCH_SIZE];
+        float[] dotProductWithClusterRepresentatives = new float[CLUSTER_NUM];
         if (Objects.equals(sketchType, "Sinnamon")) {
-            for (int i = 0; i < SKETCH_SIZE; i += 1) {
+            for (int i = 0; i < CLUSTER_NUM; i += 1) {
                 dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, sinnamonClusterRepresentatives[i]);
             }
             return dotProductWithClusterRepresentatives;
         }
-        for (int i = 0; i < SKETCH_SIZE; i += 1) {
+        for (int i = 0; i < CLUSTER_NUM; i += 1) {
             dotProductWithClusterRepresentatives[i] = dotProduct(querySketch, jlClusterRepresentatives[i]);
         }
         return dotProductWithClusterRepresentatives;
