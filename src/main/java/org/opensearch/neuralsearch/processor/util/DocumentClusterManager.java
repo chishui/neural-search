@@ -31,7 +31,8 @@ public class DocumentClusterManager {
     public static final int SKETCH_SIZE = 1024;
     public static final int CLUSTER_NUM = 11896;
 
-    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "sinnamon_assignment.bin";
+    // both sinnamon and jl transformer share the same assignment
+    private static final String CLUSTER_ASSIGNMENT_RESOURCE = "assignment.bin";
     private static final String JL_CLUSTER_REPRESENTATIVE_RESOURCE = "jl_representative.bin";
     private static final String SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE = "sinnamon_representative.bin";
 
