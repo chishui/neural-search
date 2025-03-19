@@ -147,14 +147,14 @@ public class DocumentClusterManager {
                     }
 
                     System.out.println(
-                        "Successfully loaded cluster assignment data: {} clusters with {} total documents"
+                        "Successfully loaded cluster representative data: {} clusters with {} total documents"
                             + clusterRepresentatives.length
                             + " "
                             + totalDocCounts
                     );
                     return clusterRepresentatives;
                 } catch (IOException e) {
-                    System.err.println("Error reading cluster assignment file: " + e.getMessage());
+                    System.err.println("Error reading cluster representative file: " + e.getMessage());
                     return new float[0][0];
                 }
             });

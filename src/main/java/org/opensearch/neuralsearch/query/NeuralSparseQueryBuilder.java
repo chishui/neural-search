@@ -355,9 +355,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         // step 2: transform query tokens to sketch
         float[] querySketch;
         if (Objects.equals(sketchType, "Sinnamon")) {
-            querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, jlTransformer::convertSketchVector);
-        } else {
             querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, sinnamonTransformer::convertSketchVector);
+        } else {
+            querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, jlTransformer::convertSketchVector);
         }
         // step 3: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio, sketchType);
