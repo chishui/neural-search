@@ -5,7 +5,7 @@
 package org.opensearch.neuralsearch.processor.util;
 
 import java.util.Map;
-import java.util.function.Function;
+import java.util.Objects;
 
 /**
  * Utility class for cluster related operations
@@ -20,12 +20,17 @@ public class DocumentClusterUtils {
         return String.valueOf(clusterIdx);
     }
 
-    public static float[] sparseToDense(Map<String, Float> tokens, int denseDimension, Function<float[], float[]> convert) {
+    public static float[] sparseToDense(Map<String, Float> tokens, int denseDimension, String sketchType) {
+        if (Objects.equals(sketchType, "Sinnamon")) {
+            SinnamonTransformer sinnamonTransformer = SinnamonTransformer.getInstance();
+            return sinnamonTransformer.convertSketchVector(tokens);
+        }
+        JLTransformer jlTransformer = JLTransformer.getInstance();
         float[] query = new float[denseDimension];
         for (Map.Entry<String, Float> entry : tokens.entrySet()) {
             double value = ((Number) entry.getValue()).doubleValue();
             query[Integer.parseInt(entry.getKey())] = (float) value;
         }
-        return convert.apply(query);
+        return jlTransformer.convertSketchVector(query);
     }
 }

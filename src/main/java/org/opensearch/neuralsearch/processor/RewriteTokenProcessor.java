@@ -9,7 +9,6 @@ import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.Processor;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
-import org.opensearch.neuralsearch.processor.util.JLTransformer;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,8 +40,7 @@ public class RewriteTokenProcessor extends AbstractProcessor {
         if (ingestDocument.hasField(CLUSTER_ID)) {
             clusterId = ingestDocument.getFieldValue(CLUSTER_ID, String.class);
         } else {
-            JLTransformer transformer = JLTransformer.getInstance();
-            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, transformer::convertSketchVector);
+            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, sketchType);
             int clusterIndex = DocumentClusterManager.getInstance().getTopCluster(sketch, sketchType);
             clusterId = DocumentClusterUtils.getClusterIdFromIndex(clusterIndex);
         }

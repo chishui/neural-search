@@ -13,6 +13,7 @@ import java.security.PrivilegedExceptionAction;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Map;
 
 /**
  * SinnamonTransformer provides functionality to transform high-dimensional vectors
@@ -85,22 +86,19 @@ public class SinnamonTransformer {
     /**
      * Convert a single vector into its Weak Sinnamon sketch representation
      *
-     * @param vector: Input vector
+     * @param tokens: Input map of tokens
      * @return Sketch vector
      */
-    public float[] convertSketchVector(float[] vector) {
+    public float[] convertSketchVector(Map<String, Float> tokens) {
         // Initialize sketch vector
+        int sketchIdx;
+        double value;
         float[] sketch = new float[SINNAMON_SKETCH_SIZE];
 
-        // Process non-zero elements
-        for (int idx = 0; idx < vector.length; idx++) {
-            if (vector[idx] != 0) {
-                int sketchIdx = randomMapping[idx];
-                float value = vector[idx];
-
-                // Update sketch with maximum value
-                sketch[sketchIdx] = Math.max(sketch[sketchIdx], value);
-            }
+        for (Map.Entry<String, Float> entry : tokens.entrySet()) {
+            value = ((Number) entry.getValue()).floatValue();
+            sketchIdx = randomMapping[Integer.parseInt(entry.getKey())];
+            sketch[sketchIdx] = Math.max(sketch[sketchIdx], (float) value);
         }
 
         return sketch;

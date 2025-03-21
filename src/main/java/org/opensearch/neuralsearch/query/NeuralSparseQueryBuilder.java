@@ -56,8 +56,6 @@ import lombok.experimental.Accessors;
 
 import static org.opensearch.neuralsearch.processor.NeuralSparseTwoPhaseProcessor.splitQueryTokensByRatioedMaxScoreAsThreshold;
 
-import org.opensearch.neuralsearch.processor.util.JLTransformer;
-
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
  * or SPARSE_TOKENIZE model to produce a Map with String keys and Float values for input text. Then it will be transformed
@@ -350,16 +348,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
 
     private List<String> getClusterIds(Map<String, Float> queryTokens) {
         // step 1: transform query tokens to sketch
-        JLTransformer jlTransformer = JLTransformer.getInstance();
-        SinnamonTransformer sinnamonTransformer = SinnamonTransformer.getInstance();
-        // step 2: transform query tokens to sketch
-        float[] querySketch;
-        if (Objects.equals(sketchType, "Sinnamon")) {
-            querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, sinnamonTransformer::convertSketchVector);
-        } else {
-            querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, jlTransformer::convertSketchVector);
-        }
-        // step 3: call cluster service to get top clusters with ratio
+        float[] querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, sketchType);
+        // step 2: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio, sketchType);
         return Arrays.stream(topClusters).map(DocumentClusterUtils::getClusterIdFromIndex).collect(Collectors.toList());
     }
