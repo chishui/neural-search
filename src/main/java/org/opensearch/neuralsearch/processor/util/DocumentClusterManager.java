@@ -135,7 +135,7 @@ public class DocumentClusterManager {
 
                     // Verify file size matches expected dimensions
                     if (representativeBytes.length != CLUSTER_NUM * SKETCH_SIZE * 4) {
-                        System.err.println("Warning: File size doesn't match expected dimensions!");
+                        System.err.println("Warning: Sinnamon file size doesn't match expected dimensions!");
                         System.err.println("Expected: " + (CLUSTER_NUM * SKETCH_SIZE * 4) + " bytes");
                         System.err.println("Actual: " + representativeBytes.length + " bytes");
                     }
