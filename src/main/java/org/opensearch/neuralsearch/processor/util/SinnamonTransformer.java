@@ -25,17 +25,26 @@ public class SinnamonTransformer {
     private static final String SINNAMON_MAPPING_RESOURCE = "sinnamon_mapping.bin";
 
     // Instance is created at class loading time
-    private static final SinnamonTransformer INSTANCE = new SinnamonTransformer();
+    private static volatile SinnamonTransformer INSTANCE;
 
     /**
      * Default constructor for serialization
      */
-    public SinnamonTransformer() {
-        loadRandomMapping();
-    }
+    private SinnamonTransformer() {}
 
     public static SinnamonTransformer getInstance() {
+        if (INSTANCE == null) {
+            synchronized (SinnamonTransformer.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = new SinnamonTransformer();
+                }
+            }
+        }
         return INSTANCE;
+    }
+
+    public void initialize() {
+        loadRandomMapping();
     }
 
     /**
