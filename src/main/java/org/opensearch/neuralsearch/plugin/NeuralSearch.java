@@ -18,6 +18,7 @@ import org.opensearch.client.Client;
 import org.opensearch.neuralsearch.processor.RewriteTokenProcessor;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.JLTransformer;
+import org.opensearch.neuralsearch.processor.util.SinnamonTransformer;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Setting;
@@ -107,6 +108,7 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
         // Cluster initialization
         DocumentClusterManager.getInstance().initialize();
         JLTransformer.getInstance().initialize();
+        SinnamonTransformer.getInstance().initialize();
 
         return List.of(clientAccessor);
     }
