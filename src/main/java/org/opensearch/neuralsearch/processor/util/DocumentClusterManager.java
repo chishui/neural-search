@@ -209,7 +209,9 @@ public class DocumentClusterManager {
         }
 
         // Return result array with the top cluster IDs
-        return Arrays.copyOfRange(indices, 0, numClustersNeeded);
+        Integer[] topClusterIds = Arrays.copyOfRange(indices, 0, numClustersNeeded);
+        Arrays.sort(topClusterIds);
+        return topClusterIds;
     }
 
     public int getTopCluster(float[] querySketch, String sketchType) {

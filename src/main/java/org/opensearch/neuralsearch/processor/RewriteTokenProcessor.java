@@ -11,8 +11,8 @@ import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
 
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import static org.opensearch.ingest.ConfigurationUtils.readOptionalStringProperty;
 import static org.opensearch.ingest.ConfigurationUtils.readStringProperty;
 
 /**
@@ -24,30 +24,25 @@ public class RewriteTokenProcessor extends AbstractProcessor {
     public static final String CLUSTER_ID = "cluster_id";
     public static final String SKETCH_TYPE = "sketch_type";
     private final String tokenField;
+    private final String sketchType;
 
-    protected RewriteTokenProcessor(String tag, String description, String tokenField) {
+    protected RewriteTokenProcessor(String tag, String description, String tokenField, String sketchType) {
         super(tag, description);
         this.tokenField = tokenField;
+        this.sketchType = sketchType;
     }
 
     @Override
     public IngestDocument execute(IngestDocument ingestDocument) throws Exception {
         Map<String, Float> tokens = ingestDocument.getFieldValue(tokenField, Map.class);
-        String clusterId, sketchType = null;
-        if (ingestDocument.hasField(SKETCH_TYPE)) {
-            sketchType = ingestDocument.getFieldValue(SKETCH_TYPE, String.class);
-        }
+        Integer clusterId = null;
         if (ingestDocument.hasField(CLUSTER_ID)) {
-            clusterId = ingestDocument.getFieldValue(CLUSTER_ID, String.class);
+            clusterId = ingestDocument.getFieldValue(CLUSTER_ID, Integer.class);
         } else {
-            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, sketchType);
-            int clusterIndex = DocumentClusterManager.getInstance().getTopCluster(sketch, sketchType);
-            clusterId = DocumentClusterUtils.getClusterIdFromIndex(clusterIndex);
+            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, this.sketchType);
+            clusterId = DocumentClusterManager.getInstance().getTopCluster(sketch, this.sketchType);
         }
-        Map<String, Float> newTokens = tokens.entrySet()
-            .stream()
-            .collect(Collectors.toMap(e -> DocumentClusterUtils.constructNewToken(e.getKey(), clusterId), Map.Entry::getValue));
-        ingestDocument.setFieldValue(tokenField, newTokens);
+        ingestDocument.setFieldValue(CLUSTER_ID, clusterId);
 
         return ingestDocument;
     }
@@ -67,7 +62,8 @@ public class RewriteTokenProcessor extends AbstractProcessor {
             Map<String, Object> config
         ) throws Exception {
             String tokenField = readStringProperty(TYPE, tag, config, TOKEN_FIELD_KEY);
-            return new RewriteTokenProcessor(tag, description, tokenField);
+            String sketchType = readOptionalStringProperty(TYPE, tag, config, SKETCH_TYPE);
+            return new RewriteTokenProcessor(tag, description, tokenField, sketchType);
         }
     }
 }
