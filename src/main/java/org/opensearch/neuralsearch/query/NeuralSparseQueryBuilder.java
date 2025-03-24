@@ -27,7 +27,6 @@ import org.opensearch.Version;
 import org.opensearch.client.Client;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
-import org.opensearch.neuralsearch.processor.util.SinnamonTransformer;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.core.ParseField;
