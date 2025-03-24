@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.query;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -13,18 +14,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.apache.commons.lang3.BooleanUtils;
 import org.apache.lucene.document.FeatureField;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.Version;
 import org.opensearch.client.Client;
+import org.opensearch.index.mapper.NumberFieldMapper;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
 import org.opensearch.common.SetOnce;
@@ -345,27 +345,12 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         }
     }
 
-    private List<String> getClusterIds(Map<String, Float> queryTokens) {
+    private List<Integer> getClusterIds(Map<String, Float> queryTokens) {
         // step 1: transform query tokens to sketch
         float[] querySketch = DocumentClusterUtils.sparseToDense(queryTokens, 30109, sketchType);
         // step 2: call cluster service to get top clusters with ratio
         Integer[] topClusters = DocumentClusterManager.getInstance().getTopClusters(querySketch, this.documentRatio, sketchType);
-        return Arrays.stream(topClusters).map(DocumentClusterUtils::getClusterIdFromIndex).collect(Collectors.toList());
-    }
-
-    private Map<String, Float> generateNewQueryTokensBasedOnClusters(Map<String, Float> queryTokens) {
-        if (!BooleanUtils.isTrue(this.searchCluster)) {
-            return queryTokens;
-        }
-        final List<String> clusterIds = getClusterIds(queryTokens);
-        Map<String, Float> newQueryTokens = new HashMap<>();
-        for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
-            for (String clusterId : clusterIds) {
-                String newToken = DocumentClusterUtils.constructNewToken(entry.getKey(), clusterId);
-                newQueryTokens.put(newToken, entry.getValue());
-            }
-        }
-        return newQueryTokens;
+        return Arrays.asList(topClusters);
     }
 
     @Override
@@ -416,15 +401,25 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         ));
     }
 
+    private Query constructTermQueryWithClusterIds(QueryShardContext context, List<Integer> clusterIds) throws IOException {
+        Query query = NumberFieldMapper.NumberType.INTEGER.termsQuery("cluster_id", Collections.unmodifiableList(clusterIds), false, true);
+        return query;
+    }
+
     @Override
     protected Query doToQuery(QueryShardContext context) throws IOException {
         final MappedFieldType ft = context.fieldMapper(fieldName);
         validateFieldType(ft);
-        Map<String, Float> queryTokens = generateNewQueryTokensBasedOnClusters(queryTokensSupplier.get());
-        if (Objects.isNull(queryTokens)) {
-            throw new IllegalArgumentException("Query tokens cannot be null.");
-        }
+        Map<String, Float> queryTokens = queryTokensSupplier.get();
         BooleanQuery.Builder builder = new BooleanQuery.Builder();
+        if (this.searchCluster) {
+            // generate term query for cluster ids
+            final List<Integer> clusterIds = getClusterIds(queryTokens);
+            Query termQuery = constructTermQueryWithClusterIds(context, clusterIds);
+            builder.add(termQuery, BooleanClause.Occur.FILTER);
+            builder.setMinimumNumberShouldMatch(1);
+        }
+
         for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
             builder.add(FeatureField.newLinearQuery(fieldName, entry.getKey(), entry.getValue()), BooleanClause.Occur.SHOULD);
         }
