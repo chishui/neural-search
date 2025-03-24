@@ -405,7 +405,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     }
 
     private Query constructTermQueryWithClusterIds(QueryShardContext context, List<Integer> clusterIds) throws IOException {
-        Query query = NumberFieldMapper.NumberType.LONG.termsQuery("cluster_id", Collections.unmodifiableList(clusterIds), false, true);
+        Query query = NumberFieldMapper.NumberType.INTEGER.termsQuery("cluster_id", Collections.unmodifiableList(clusterIds), false, true);
         return query;
     }
 
