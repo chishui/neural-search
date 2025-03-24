@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.processor;
 
+import org.apache.commons.lang3.StringUtils;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.BoostingQueryBuilder;
@@ -21,6 +22,7 @@ import org.opensearch.search.pipeline.SearchRequestProcessor;
 import java.util.Map;
 
 import static org.opensearch.ingest.ConfigurationUtils.readMap;
+import static org.opensearch.ingest.ConfigurationUtils.readOptionalStringProperty;
 
 /**
  * It's a search request processor that rewrite one query to a different one.
@@ -30,11 +32,20 @@ public class SemanticSearchRewriteProcessor extends AbstractProcessor implements
     public static final String TYPE = "semantic_search_rewrite_processor";
     public static final String FIELD_MAP_FIELD = "field_map";
     public static final String DEFAULT_ANALYZER = "hf_model_tokenizer";
+    public static final String ANALYZER_FIELD = "analyzer";
 
     private Map<String, Object> fieldMap;
+    private String analyzer = DEFAULT_ANALYZER;
 
-    protected SemanticSearchRewriteProcessor(Map<String, Object> fieldMap, String tag, String description, boolean ignoreFailure) {
+    protected SemanticSearchRewriteProcessor(
+        String analyzer,
+        Map<String, Object> fieldMap,
+        String tag,
+        String description,
+        boolean ignoreFailure
+    ) {
         super(tag, description, ignoreFailure);
+        this.analyzer = StringUtils.isEmpty(analyzer) ? DEFAULT_ANALYZER : analyzer;
         this.fieldMap = fieldMap;
     }
 
@@ -93,7 +104,7 @@ public class SemanticSearchRewriteProcessor extends AbstractProcessor implements
         return new NeuralSparseQueryBuilder().boost(matchQueryBuilder.boost())
             .fieldName(mappedFieldName)
             .queryText(matchQueryBuilder.value().toString())
-            .analyzer(DEFAULT_ANALYZER);
+            .analyzer(this.analyzer);
     }
 
     private BoolQueryBuilder copyBoolQueryBuilder(BoolQueryBuilder boolQueryBuilder) {
@@ -167,7 +178,8 @@ public class SemanticSearchRewriteProcessor extends AbstractProcessor implements
             PipelineContext pipelineContext
         ) throws Exception {
             Map<String, Object> fieldMap = readMap(TYPE, tag, config, FIELD_MAP_FIELD);
-            return new SemanticSearchRewriteProcessor(fieldMap, tag, description, ignoreFailure);
+            String analyzer = readOptionalStringProperty(TYPE, tag, config, ANALYZER_FIELD);
+            return new SemanticSearchRewriteProcessor(analyzer, fieldMap, tag, description, ignoreFailure);
         }
     }
 }
