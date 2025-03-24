@@ -9,9 +9,9 @@ import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.Processor;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
-import org.opensearch.neuralsearch.processor.util.JLTransformer;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.opensearch.ingest.ConfigurationUtils.readStringProperty;
 
@@ -22,6 +22,7 @@ public class RewriteTokenProcessor extends AbstractProcessor {
     public static final String TYPE = "rewrite_token";
     public static final String TOKEN_FIELD_KEY = "token_field";
     public static final String CLUSTER_ID = "cluster_id";
+    public static final String SKETCH_TYPE = "sketch_type";
     private final String tokenField;
 
     protected RewriteTokenProcessor(String tag, String description, String tokenField) {
@@ -32,20 +33,20 @@ public class RewriteTokenProcessor extends AbstractProcessor {
     @Override
     public IngestDocument execute(IngestDocument ingestDocument) throws Exception {
         Map<String, Float> tokens = ingestDocument.getFieldValue(tokenField, Map.class);
-        String clusterId;
+        String clusterId, sketchType = null;
+        if (ingestDocument.hasField(SKETCH_TYPE)) {
+            sketchType = ingestDocument.getFieldValue(SKETCH_TYPE, String.class);
+        }
         if (ingestDocument.hasField(CLUSTER_ID)) {
             clusterId = ingestDocument.getFieldValue(CLUSTER_ID, String.class);
         } else {
-            JLTransformer transformer = JLTransformer.getInstance();
-            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, transformer::convertSketchVector);
-            int clusterIndex = DocumentClusterManager.getInstance().getTopCluster(sketch);
+            float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, sketchType);
+            int clusterIndex = DocumentClusterManager.getInstance().getTopCluster(sketch, sketchType);
             clusterId = DocumentClusterUtils.getClusterIdFromIndex(clusterIndex);
         }
         Map<String, Float> newTokens = tokens.entrySet()
             .stream()
-            .collect(
-                java.util.stream.Collectors.toMap(e -> DocumentClusterUtils.constructNewToken(e.getKey(), clusterId), Map.Entry::getValue)
-            );
+            .collect(Collectors.toMap(e -> DocumentClusterUtils.constructNewToken(e.getKey(), clusterId), Map.Entry::getValue));
         ingestDocument.setFieldValue(tokenField, newTokens);
 
         return ingestDocument;

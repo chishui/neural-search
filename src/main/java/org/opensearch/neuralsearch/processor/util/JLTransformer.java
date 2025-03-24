@@ -62,7 +62,7 @@ public class JLTransformer {
                     // Verify the size of file
                     int expectedSize = OUTPUT_DIMENSION * INPUT_DIMENSION * 4; // 4 bytes per float
                     if (matrixBytes.length != expectedSize) {
-                        System.err.println("Warning: File size doesn't match expected dimensions!");
+                        System.err.println("Warning: JL transformer file size doesn't match expected dimensions!");
                         System.err.println("Expected: " + expectedSize + " bytes");
                         System.err.println("Actual: " + matrixBytes.length + " bytes");
                     }
@@ -85,7 +85,7 @@ public class JLTransformer {
                 return null;
             });
         } catch (PrivilegedActionException e) {
-            System.err.println("Error jl transformer data: " + e.getMessage());
+            System.err.println("Error JL transformer data: " + e.getMessage());
             projectionMatrix = new float[0][0];
         } catch (OutOfMemoryError e) {
             System.err.println("Not enough memory to load projection matrix: " + e.getMessage());
