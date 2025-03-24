@@ -9,11 +9,21 @@ import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.RERANKER
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.opensearch.core.index.shard.ShardId;
+import org.opensearch.index.IndexModule;
+import org.opensearch.index.engine.Engine;
+import org.opensearch.index.mapper.Mapper;
+import org.opensearch.index.shard.IndexEventListener;
+import org.opensearch.index.shard.IndexShard;
+import org.opensearch.index.shard.IndexingOperationListener;
+import org.opensearch.neuralsearch.sparse.SparseTokensFieldMapper;
+import org.opensearch.plugins.MapperPlugin;
 import org.opensearch.transport.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
@@ -79,12 +89,20 @@ import lombok.extern.log4j.Log4j2;
  * Neural Search plugin class
  */
 @Log4j2
-public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, IngestPlugin, ExtensiblePlugin, SearchPipelinePlugin {
+public class NeuralSearch extends Plugin
+    implements
+        ActionPlugin,
+        SearchPlugin,
+        IngestPlugin,
+        ExtensiblePlugin,
+        SearchPipelinePlugin,
+        MapperPlugin {
     private MLCommonsClientAccessor clientAccessor;
     private NormalizationProcessorWorkflow normalizationProcessorWorkflow;
     private final ScoreNormalizationFactory scoreNormalizationFactory = new ScoreNormalizationFactory();
     private final ScoreCombinationFactory scoreCombinationFactory = new ScoreCombinationFactory();
     public static final String EXPLANATION_RESPONSE_KEY = "explanation_response";
+    private ClusterService clusterService;
 
     @Override
     public Collection<Object> createComponents(
@@ -100,6 +118,7 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
         final IndexNameExpressionResolver indexNameExpressionResolver,
         final Supplier<RepositoriesService> repositoriesServiceSupplier
     ) {
+        this.clusterService = clusterService;
         NeuralSearchClusterUtil.instance().initialize(clusterService);
         NeuralQueryBuilder.initialize(clientAccessor);
         NeuralSparseQueryBuilder.initialize(clientAccessor);
@@ -120,6 +139,11 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
         return List.of(HybridQueryExecutor.getExecutorBuilder(settings));
+    }
+
+    @Override
+    public Map<String, Mapper.TypeParser> getMappers() {
+        return Collections.singletonMap(SparseTokensFieldMapper.CONTENT_TYPE, SparseTokensFieldMapper.PARSER);
     }
 
     @Override
@@ -203,5 +227,22 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
                 parser -> RerankSearchExtBuilder.parse(parser)
             )
         );
+    }
+
+    @Override
+    public void onIndexModule(IndexModule indexModule) {
+        indexModule.addIndexOperationListener(new IndexingOperationListener() {
+            @Override
+            public Engine.Index preIndex(ShardId shardId, Engine.Index operation) {
+                return IndexingOperationListener.super.preIndex(shardId, operation);
+            }
+        });
+
+        indexModule.addIndexEventListener(new IndexEventListener() {
+            @Override
+            public void afterIndexShardCreated(IndexShard indexShard) {
+                IndexEventListener.super.afterIndexShardCreated(indexShard);
+            }
+        });
     }
 }
