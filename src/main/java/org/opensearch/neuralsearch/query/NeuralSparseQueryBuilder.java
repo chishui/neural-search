@@ -14,16 +14,19 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.lucene.document.FeatureField;
+import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.Version;
 import org.opensearch.index.mapper.NumberFieldMapper;
+import org.opensearch.index.query.TermsQueryBuilder;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
 import org.opensearch.transport.client.Client;
@@ -404,9 +407,37 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         ));
     }
 
-    private Query constructTermQueryWithClusterIds(QueryShardContext context, List<Integer> clusterIds) throws IOException {
-        Query query = NumberFieldMapper.NumberType.INTEGER.termsQuery("cluster_id", Collections.unmodifiableList(clusterIds), false, true);
-        return query;
+    private void constructTermQueryWithClusterIds(BooleanQuery.Builder builder, QueryShardContext context, List<Integer> clusterIds)
+        throws IOException {
+        final String FIELD_NAME = "cluster_id";
+        String clusterIdMethod = DocumentClusterManager.getInstance().getClusterIdMethod();
+        if (StringUtils.isEmpty(clusterIdMethod) || clusterIdMethod.equals("set")) {
+            builder.add(
+                NumberFieldMapper.NumberType.INTEGER.termsQuery(FIELD_NAME, Collections.unmodifiableList(clusterIds), false, true),
+                BooleanClause.Occur.FILTER
+            );
+        } else if (clusterIdMethod.equals("range")) {
+            BooleanQuery.Builder subBoolean = new BooleanQuery.Builder();
+            subBoolean.setMinimumNumberShouldMatch(1);
+            Integer lastId = clusterIds.get(0);
+            int step = 1;
+            for (int i = 1; i < clusterIds.size(); i++) {
+                Integer currentId = clusterIds.get(i);
+                if (currentId == lastId + step) {
+                    ++step;
+                    continue;
+                }
+                step = 1;
+                subBoolean.add(IntPoint.newRangeQuery(FIELD_NAME, lastId, clusterIds.get(i - 1)), BooleanClause.Occur.SHOULD);
+                lastId = currentId;
+            }
+            builder.add(subBoolean.build(), BooleanClause.Occur.FILTER);
+        } else if (clusterIdMethod.equals("keyword")) {
+            builder.add(
+                new TermsQueryBuilder(FIELD_NAME, clusterIds.stream().map(String::valueOf).collect(Collectors.toList())).toQuery(context),
+                BooleanClause.Occur.FILTER
+            );
+        }
     }
 
     @Override
@@ -418,8 +449,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (this.searchCluster) {
             // generate term query for cluster ids
             final List<Integer> clusterIds = getClusterIds(queryTokens);
-            Query termQuery = constructTermQueryWithClusterIds(context, clusterIds);
-            builder.add(termQuery, BooleanClause.Occur.FILTER);
+            constructTermQueryWithClusterIds(builder, context, clusterIds);
             builder.setMinimumNumberShouldMatch(1);
         }
 
