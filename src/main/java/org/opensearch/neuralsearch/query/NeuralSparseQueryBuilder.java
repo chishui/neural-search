@@ -425,7 +425,11 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
                 Integer currentId = clusterIds.get(i);
                 if (currentId == lastId + step) {
                     ++step;
-                    continue;
+                    if (i == clusterIds.size() - 1) {
+                        ++i;
+                    } else {
+                        continue;
+                    }
                 }
                 step = 1;
                 subBoolean.add(IntPoint.newRangeQuery(FIELD_NAME, lastId, clusterIds.get(i - 1)), BooleanClause.Occur.SHOULD);
