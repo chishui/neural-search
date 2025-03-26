@@ -36,14 +36,15 @@ public class RewriteTokenProcessor extends AbstractProcessor {
     public IngestDocument execute(IngestDocument ingestDocument) throws Exception {
         Map<String, Float> tokens = ingestDocument.getFieldValue(tokenField, Map.class);
         Integer clusterId = null;
-        if (ingestDocument.hasField(CLUSTER_ID)) {
-            clusterId = ingestDocument.getFieldValue(CLUSTER_ID, Integer.class);
-        } else {
+        if (!ingestDocument.hasField(CLUSTER_ID)) {
             float[] sketch = DocumentClusterUtils.sparseToDense(tokens, 30109, this.sketchType);
             clusterId = DocumentClusterManager.getInstance().getTopCluster(sketch, this.sketchType);
+            if ("keyword".equals(DocumentClusterManager.getInstance().getClusterIdMethod())) {
+                ingestDocument.setFieldValue(CLUSTER_ID, String.valueOf(clusterId));
+            } else {
+                ingestDocument.setFieldValue(CLUSTER_ID, clusterId);
+            }
         }
-        ingestDocument.setFieldValue(CLUSTER_ID, clusterId);
-
         return ingestDocument;
     }
 
