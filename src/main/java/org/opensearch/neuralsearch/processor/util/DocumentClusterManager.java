@@ -4,6 +4,9 @@
  */
 package org.opensearch.neuralsearch.processor.util;
 
+import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -20,12 +23,16 @@ import static org.apache.lucene.util.VectorUtil.dotProduct;
 /**
  * Helper class with cluster representatives and assignments. Often used to getTopClusters from a query sketch.
  */
+@Log4j2
 public class DocumentClusterManager {
 
     private int totalDocCounts; // total number of documents within the index
     private int[] clusterDocCounts; // number of documents across each cluster, both jl and sinnamon share the same assignment
     private float[][] jlClusterRepresentatives; // an array of jl sketch vectors indicating the center of each cluster
     private float[][] sinnamonClusterRepresentatives; // an array of sinnamon sketch vectors indicating the center of each cluster
+
+    @Getter
+    private String clusterIdMethod;
 
     // Resource paths relative to classpath
     public static final int SKETCH_SIZE = 1024;
@@ -45,6 +52,8 @@ public class DocumentClusterManager {
         clusterDocCounts = loadClusterAssignment();
         jlClusterRepresentatives = loadClusterRepresentative(JL_CLUSTER_REPRESENTATIVE_RESOURCE);
         sinnamonClusterRepresentatives = loadClusterRepresentative(SINNAMON_CLUSTER_REPRESENTATIVE_RESOURCE);
+        clusterIdMethod = System.getProperty("ann.clusterid");
+        log.info("cluster id method: {}", clusterIdMethod);
     }
 
     // lazy load
