@@ -421,11 +421,12 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             subBoolean.setMinimumNumberShouldMatch(1);
             Integer lastId = clusterIds.get(0);
             int step = 1;
-            for (int i = 1; i < clusterIds.size(); i++) {
+            int clusterSize = clusterIds.size();
+            for (int i = 1; i < clusterSize; i++) {
                 Integer currentId = clusterIds.get(i);
                 if (currentId == lastId + step) {
                     ++step;
-                    if (i == clusterIds.size() - 1) {
+                    if (i == clusterSize - 1) {
                         ++i;
                     } else {
                         continue;
