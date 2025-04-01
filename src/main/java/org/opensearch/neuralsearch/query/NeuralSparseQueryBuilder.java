@@ -6,7 +6,7 @@ package org.opensearch.neuralsearch.query;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,9 +24,10 @@ import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermInSetQuery;
+import org.apache.lucene.util.BytesRef;
 import org.opensearch.Version;
 import org.opensearch.client.Client;
-import org.opensearch.index.mapper.NumberFieldMapper;
 import org.opensearch.index.query.TermsQueryBuilder;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterManager;
 import org.opensearch.neuralsearch.processor.util.DocumentClusterUtils;
@@ -412,8 +413,12 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         final String FIELD_NAME = "cluster_id";
         String clusterIdMethod = DocumentClusterManager.getInstance().getClusterIdMethod();
         if (StringUtils.isEmpty(clusterIdMethod) || clusterIdMethod.equals("set")) {
+            Collection<BytesRef> bytesRefs = clusterIds.stream()
+                .map(integer -> new BytesRef(Integer.toString(integer)))
+                .collect(Collectors.toList());
             builder.add(
-                NumberFieldMapper.NumberType.INTEGER.termsQuery(FIELD_NAME, Collections.unmodifiableList(clusterIds), false, true),
+                // NumberFieldMapper.NumberType.INTEGER.termsQuery(FIELD_NAME, Collections.unmodifiableList(clusterIds), false, true),
+                new TermInSetQuery(FIELD_NAME, bytesRefs),
                 BooleanClause.Occur.FILTER
             );
         } else if (clusterIdMethod.equals("range")) {

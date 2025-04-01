@@ -143,7 +143,9 @@ public class NeuralSearch extends Plugin implements ActionPlugin, SearchPlugin, 
             TextImageEmbeddingProcessor.TYPE,
             new TextImageEmbeddingProcessorFactory(clientAccessor, parameters.env, parameters.ingestService.getClusterService()),
             TextChunkingProcessor.TYPE,
-            new TextChunkingProcessorFactory(parameters.env, parameters.ingestService.getClusterService(), parameters.analysisRegistry)
+            new TextChunkingProcessorFactory(parameters.env, parameters.ingestService.getClusterService(), parameters.analysisRegistry),
+            RewriteTokenProcessor.TYPE,
+            new RewriteTokenProcessor.Factory()
         );
     }
 
