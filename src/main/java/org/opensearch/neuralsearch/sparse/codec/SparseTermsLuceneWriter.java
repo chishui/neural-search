@@ -6,6 +6,8 @@ package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.codecs.BlockTermState;
+import org.apache.lucene.codecs.BlockTermState;
+import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;

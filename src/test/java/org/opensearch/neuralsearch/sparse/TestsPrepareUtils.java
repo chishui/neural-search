@@ -42,6 +42,8 @@ import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.tests.analysis.MockAnalyzer;
+import org.apache.lucene.util.Bits;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.StringHelper;
@@ -64,6 +66,10 @@ import java.util.concurrent.Executors;
 import static org.apache.lucene.tests.util.LuceneTestCase.random;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.FilterLeafReader;
+import org.apache.lucene.index.FilterDirectoryReader;
 
 public class TestsPrepareUtils {
 

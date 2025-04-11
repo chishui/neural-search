@@ -48,6 +48,10 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.apache.lucene.index.NumericDocValues;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
 
@@ -96,7 +100,6 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         // configure mocks
         mockWriteState = TestsPrepareUtils.prepareSegmentWriteState(mockSegmentInfo);
         when(mockFieldInfo.attributes()).thenReturn(prepareAttributes(true, 10, 0.1f, -1, 0.4f));
-
         when(mockSegmentInfo.getCodec()).thenReturn(mockCodec);
         when(mockCodec.docValuesFormat()).thenReturn(mockDocValuesFormat);
         when(mockDocValuesFormat.fieldsProducer(any(SegmentReadState.class))).thenReturn(mockDocValuesProducer);
@@ -209,6 +212,10 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         verify(mockIndexOutput, atLeastOnce()).writeVLong(anyLong());
     }
 
+    /**
+     * Test case for startDoc method with a valid docID.
+     * This test verifies that the method correctly handles a non-negative docID.
+     */
     @SneakyThrows
     public void test_startDoc_withValidDocId() {
         clusteredPostingTermsWriter.startDoc(1, 10);

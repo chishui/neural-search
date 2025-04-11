@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 
 import static org.opensearch.action.support.IndicesOptions.strictExpandOpen;
+import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
 /**
  * RestHandler for SEISMIC Clear Cache API.

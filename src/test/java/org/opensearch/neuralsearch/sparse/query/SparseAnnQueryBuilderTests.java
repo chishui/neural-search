@@ -4,44 +4,30 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
-import org.apache.lucene.search.Query;
-import org.junit.Before;
-import org.mockito.MockitoAnnotations;
-import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.core.common.ParsingException;
-import org.opensearch.core.common.io.stream.StreamOutput;
-import org.opensearch.core.xcontent.XContentBuilder;
-import org.opensearch.core.xcontent.XContentParser;
-import org.opensearch.index.mapper.MappedFieldType;
-import org.opensearch.index.query.BoolQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.index.query.QueryShardContext;
-import org.opensearch.index.query.TermQueryBuilder;
-import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
-
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
+import org.junit.Before;
+import org.mockito.MockitoAnnotations;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.ParsingException;
+import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.index.mapper.MappedFieldType;
+import org.opensearch.index.query.QueryShardContext;
+import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 public class SparseAnnQueryBuilderTests extends AbstractSparseTestBase {
-    private SparseAnnQueryBuilder queryBuilder;
-    private Map<String, Float> queryTokens;
-    private static final String MATCH_TERM_FIELD = "field";
-    private static final String MATCH_TERM = "text";
-    private static final int CUT = 2;
-    private static final int K = 10;
-    private static final float HEAP_FACTOR = 1.5f;
-    private QueryBuilder filter;
-    private QueryBuilder unequalFilter;
+    private static SparseAnnQueryBuilder queryBuilder;
+    private static Map<String, Float> queryTokens;
 
     @Before
     @Override

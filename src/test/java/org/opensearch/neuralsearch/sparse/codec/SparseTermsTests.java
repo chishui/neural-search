@@ -40,6 +40,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
     private SparseTermsLuceneReader mockReader;
 
     private CacheKey cacheKey;
+
     private Set<BytesRef> terms;
     private SparseTerms sparseTerms;
 
