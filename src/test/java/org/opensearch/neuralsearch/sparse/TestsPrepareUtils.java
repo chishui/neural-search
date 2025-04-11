@@ -42,6 +42,7 @@ import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.tests.analysis.MockAnalyzer;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.StringHelper;
@@ -62,8 +63,13 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 
 import static org.apache.lucene.tests.util.LuceneTestCase.random;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.FilterLeafReader;
+import org.apache.lucene.index.FilterDirectoryReader;
 
 public class TestsPrepareUtils {
 
@@ -292,6 +298,143 @@ public class TestsPrepareUtils {
             false                      // needsIndexSort
         );
         return mergeState;
+    }
+
+    /**
+     * Creates a MergeState with mocked BinaryDocValues
+     */
+    public static MergeState prepareMergeStateWithMockedBinaryDocValues(boolean withLiveDocs, boolean nullLiveDocs) throws IOException {
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
+        // Create a DocValuesProducer that returns mocked BinaryDocValues
+        DocValuesProducer docValuesProducer = prepareDocValuesProducer(prepareBinaryDocValues());
+
+        DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
+        docValuesProducers[0] = docValuesProducer;
+
+        // Create FieldInfos
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        FieldInfos[] fieldInfosArray = new FieldInfos[1];
+        fieldInfosArray[0] = fieldInfos;
+
+        // Create FieldsProducer
+        FieldsProducer fieldsProducer = TestsPrepareUtils.prepareFieldsProducer();
+        FieldsProducer[] fieldsProducers = new FieldsProducer[1];
+        fieldsProducers[0] = fieldsProducer;
+
+        // Create live docs if needed
+        Bits[] liveDocs = new Bits[1];
+        if (withLiveDocs) {
+            liveDocs[0] = new Bits() {
+                @Override
+                public boolean get(int index) {
+                    return index % 2 == 0; // Only even document IDs are live
+                }
+
+                @Override
+                public int length() {
+                    return 10;
+                }
+            };
+        } else {
+            liveDocs[0] = null;
+        }
+        if (nullLiveDocs) {
+            liveDocs = null;
+        }
+
+        // Create MergeState
+        return new MergeState(
+            docMaps,
+            segmentInfo,
+            fieldInfos,                // mergeFieldInfos
+            null,                      // storedFieldsReaders
+            null,                      // termVectorsReaders
+            null,                      // normsProducers
+            docValuesProducers,        // docValuesProducers
+            fieldInfosArray,           // fieldInfos
+            liveDocs,                  // liveDocs
+            fieldsProducers,           // fieldsProducers
+            null,                      // pointsReaders
+            null,                      // knnVectorsReaders
+            new int[] { 10 },          // maxDocs
+            null,                      // infoStream
+            null,                      // executor
+            false                      // needsIndexSort
+        );
+    }
+
+    /**
+     * Creates a MergeState with SparseBinaryDocValuesPassThrough
+     */
+    public static MergeState prepareMergeStateWithPassThroughValues(boolean withLiveDocs) throws IOException {
+        FieldInfo fieldInfo = prepareKeyFieldInfo();
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
+        // Create a mocked BinaryDocValues
+        BinaryDocValues mockBinaryDocValues = TestsPrepareUtils.prepareBinaryDocValues();
+
+        // Create a SparseBinaryDocValuesPassThrough
+        SparseBinaryDocValuesPassThrough passThrough = new SparseBinaryDocValuesPassThrough(mockBinaryDocValues, segmentInfo);
+
+        // Create a DocValuesProducer that returns the passThrough
+        DocValuesProducer mockProducer = mock(DocValuesProducer.class);
+        when(mockProducer.getBinary(any(FieldInfo.class))).thenReturn(passThrough);
+
+        DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
+        docValuesProducers[0] = mockProducer;
+
+        // Create FieldInfos
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { fieldInfo });
+        FieldInfos[] fieldInfosArray = new FieldInfos[1];
+        fieldInfosArray[0] = fieldInfos;
+
+        // Create FieldsProducer
+        FieldsProducer fieldsProducer = TestsPrepareUtils.prepareFieldsProducer();
+        FieldsProducer[] fieldsProducers = new FieldsProducer[1];
+        fieldsProducers[0] = fieldsProducer;
+
+        // Create live docs if needed
+        Bits[] liveDocs = new Bits[1];
+        if (withLiveDocs) {
+            liveDocs[0] = new Bits() {
+                @Override
+                public boolean get(int index) {
+                    return index % 2 == 0; // Only even document IDs are live
+                }
+
+                @Override
+                public int length() {
+                    return 10;
+                }
+            };
+        } else {
+            liveDocs[0] = null;
+        }
+
+        // Create MergeState
+        return new MergeState(
+            docMaps,
+            segmentInfo,
+            fieldInfos,                // mergeFieldInfos
+            null,                      // storedFieldsReaders
+            null,                      // termVectorsReaders
+            null,                      // normsProducers
+            docValuesProducers,        // docValuesProducers
+            fieldInfosArray,           // fieldInfos
+            liveDocs,                  // liveDocs
+            fieldsProducers,           // fieldsProducers
+            null,                      // pointsReaders
+            null,                      // knnVectorsReaders
+            new int[] { 10 },          // maxDocs
+            null,                      // infoStream
+            null,                      // executor
+            false                      // needsIndexSort
+        );
     }
 
     public static IndexableFieldType prepareIndexableFieldType() {
