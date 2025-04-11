@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.util;
 
 import lombok.NonNull;
+import lombok.Getter;
 import org.opensearch.Version;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -27,10 +28,12 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Log4j2
 public class NeuralSearchClusterUtil {
-    private ClusterService clusterService;
     private IndexNameExpressionResolver indexNameExpressionResolver;
 
     private static NeuralSearchClusterUtil instance;
+
+    @Getter
+    private ClusterService clusterService;
 
     /**
      * Return instance of the cluster context, must be initialized first for proper usage
