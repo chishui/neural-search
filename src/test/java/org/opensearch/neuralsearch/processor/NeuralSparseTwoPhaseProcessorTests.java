@@ -10,6 +10,7 @@ import org.opensearch.action.search.SearchRequest;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
+import org.opensearch.neuralsearch.NeuralSearchTests;
 import org.opensearch.neuralsearch.query.NeuralQueryBuilder;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
@@ -18,7 +19,6 @@ import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.rescore.QueryRescorerBuilder;
-import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 import static org.opensearch.neuralsearch.util.NeuralSearchClusterTestUtils.setUpClusterService;
 
-public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
+public class NeuralSparseTwoPhaseProcessorTests extends NeuralSearchTests {
     static final private String PARAMETER_KEY = "two_phase_parameter";
     static final private String ENABLE_KEY = "enabled";
     static final private String EXPANSION_KEY = "expansion_rate";

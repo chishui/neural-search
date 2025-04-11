@@ -24,7 +24,6 @@ import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -37,6 +36,7 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
     private List<DocumentCluster> testClusters;
     private ClusteredPostingCacheItem cacheItem;
     private RamBytesRecorder globalRecorder;
+    private LruTermCache lruTermCache;
 
     /**
      * Set up the test environment before each test.
@@ -51,7 +51,8 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
         globalRecorder = mock(RamBytesRecorder.class);
         when(globalRecorder.record(anyLong())).thenReturn(true);
         CacheKey cacheKey = prepareUniqueCacheKey(TestsPrepareUtils.prepareSegmentInfo());
-        cacheItem = new ClusteredPostingCacheItem(cacheKey, globalRecorder);
+        lruTermCache = mock(LruTermCache.class);
+        cacheItem = new ClusteredPostingCacheItem(cacheKey, globalRecorder, lruTermCache);
     }
 
     public void test_constructor() {

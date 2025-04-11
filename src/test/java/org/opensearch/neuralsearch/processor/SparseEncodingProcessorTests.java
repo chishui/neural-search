@@ -36,6 +36,7 @@ import org.opensearch.neuralsearch.processor.factory.SparseEncodingProcessorFact
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.util.TestUtils;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.transport.client.OpenSearchClient;
 

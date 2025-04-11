@@ -807,6 +807,7 @@ public abstract class InferenceProcessor extends AbstractBatchingProcessor {
         MLAlgoParams mlAlgoParams,
         BiConsumer<IngestDocument, Exception> handler
     ) {
+
         mlCommonsClientAccessor.inferenceSentencesWithMapResult(
             TextInferenceRequest.builder().modelId(this.modelId).inputTexts(inferenceList).build(),
             mlAlgoParams,

@@ -72,6 +72,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.FilterLeafReader;
+import org.apache.lucene.index.FilterDirectoryReader;
+
 public class TestsPrepareUtils {
 
     private final static String fieldName = "test_field";

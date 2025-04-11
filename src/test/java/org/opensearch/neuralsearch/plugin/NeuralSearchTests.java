@@ -63,6 +63,8 @@ import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
 import java.util.Optional;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.plugins.SearchPipelinePlugin;
 import org.opensearch.plugins.SearchPlugin;
 import org.opensearch.plugins.SearchPlugin.SearchExtSpec;
@@ -74,6 +76,8 @@ import org.opensearch.search.pipeline.SearchResponseProcessor;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
+import org.mockito.ArgumentCaptor;
+import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
 
 public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
