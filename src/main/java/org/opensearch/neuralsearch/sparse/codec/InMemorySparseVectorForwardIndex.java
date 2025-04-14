@@ -4,8 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
-import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
@@ -15,23 +13,21 @@ import java.util.Map;
 
 public class InMemorySparseVectorForwardIndex implements SparseVectorForwardIndex {
 
-    private static Map<SegmentInfo, InMemorySparseVectorForwardIndex> forwardIndexMap = new HashMap<>();
+    private static Map<IndexKey, InMemorySparseVectorForwardIndex> forwardIndexMap = new HashMap<>();
 
-    public static InMemorySparseVectorForwardIndex getOrCreate(SegmentWriteState state) {
-        SegmentInfo segmentInfo = state.segmentInfo;
-        if (forwardIndexMap.containsKey(segmentInfo)) {
-            return forwardIndexMap.get(segmentInfo);
+    public static InMemorySparseVectorForwardIndex getOrCreate(IndexKey key) {
+        if (forwardIndexMap.containsKey(key)) {
+            return forwardIndexMap.get(key);
         }
         InMemorySparseVectorForwardIndex inMemorySparseVectorForwardIndex = new InMemorySparseVectorForwardIndex();
-        forwardIndexMap.put(segmentInfo, inMemorySparseVectorForwardIndex);
+        forwardIndexMap.put(key, inMemorySparseVectorForwardIndex);
         return inMemorySparseVectorForwardIndex;
     }
 
-    public static void removeIndex(SegmentInfo segmentInfo) {
-        forwardIndexMap.remove(segmentInfo);
+    public static void removeIndex(IndexKey key) {
+        forwardIndexMap.remove(key);
     }
 
-    //
     private Map<Integer, SparseVector> sparseVectorMap = new HashMap<>();
 
     public InMemorySparseVectorForwardIndex() {}

@@ -47,12 +47,17 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
             SparseDocValuesReader reader = (SparseDocValuesReader) valuesProducer;
             for (DocValuesProducer producer : reader.getMergeState().docValuesProducers) {
                 SparseDocValuesProducer sparseDocValuesProducer = (SparseDocValuesProducer) producer;
-                SparseVectorForwardIndex.removeIndex(sparseDocValuesProducer.getState().segmentInfo);
+                SparseVectorForwardIndex.IndexKey key = new SparseVectorForwardIndex.IndexKey(
+                    sparseDocValuesProducer.getState().segmentInfo,
+                    field
+                );
+                SparseVectorForwardIndex.removeIndex(key);
             }
         }
         BinaryDocValues binaryDocValues = valuesProducer.getBinary(field);
         int docId;
-        SparseVectorForwardIndex index = SparseVectorForwardIndex.getOrCreate(this.state);
+        SparseVectorForwardIndex.IndexKey key = new SparseVectorForwardIndex.IndexKey(this.state.segmentInfo, field);
+        SparseVectorForwardIndex index = SparseVectorForwardIndex.getOrCreate(key);
         SparseVectorForwardIndex.SparseVectorForwardIndexWriter writer = index.getForwardIndexWriter();
         while ((docId = binaryDocValues.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
             BytesRef bytesRef = binaryDocValues.binaryValue();

@@ -4,8 +4,9 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.AllArgsConstructor;
+import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.index.SegmentWriteState;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 public interface SparseVectorForwardIndex extends ForwardIndex {
@@ -23,11 +24,22 @@ public interface SparseVectorForwardIndex extends ForwardIndex {
         void write(int docId, SparseVector vector);
     }
 
-    static SparseVectorForwardIndex getOrCreate(SegmentWriteState state) {
-        return InMemorySparseVectorForwardIndex.getOrCreate(state);
+    static SparseVectorForwardIndex getOrCreate(IndexKey key) {
+        return InMemorySparseVectorForwardIndex.getOrCreate(key);
     }
 
-    static void removeIndex(SegmentInfo segmentInfo) {
-        InMemorySparseVectorForwardIndex.removeIndex(segmentInfo);
+    static void removeIndex(IndexKey key) {
+        InMemorySparseVectorForwardIndex.removeIndex(key);
+    }
+
+    @AllArgsConstructor
+    public static class IndexKey {
+        private SegmentInfo segmentInfo;
+        private FieldInfo fieldInfo;
+
+        @Override
+        public int hashCode() {
+            return segmentInfo.hashCode() + fieldInfo.name.hashCode();
+        }
     }
 }
