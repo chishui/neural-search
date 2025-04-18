@@ -27,6 +27,6 @@ public class SparsePostingsFormat extends PostingsFormat {
 
     @Override
     public FieldsProducer fieldsProducer(SegmentReadState state) throws IOException {
-        return delegate.fieldsProducer(state);
+        return new SparsePostingsProducer(this.delegate.fieldsProducer(state), state);
     }
 }

@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.mapper;
 
 import lombok.Getter;
 import lombok.NonNull;
+import org.apache.lucene.document.FeatureField;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
@@ -15,7 +16,6 @@ import org.opensearch.index.mapper.FieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
-import org.opensearch.neuralsearch.sparse.SparseTokenField;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 
 import java.io.ByteArrayOutputStream;
@@ -164,9 +164,9 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                                 + "] in the same document"
                         );
                     }
-                    SparseTokenField featureField = new SparseTokenField(name(), value, this.tokenFieldType);
+                    FeatureField featureField = new FeatureField(name(), feature, value);// this.tokenFieldType);
                     context.doc().addWithKey(key, featureField);
-                    oos.writeObject(key);
+                    oos.writeObject(feature);
                     oos.writeFloat(value);
                 } else {
                     throw new IllegalArgumentException(
@@ -178,6 +178,7 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                     );
                 }
             }
+            oos.flush();
             context.doc().add(new SparseTokensField(name(), baos.toByteArray(), fieldType));
         }
     }
@@ -191,6 +192,7 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
             FIELD_TYPE.putAttribute(SparseTokensField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
             FIELD_TYPE.freeze();
             TOKEN_FIELD_TYPE.setTokenized(false);
+            TOKEN_FIELD_TYPE.setOmitNorms(true);
             TOKEN_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS);
             TOKEN_FIELD_TYPE.putAttribute(SparseTokensField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
             TOKEN_FIELD_TYPE.freeze();

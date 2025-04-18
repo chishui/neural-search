@@ -10,9 +10,9 @@ import org.apache.lucene.index.IndexableFieldType;
 public class SparseTokenField extends Field {
     private float tokenValue;
 
-    public SparseTokenField(String key, float value, IndexableFieldType type) {
-        super(key, type);
+    public SparseTokenField(String fieldName, String key, float value, IndexableFieldType type) {
+        super(fieldName, type);
         this.tokenValue = value;
-        this.fieldsData = value;
+        this.fieldsData = key;
     }
 }
