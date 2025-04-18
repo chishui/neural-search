@@ -58,20 +58,18 @@ public class SparsePostingsConsumer extends FieldsConsumer {
                 continue;
             }
 
+            ClusteredPostingTermsWriter clusteredPostingTermsWriter = new ClusteredPostingTermsWriter(
+                this.state,
+                this.state.fieldInfos.fieldInfo(field)
+            );
+
             TermsEnum termsEnum = terms.iterator();
-            // Lucene90BlockTreeTermsWriter.TermsWriter termsWriter = new
-            // Lucene90BlockTreeTermsWriter.TermsWriter(fieldInfos.fieldInfo(field));
             while (true) {
                 BytesRef term = termsEnum.next();
-                // if (DEBUG) System.out.println("BTTW: next term " + term);
-
                 if (term == null) {
                     break;
                 }
-
-                // if (DEBUG) System.out.println("write field=" + fieldInfo.name + " term=" +
-                // ToStringUtils.bytesRefToString(term));
-                // termsWriter.write(term, termsEnum, norms);
+                clusteredPostingTermsWriter.write(term, termsEnum, norms);
             }
 
             // termsWriter.finish();
