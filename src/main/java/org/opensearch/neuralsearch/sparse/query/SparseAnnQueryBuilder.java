@@ -53,7 +53,6 @@ import lombok.experimental.Accessors;
  * or SPARSE_TOKENIZE model to produce a Map with String keys and Float values for input text. Then it will be transformed
  * to Lucene FeatureQuery wrapped by Lucene BooleanQuery.
  */
-
 @Getter
 @Setter
 @Accessors(chain = true, fluent = true)

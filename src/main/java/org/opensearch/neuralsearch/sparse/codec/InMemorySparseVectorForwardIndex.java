@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * InMemorySparseVectorForwardIndex is used to store/read sparse vector in memory
+ */
 public class InMemorySparseVectorForwardIndex implements SparseVectorForwardIndex {
 
     private static Map<InMemoryKey.IndexKey, InMemorySparseVectorForwardIndex> forwardIndexMap = new HashMap<>();

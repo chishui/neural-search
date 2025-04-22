@@ -18,6 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Sparse vector implementation, which is a list of (token, freq) pairs
+ */
 public class SparseVector implements Iterator<SparseVector.Item> {
     private final int size;
     // tokens will be stored in order

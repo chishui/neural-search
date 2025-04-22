@@ -15,14 +15,19 @@ import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Set;
 
+/**
+ * Sparse terms implementation
+ */
 @Getter
 public class SparseTerms extends Terms {
 
     private final InMemoryClusteredPosting.InMemoryClusteredPostingReader reader;
     private final InMemoryKey.IndexKey indexKey;
 
-    public SparseTerms(Terms delegate, InMemoryClusteredPosting.InMemoryClusteredPostingReader reader, InMemoryKey.IndexKey indexKey) {
+    public SparseTerms(InMemoryClusteredPosting.InMemoryClusteredPostingReader reader, InMemoryKey.IndexKey indexKey) {
         this.reader = reader;
         this.indexKey = indexKey;
     }
@@ -75,6 +80,14 @@ public class SparseTerms extends Terms {
 
     class SparseTermsEnum extends BaseTermsEnum {
         private BytesRef currentTerm;
+        private final Set<BytesRef> terms;
+        // iterator now only used for next()
+        private Iterator<BytesRef> termIterator;
+
+        SparseTermsEnum() {
+            terms = reader.getTerms();
+            termIterator = terms.iterator();
+        }
 
         @Override
         public SeekStatus seekCeil(BytesRef text) throws IOException {
@@ -117,7 +130,6 @@ public class SparseTerms extends Terms {
             }
             PostingClusters clusters = reader.read(currentTerm);
             if (clusters != null) {
-                clusters.reset();
                 return new SparsePostingsEnum(reader.read(currentTerm), indexKey);
             }
             return null;
@@ -130,7 +142,12 @@ public class SparseTerms extends Terms {
 
         @Override
         public BytesRef next() throws IOException {
-            throw new UnsupportedOperationException();
+            if (!termIterator.hasNext()) {
+                this.currentTerm = null;
+                return null;
+            }
+            this.currentTerm = termIterator.next();
+            return this.currentTerm;
         }
     }
 }

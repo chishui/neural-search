@@ -6,34 +6,48 @@ package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.Getter;
 import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 
 import java.io.IOException;
 
+/**
+ * PostingsEnum for sparse vector
+ */
 public class SparsePostingsEnum extends PostingsEnum {
     private final PostingClusters clusters;
     @Getter
     private final InMemoryKey.IndexKey indexKey;
-    private int currentCluster = -1;
+    private IteratorWrapper<DocumentCluster> currentCluster;
+    private DocFreqIterator currentDocFreq;
 
     public SparsePostingsEnum(PostingClusters clusters, InMemoryKey.IndexKey indexKey) {
         this.clusters = clusters;
         this.indexKey = indexKey;
+        currentCluster = clusterIterator();
+        positionIterators();
     }
 
-    public DocumentCluster nextCluster() {
-        if (currentCluster == NO_MORE_DOCS) {
-            return null;
+    private void positionIterators() {
+        if (currentDocFreq == null && currentCluster != null) {
+            currentDocFreq = currentCluster.next().getDisi();
         }
-        if (currentCluster + 1 >= clusters.getClusters().size()) {
-            currentCluster = NO_MORE_DOCS;
-            return null;
+        while (currentDocFreq.docID() == DocIdSetIterator.NO_MORE_DOCS) {
+            if (!currentCluster.hasNext()) {
+                break;
+            }
+            currentDocFreq = currentCluster.next().getDisi();
         }
-        ++currentCluster;
-        return clusters.getClusters().get(currentCluster);
+    }
+
+    public IteratorWrapper<DocumentCluster> clusterIterator() {
+        return new IteratorWrapper<DocumentCluster>(this.clusters.iterator());
     }
 
     @Override
@@ -63,25 +77,30 @@ public class SparsePostingsEnum extends PostingsEnum {
 
     @Override
     public int docID() {
-        if (currentCluster == NO_MORE_DOCS) {
-            return NO_MORE_DOCS;
-        }
-        if (currentCluster == -1) {
+        if (currentDocFreq == null) {
             return -1;
         }
-        return clusters.getClusters().get(currentCluster).getDisi().docID();
+        return currentDocFreq.docID();
     }
 
     @Override
     public int nextDoc() throws IOException {
-        // call nextCluster before start to call nextDoc
-        if (currentCluster == NO_MORE_DOCS) {
-            return NO_MORE_DOCS;
-        }
-        if (currentCluster == -1) {
+        if (currentDocFreq == null) {
             return -1;
         }
-        return clusters.getClusters().get(currentCluster).getDisi().nextDoc();
+        int doc = currentDocFreq.nextDoc();
+        if (doc == DocIdSetIterator.NO_MORE_DOCS) {
+            positionIterators();
+            return currentDocFreq.nextDoc();
+        }
+        return doc;
+    }
+
+    public DocFreq docFreq() {
+        if (currentDocFreq == null) {
+            return null;
+        }
+        return currentDocFreq.docFreq();
     }
 
     @Override

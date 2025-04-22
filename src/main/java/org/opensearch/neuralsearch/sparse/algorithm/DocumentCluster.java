@@ -4,19 +4,75 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.lucene.search.DocIdSetIterator;
+import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Class to represent a document cluster
+ */
 @Getter
 @Setter
-@AllArgsConstructor(access = AccessLevel.PUBLIC)
 public class DocumentCluster {
     private SparseVector summary;
-    private DocIdSetIterator disi;
+    private final List<DocFreq> docs;
     // if true, docs in this cluster should always be examined
     private boolean shouldNotSkip;
+
+    public DocumentCluster(SparseVector summary, List<DocFreq> docs, boolean shouldNotSkip) {
+        this.summary = summary;
+        List<DocFreq> docsCopy = new ArrayList<>(docs);
+        docsCopy.sort((a, b) -> Integer.compare(a.getDocID(), b.getDocID()));
+        this.docs = Collections.unmodifiableList(docsCopy);
+        this.shouldNotSkip = shouldNotSkip;
+    }
+
+    public DocFreqIterator getDisi() {
+        return new DocFreqIterator() {
+            final IteratorWrapper<DocFreq> wrapper = new IteratorWrapper(docs.iterator());
+
+            @Override
+            public DocFreq docFreq() {
+                return wrapper.getCurrent();
+            }
+
+            @Override
+            public float freq() {
+                return wrapper.getCurrent().getFreq();
+            }
+
+            @Override
+            public int docID() {
+                if (wrapper.getCurrent() == null) {
+                    return -1;
+                }
+                return wrapper.getCurrent().getDocID();
+            }
+
+            @Override
+            public int nextDoc() {
+                if (wrapper.hasNext()) {
+                    return wrapper.next().getDocID();
+                }
+                return NO_MORE_DOCS;
+            }
+
+            @Override
+            public int advance(int target) {
+                return 0;
+            }
+
+            @Override
+            public long cost() {
+                return 0;
+            }
+        };
+    }
 }

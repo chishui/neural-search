@@ -16,6 +16,9 @@ import org.apache.lucene.util.Bits;
 
 import java.io.IOException;
 
+/**
+ * Weight class for SparseVectorQuery
+ */
 public class SparseQueryWeight extends Weight {
 
     public SparseQueryWeight(SparseVectorQuery query) {

@@ -18,6 +18,9 @@ import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
 
+/**
+ * A DocValuesConsumer that writes sparse doc values to a segment.
+ */
 public class SparseDocValuesConsumer extends DocValuesConsumer {
     private final DocValuesConsumer delegate;
     private final SegmentWriteState state;

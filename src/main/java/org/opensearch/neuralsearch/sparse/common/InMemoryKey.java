@@ -9,6 +9,9 @@ import lombok.AllArgsConstructor;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
 
+/**
+ * Key for in-memory sparse vector forward index
+ */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class InMemoryKey {
     public static class IndexKey {

@@ -5,20 +5,27 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import org.apache.lucene.codecs.FieldsConsumer;
+import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.codecs.NormsProducer;
+import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.FilterLeafReader;
+import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
+import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * This class is responsible for writing sparse postings to the index
+ */
 public class SparsePostingsConsumer extends FieldsConsumer {
     private final FieldsConsumer delegate;
     private final SegmentWriteState state;
@@ -40,13 +47,15 @@ public class SparsePostingsConsumer extends FieldsConsumer {
                 sparseFields.add(field);
             }
         }
-        Fields maskedFields = new FilterLeafReader.FilterFields(fields) {
-            @Override
-            public Iterator<String> iterator() {
-                return nonSparseFields.iterator();
-            }
-        };
-        this.delegate.write(maskedFields, norms);
+        if (!nonSparseFields.isEmpty()) {
+            Fields maskedFields = new FilterLeafReader.FilterFields(fields) {
+                @Override
+                public Iterator<String> iterator() {
+                    return nonSparseFields.iterator();
+                }
+            };
+            this.delegate.write(maskedFields, norms);
+        }
 
         String lastField = null;
         for (String field : sparseFields) {
@@ -74,6 +83,31 @@ public class SparsePostingsConsumer extends FieldsConsumer {
 
             // termsWriter.finish();
         }
+    }
+
+    private void clearInMemoryPostings(MergeState mergeState) {
+        for (int readerIndex = 0; readerIndex < mergeState.fieldsProducers.length; readerIndex++) {
+            final FieldsProducer f = mergeState.fieldsProducers[readerIndex];
+            if (!(f instanceof SparsePostingsProducer)) {
+                continue;
+            }
+
+            SparsePostingsProducer producer = (SparsePostingsProducer) f;
+            for (FieldInfo fieldInfo : mergeState.mergeFieldInfos) {
+                InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(producer.getState().segmentInfo, fieldInfo);
+                InMemoryClusteredPosting.clearIndex(key);
+            }
+        }
+    }
+
+    @Override
+    public void merge(MergeState mergeState, NormsProducer norms) throws IOException {
+        // merge non-sparse fields
+        super.merge(mergeState, norms);
+        // merge sparse fields
+        SparsePostingsReader sparsePostingsReader = new SparsePostingsReader(mergeState);
+        sparsePostingsReader.merge();
+        clearInMemoryPostings(mergeState);
     }
 
     @Override

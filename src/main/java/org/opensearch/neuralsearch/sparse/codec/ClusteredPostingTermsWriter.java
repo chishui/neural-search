@@ -17,24 +17,25 @@ import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
 
+/**
+ * ClusteredPostingTermsWriter is used to write postings for each segment
+ */
 public class ClusteredPostingTermsWriter {
     private final PostingsWriterBase postingsWriter;
-    private final SegmentWriteState state;
     private final FixedBitSet docsSeen;
     private static final int DEFAULT_LAMBDA = 20;
     private static final int DEFAULT_BETA = 2;
 
     public ClusteredPostingTermsWriter(SegmentWriteState state, FieldInfo fieldInfo) {
         super();
-        this.state = state;
-        InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, fieldInfo);
+        InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(state.segmentInfo, fieldInfo);
         SparseVectorForwardIndex index = SparseVectorForwardIndex.getOrCreate(key);
         this.postingsWriter = new InMemoryClusteredPosting.InMemoryClusteredPostingWriter(
-            state,
+            key,
             fieldInfo,
             new PostingClustering(DEFAULT_LAMBDA, new KMeansPlusPlus(DEFAULT_BETA, index.getForwardIndexReader()))
         );
-        this.docsSeen = new FixedBitSet(this.state.segmentInfo.maxDoc());
+        this.docsSeen = new FixedBitSet(state.segmentInfo.maxDoc());
     }
 
     public void write(BytesRef text, TermsEnum termsEnum, NormsProducer norms) throws IOException {

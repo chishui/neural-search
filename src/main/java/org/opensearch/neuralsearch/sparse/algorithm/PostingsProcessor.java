@@ -14,9 +14,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This is a utility class for processing postings. It is used by the clustering algorithm to sort and prune postings.
+ */
 public class PostingsProcessor {
     public static List<DocFreq> sortByFreq(List<DocFreq> postings) {
-        postings.sort((o1, o2) -> o2.getFreq() - o1.getFreq());
+        postings.sort((o1, o2) -> Float.compare(o2.getFreq(), o1.getFreq()));
         return postings;
     }
 

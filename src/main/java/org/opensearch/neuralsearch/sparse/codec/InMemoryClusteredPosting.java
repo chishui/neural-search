@@ -28,9 +28,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
+/**
+ * This class manages the in-memory postings for sparse vectors. It provides methods to write and read postings from memory.
+ * It is used by the SparsePostingsConsumer and SparsePostingsReader classes.
+ */
 public class InMemoryClusteredPosting {
     public static Map<InMemoryKey.IndexKey, Map<BytesRef, PostingClusters>> inMemoryPostings = new HashMap<>();
+
+    public static void clearIndex(InMemoryKey.IndexKey key) {
+        inMemoryPostings.remove(key);
+    }
 
     @AllArgsConstructor
     public static class InMemoryClusteredPostingReader {
@@ -45,19 +55,26 @@ public class InMemoryClusteredPosting {
             }
             return inMemoryPostings.get(key).get(term);
         }
+
+        public Set<BytesRef> getTerms() {
+            if (!inMemoryPostings.containsKey(key)) {
+                return null;
+            }
+            return inMemoryPostings.get(key).keySet();
+        }
     }
 
     public static class InMemoryClusteredPostingWriter extends PushPostingsWriterBase {
 
         private List<DocFreq> docFreqs = new ArrayList<>();
         private BytesRef currentTerm;
-        private final SegmentWriteState state;
         private final PostingClustering postingClustering;
+        private final InMemoryKey.IndexKey key;
 
-        public InMemoryClusteredPostingWriter(SegmentWriteState state, FieldInfo fieldInfo, PostingClustering postingClustering) {
+        public InMemoryClusteredPostingWriter(InMemoryKey.IndexKey key, FieldInfo fieldInfo, PostingClustering postingClustering) {
             super();
             setField(fieldInfo);
-            this.state = state;
+            this.key = key;
             this.postingClustering = postingClustering;
         }
 
@@ -77,14 +94,17 @@ public class InMemoryClusteredPosting {
             docFreqs.clear();
         }
 
+        public static void writePostingClusters(InMemoryKey.IndexKey key, BytesRef term, List<DocumentCluster> clusters) {
+            if (!inMemoryPostings.containsKey(key)) {
+                inMemoryPostings.put(key, new TreeMap<>());
+            }
+            inMemoryPostings.get(key).put(term.clone(), new PostingClusters(clusters));
+        }
+
         @Override
         public void finishTerm(BlockTermState state) throws IOException {
             List<DocumentCluster> clusters = this.postingClustering.cluster(docFreqs);
-            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, this.fieldInfo);
-            if (!inMemoryPostings.containsKey(key)) {
-                inMemoryPostings.put(key, new HashMap<>());
-            }
-            inMemoryPostings.get(key).put(this.currentTerm.clone(), new PostingClusters(clusters, clusters.size()));
+            writePostingClusters(key, this.currentTerm, clusters);
             this.docFreqs.clear();
             this.currentTerm = null;
         }

@@ -20,6 +20,8 @@ import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.io.IOException;
@@ -27,6 +29,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 
+/**
+ * A scorer that simulates the query algorithm in seismic.
+ * For each query token: we get its posting with clusters. We compute score = dp(cluster_summary, query) and
+ * only if heap.size >= k && score > (heap.peek() / heap_factor), we'll evaluate each doc in the cluster,
+ * otherwise, we skip the whole cluster.
+ */
 public class PostingWithClustersScorer extends Scorer {
 
     private final String fieldName;
@@ -39,7 +47,6 @@ public class PostingWithClustersScorer extends Scorer {
     private final LongBitSet visitedDocId;
     private SparseVectorForwardIndex.SparseVectorForwardIndexReader reader;
     private List<Scorer> subScorers = new ArrayList<>();
-    private int subScorersIndex = 0;
     private Terms terms;
     private float score;
     private final Bits acceptedDocs;
@@ -98,6 +105,8 @@ public class PostingWithClustersScorer extends Scorer {
     @Override
     public DocIdSetIterator iterator() {
         return new DocIdSetIterator() {
+            private int subScorersIndex = 0;
+
             @Override
             public int docID() {
                 if (subScorersIndex == NO_MORE_DOCS) {
@@ -163,15 +172,21 @@ public class PostingWithClustersScorer extends Scorer {
     class SingleScorer extends Scorer {
         private final SparsePostingsEnum postingsEnum;
         private final BytesRef term;
+        private IteratorWrapper<DocumentCluster> clusterIter;
+        private DocFreqIterator docs = null;
 
         public SingleScorer(SparsePostingsEnum postingsEnum, BytesRef term) throws IOException {
             this.postingsEnum = postingsEnum;
             this.term = term;
+            clusterIter = postingsEnum.clusterIterator();
         }
 
         @Override
         public int docID() {
-            return postingsEnum.docID();
+            if (docs == null) {
+                return -1;
+            }
+            return docs.docID();
         }
 
         @Override
@@ -179,33 +194,39 @@ public class PostingWithClustersScorer extends Scorer {
             return new DocIdSetIterator() {
                 @Override
                 public int docID() {
-                    return postingsEnum.docID();
+                    return docs.docID();
                 }
 
                 @Override
                 public int nextDoc() throws IOException {
-                    int docId = postingsEnum.nextDoc();
-                    if (docId == -1 || docId == DocIdSetIterator.NO_MORE_DOCS) {
-                        DocumentCluster cluster = postingsEnum.nextCluster();
-                        while (cluster != null) {
-                            if (cluster.isShouldNotSkip()) {
-                                break;
-                            }
-                            assert cluster.getSummary() != null;
-                            float score = cluster.getSummary().dotProduct(queryVector);
-                            if (scoreHeap.size() == MAX_QUEUE_SIZE && score < scoreHeap.peek().getRight() / HEAP_FACTOR) {
-                                cluster = postingsEnum.nextCluster();
-                                continue;
-                            }
-                            break;
+                    if (docs != null) {
+                        int docId = docs.nextDoc();
+                        if (docId != DocIdSetIterator.NO_MORE_DOCS) {
+                            return docId;
                         }
-                        if (cluster == null) {
-                            return DocIdSetIterator.NO_MORE_DOCS;
-                        }
-                        return postingsEnum.nextDoc();
-                    } else {
-                        return docId;
                     }
+                    // current cluster run out docs
+                    DocumentCluster cluster = clusterIter.next();
+                    if (cluster == null) {
+                        return DocIdSetIterator.NO_MORE_DOCS;
+                    }
+                    // should not skip cluster
+                    if (cluster.isShouldNotSkip()) {
+                        docs = cluster.getDisi();
+                        return nextDoc();
+                    }
+                    // check dot product between cluster summary and query vector
+                    while (cluster != null) {
+                        assert cluster.getSummary() != null;
+                        float score = cluster.getSummary().dotProduct(queryVector);
+                        if (scoreHeap.size() == MAX_QUEUE_SIZE && score < scoreHeap.peek().getRight() / HEAP_FACTOR) {
+                            cluster = clusterIter.next();
+                        } else {
+                            docs = cluster.getDisi();
+                            return nextDoc();
+                        }
+                    }
+                    return DocIdSetIterator.NO_MORE_DOCS;
                 }
 
                 @Override

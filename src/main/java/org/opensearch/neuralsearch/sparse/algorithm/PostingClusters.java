@@ -4,36 +4,23 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
-import org.opensearch.neuralsearch.sparse.common.SortedDocInClusterIterator;
+import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 
-import java.util.Iterator;
 import java.util.List;
 
-@AllArgsConstructor
+/**
+ * This class represents the clusters of postings for a field
+ */
 @Getter
-@Setter
-public class PostingClusters implements Iterator<DocumentCluster> {
-    private List<DocumentCluster> clusters;
-    private int current = -1;
+public class PostingClusters {
+    private final List<DocumentCluster> clusters;
 
-    @Override
-    public boolean hasNext() {
-        return current + 1 < clusters.size();
+    public PostingClusters(List<DocumentCluster> clusters) {
+        this.clusters = clusters;
     }
 
-    @Override
-    public DocumentCluster next() {
-        ++current;
-        return clusters.get(current);
-    }
-
-    public void reset() {
-        current = -1;
-        for (DocumentCluster cluster : clusters) {
-            ((SortedDocInClusterIterator) cluster.getDisi()).reset();
-        }
+    public IteratorWrapper iterator() {
+        return new IteratorWrapper(this.clusters.iterator());
     }
 }

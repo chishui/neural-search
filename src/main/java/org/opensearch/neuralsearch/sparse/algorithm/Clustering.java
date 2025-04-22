@@ -9,6 +9,9 @@ import org.opensearch.neuralsearch.sparse.common.DocFreq;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Interface for clustering algorithm
+ */
 public interface Clustering {
     List<DocumentCluster> cluster(List<DocFreq> docFreqs) throws IOException;
 }

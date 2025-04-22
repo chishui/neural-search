@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.Getter;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentReadState;
@@ -14,6 +15,11 @@ import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import java.io.IOException;
 import java.util.Iterator;
 
+/**
+ * SparsePostingsProducer vends SparseTerms for each sparse field.
+ * It is used to read sparse postings from the index.
+ */
+@Getter
 public class SparsePostingsProducer extends FieldsProducer {
 
     private final FieldsProducer delegate;
@@ -48,7 +54,7 @@ public class SparsePostingsProducer extends FieldsProducer {
         }
         InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, fieldInfo);
         InMemoryClusteredPosting.InMemoryClusteredPostingReader reader = new InMemoryClusteredPosting.InMemoryClusteredPostingReader(key);
-        return new SparseTerms(delegate.terms(field), reader, key);
+        return new SparseTerms(reader, key);
     }
 
     @Override

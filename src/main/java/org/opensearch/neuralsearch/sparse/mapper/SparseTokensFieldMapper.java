@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.List;
 
+/**
+ * FieldMapper for SparseTokensField
+ */
 @Getter
 public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
     public static final String CONTENT_TYPE = "sparse_tokens";

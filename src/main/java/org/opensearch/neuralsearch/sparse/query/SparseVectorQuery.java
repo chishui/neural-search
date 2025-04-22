@@ -16,6 +16,10 @@ import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * A new query type for "sparse_ann" query. It vends a customized weight and scorer so that it can utilize
+ * posting clustering algorithms.
+ */
 @Getter
 public class SparseVectorQuery extends Query {
 
