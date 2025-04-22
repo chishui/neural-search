@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 
@@ -37,7 +38,7 @@ public class SparseVector implements Iterator<SparseVector.Item> {
     }
 
     private static Integer convertStringToInteger(String value) {
-        return value.hashCode();
+        return NumberUtils.createInteger(value);
     }
 
     private static Integer convertFloatToInteger(Float value) {
@@ -103,7 +104,7 @@ public class SparseVector implements Iterator<SparseVector.Item> {
             return new float[0];
         }
         int maxToken = this.tokens[this.size - 1];
-        float[] denseVector = new float[maxToken];
+        float[] denseVector = new float[maxToken + 1];
         for (int i = 0; i < this.size; ++i) {
             denseVector[this.tokens[i]] = this.freqs[i];
         }
