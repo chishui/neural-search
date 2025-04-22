@@ -7,9 +7,9 @@ package org.opensearch.neuralsearch.sparse.common;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
+import org.opensearch.neuralsearch.processor.util.TokenUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -39,7 +39,7 @@ public class SparseVector {
     }
 
     private static Integer convertStringToInteger(String value) {
-        return NumberUtils.createInteger(value);
+        return TokenUtil.getInstance().getTokenId(value);
     }
 
     private static Integer convertFloatToInteger(Float value) {
