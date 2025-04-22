@@ -98,6 +98,66 @@ public class SparseVector implements Iterator<SparseVector.Item> {
         return score;
     }
 
+    public float[] toDenseVector() {
+        if (this.size == 0) {
+            return new float[0];
+        }
+        int maxToken = this.tokens[this.size - 1];
+        float[] denseVector = new float[maxToken];
+        for (int i = 0; i < this.size; ++i) {
+            denseVector[this.tokens[i]] = this.freqs[i];
+        }
+        return denseVector;
+    }
+
+    public float dotProduct(final float[] denseVector) {
+        float score = 0.0f;
+
+        // Early exit for empty vectors
+        if (this.size == 0 || denseVector.length == 0) return 0;
+
+        // Loop unrolling for better performance
+        final int unrollFactor = 4;
+        final int limit = this.size - (this.size % unrollFactor);
+
+        // Main loop with unrolling
+        int i = 0;
+        for (; i < limit; i += unrollFactor) {
+            if (this.tokens[i] >= denseVector.length) {
+                break;
+            }
+            score += this.freqs[i] * denseVector[this.tokens[i]];
+
+            if (this.tokens[i + 1] >= denseVector.length) {
+                ++i;
+                break;
+            }
+            score += this.freqs[i + 1] * denseVector[this.tokens[i + 1]];
+
+            if (this.tokens[i + 2] >= denseVector.length) {
+                i += 2;
+                break;
+            }
+            score += this.freqs[i + 2] * denseVector[this.tokens[i + 2]];
+
+            if (this.tokens[i + 3] >= denseVector.length) {
+                i += 3;
+                break;
+            }
+            score += this.freqs[i + 3] * denseVector[this.tokens[i + 3]];
+        }
+
+        // Handle remaining elements
+        for (; i < this.size; ++i) {
+            if (this.tokens[i] >= denseVector.length) {
+                break;
+            }
+            score += this.freqs[i] * denseVector[this.tokens[i]];
+        }
+
+        return score;
+    }
+
     @Override
     public boolean hasNext() {
         return this.size > 0 && this.current + 1 < this.size;
