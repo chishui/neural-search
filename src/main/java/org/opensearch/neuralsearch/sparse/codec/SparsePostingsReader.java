@@ -101,7 +101,7 @@ public class SparsePostingsReader {
             for (int n : mergeState.maxDocs) {
                 docCount += n;
             }
-            if (clusterUtilDocCountReach == 0 || docCount < clusterUtilDocCountReach) {
+            if (clusterUtilDocCountReach > 0 && docCount < clusterUtilDocCountReach) {
                 beta = 1;
             }
             PostingClustering postingClustering = new PostingClustering(lambda, new KMeansPlusPlus(alpha, beta, (newDocId) -> {
