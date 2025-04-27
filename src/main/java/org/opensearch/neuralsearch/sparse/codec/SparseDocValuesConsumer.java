@@ -14,7 +14,6 @@ import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
@@ -101,10 +100,6 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
                     addBinary(fieldInfo, new SparseDocValuesReader(mergeState), true);
                 }
             }
-            log.info(
-                "memory usage after binary doc value merge: {}",
-                RamUsageEstimator.humanReadableUnits(InMemorySparseVectorForwardIndex.memUsage())
-            );
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
