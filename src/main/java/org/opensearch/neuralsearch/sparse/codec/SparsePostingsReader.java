@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.FieldInfo;
@@ -11,6 +12,7 @@ import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
@@ -32,12 +34,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Merge sparse postings
  */
+@Log4j2
 public class SparsePostingsReader {
     private final MergeState mergeState;
+    private static AtomicInteger counter = new AtomicInteger(0);
 
     public SparsePostingsReader(MergeState state) {
         this.mergeState = state;
@@ -92,7 +97,7 @@ public class SparsePostingsReader {
             }
 
             InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(mergeState.segmentInfo, fieldInfo);
-            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key);
+            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
             int beta = Integer.parseInt(fieldInfo.attributes().get(SparseMethodContext.BETA_FIELD));
             int lambda = Integer.parseInt(fieldInfo.attributes().get(SparseMethodContext.LAMBDA_FIELD));
             float alpha = Float.parseFloat(fieldInfo.attributes().get(SparseMethodContext.ALPHA_FIELD));
@@ -101,22 +106,31 @@ public class SparsePostingsReader {
             for (int n : mergeState.maxDocs) {
                 docCount += n;
             }
+            log.info("Merge total doc: {}", docCount);
             if (clusterUtilDocCountReach > 0 && docCount < clusterUtilDocCountReach) {
                 beta = 1;
             }
             PostingClustering postingClustering = new PostingClustering(lambda, new KMeansPlusPlus(alpha, beta, (newDocId) -> {
-                SparseVector vector = index.getForwardIndexReader().readSparseVector(newDocId);
-                if (vector == null) {
-                    // new segment in-memory forward index hasn't been created, use old
-                    Pair<Integer, InMemoryKey.IndexKey> oldDocId = newToOldDocIdMap.get(newDocId);
-                    if (oldDocId != null) {
-                        InMemorySparseVectorForwardIndex oldIndex = InMemorySparseVectorForwardIndex.getOrCreate(oldDocId.getRight());
+                if (index != null) {
+                    SparseVector vector = index.getForwardIndexReader().readSparseVector(newDocId);
+                    if (vector != null) {
+                        return vector;
+                    }
+                }
+                // new segment in-memory forward index hasn't been created, use old
+                Pair<Integer, InMemoryKey.IndexKey> oldDocId = newToOldDocIdMap.get(newDocId);
+                if (oldDocId != null) {
+                    InMemorySparseVectorForwardIndex oldIndex = InMemorySparseVectorForwardIndex.get(oldDocId.getRight());
+                    if (oldIndex != null) {
                         return oldIndex.getForwardIndexReader().readSparseVector(oldDocId.getLeft());
                     }
                 }
-                return vector;
+                return null;
             }));
+            InMemoryClusteredPosting posting = new InMemoryClusteredPosting();
             for (Map.Entry<BytesRef, Set<DocFreq>> entry : docs.entrySet()) {
+                String term = entry.getKey().utf8ToString();
+                counter.addAndGet(1);
                 ClusterTrainingRunning.getInstance().run(new Runnable() {
                     @Override
                     public void run() {
@@ -127,6 +141,14 @@ public class SparsePostingsReader {
                             throw new RuntimeException(e);
                         }
                         InMemoryClusteredPosting.InMemoryClusteredPostingWriter.writePostingClusters(key, entry.getKey(), cluster);
+                        if (counter.addAndGet(-1) == 0) {
+                            log.info(
+                                "clustered postings memory usage for field {} term {} is: {}",
+                                fieldInfo.name,
+                                entry.getKey().utf8ToString(),
+                                Accountables.toString(posting)
+                            );
+                        }
                     }
                 });
             }

@@ -5,8 +5,11 @@
 package org.opensearch.neuralsearch.sparse;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentInfos;
+import org.apache.lucene.util.Accountables;
+import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.MapperService;
@@ -18,6 +21,7 @@ import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 
+@Log4j2
 @AllArgsConstructor
 public class SparseIndexEventListener implements IndexEventListener {
     public void beforeIndexRemoved(IndexService indexService, IndicesClusterStateService.AllocatedIndices.IndexRemovalReason reason) {
@@ -35,6 +39,12 @@ public class SparseIndexEventListener implements IndexEventListener {
                         }
                     }
                 }
+                InMemoryClusteredPosting inMemoryClusteredPosting = new InMemoryClusteredPosting();
+                log.info(
+                    "memory usage after delete index: forward index {}, posting: {}",
+                    RamUsageEstimator.humanReadableUnits(InMemorySparseVectorForwardIndex.memUsage()),
+                    Accountables.toString(inMemoryClusteredPosting)
+                );
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
