@@ -12,6 +12,7 @@ import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Merge sparse postings
@@ -40,6 +42,7 @@ import java.util.TreeSet;
 @Log4j2
 public class SparsePostingsReader {
     private final MergeState mergeState;
+    private static AtomicInteger counter = new AtomicInteger(0);
 
     public SparsePostingsReader(MergeState state) {
         this.mergeState = state;
@@ -124,7 +127,10 @@ public class SparsePostingsReader {
                 }
                 return null;
             }));
+            InMemoryClusteredPosting posting = new InMemoryClusteredPosting();
             for (Map.Entry<BytesRef, Set<DocFreq>> entry : docs.entrySet()) {
+                String term = entry.getKey().utf8ToString();
+                counter.addAndGet(1);
                 ClusterTrainingRunning.getInstance().run(new Runnable() {
                     @Override
                     public void run() {
@@ -135,6 +141,14 @@ public class SparsePostingsReader {
                             throw new RuntimeException(e);
                         }
                         InMemoryClusteredPosting.InMemoryClusteredPostingWriter.writePostingClusters(key, entry.getKey(), cluster);
+                        if (counter.addAndGet(-1) == 0) {
+                            log.info(
+                                "clustered postings memory usage for field {} term {} is: {}",
+                                fieldInfo.name,
+                                entry.getKey().utf8ToString(),
+                                Accountables.toString(posting)
+                            );
+                        }
                     }
                 });
             }
