@@ -5,7 +5,6 @@
 package org.opensearch.neuralsearch.sparse;
 
 import lombok.AllArgsConstructor;
-import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.opensearch.index.IndexService;
@@ -19,7 +18,6 @@ import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 
-@Log4j2
 @AllArgsConstructor
 public class SparseIndexEventListener implements IndexEventListener {
     public void beforeIndexRemoved(IndexService indexService, IndicesClusterStateService.AllocatedIndices.IndexRemovalReason reason) {
@@ -37,7 +35,6 @@ public class SparseIndexEventListener implements IndexEventListener {
                         }
                     }
                 }
-
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
