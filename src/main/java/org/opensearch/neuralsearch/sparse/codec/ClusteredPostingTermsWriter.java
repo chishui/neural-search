@@ -74,7 +74,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     public void setField(FieldInfo fieldInfo) {
         super.setField(fieldInfo);
         key = new InMemoryKey.IndexKey(this.segmentInfo, fieldInfo);
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key);
+        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
         assert (index != null);
         int beta = Integer.parseInt(fieldInfo.attributes().get(SparseMethodContext.BETA_FIELD));
         int lambda = Integer.parseInt(fieldInfo.attributes().get(SparseMethodContext.LAMBDA_FIELD));
