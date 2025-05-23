@@ -25,18 +25,4 @@ public class ByteQuantizer {
         // Round to nearest integer and cast to byte
         return (byte) Math.round(scaled);
     }
-
-    /**
-     * Quantize a float vector into a byte vector
-     *
-     * @param src the source vector
-     * @return dest the destination vector
-     */
-    public byte[] quantizeFloatVector(float[] src, float maxValue) {
-        byte[] dest = new byte[src.length];
-        for (int i = 0; i < src.length; i++) {
-            dest[i] = mapPositiveFloatToByte(src[i], maxValue);
-        }
-        return dest;
-    }
 }
