@@ -18,9 +18,9 @@ public class ByteQuantizer {
         value = Math.max(0.0f, Math.min(maxValue, value));
 
         // Scale the value to fit in the byte range (0-255)
-        // Note: In Java, byte is signed (-128 to 127), but we'll use the full 0-255 range
+        // Note: In Java, byte is signed (-128 to 127), so we'll use the half precision 0-127 range
         // by using unsigned operations
-        float scaled = (value / maxValue) * 255.0f;
+        float scaled = (value / maxValue) * 127.0f;
 
         // Round to nearest integer and cast to byte
         return (byte) Math.round(scaled);
