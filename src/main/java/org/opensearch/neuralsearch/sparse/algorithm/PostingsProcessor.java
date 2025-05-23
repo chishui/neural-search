@@ -47,7 +47,7 @@ public class PostingsProcessor {
     }
 
     public static void summarize(DocumentCluster cluster, SparseVectorReader reader, float alpha) throws IOException {
-        Map<Integer, Float> summary = new HashMap<>();
+        Map<Integer, Byte> summary = new HashMap<>();
         DocFreqIterator iterator = cluster.getDisi();
         while (iterator.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
             int docId = iterator.docID();
@@ -59,7 +59,7 @@ public class PostingsProcessor {
                     if (!summary.containsKey(item.getToken())) {
                         summary.put(item.getToken(), item.getFreq());
                     } else {
-                        summary.put(item.getToken(), Math.max(summary.get(item.getToken()), item.getFreq()));
+                        summary.put(item.getToken(), (byte) Math.max(summary.get(item.getToken()), item.getFreq()));
                     }
                 }
             }

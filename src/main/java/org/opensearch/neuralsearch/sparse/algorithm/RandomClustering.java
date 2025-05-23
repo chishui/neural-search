@@ -27,6 +27,45 @@ public class RandomClustering implements Clustering {
     private final int beta;
     private final SparseVectorReader reader;
 
+    /**
+     * Assigns documents to clusters based on similarity.
+     *
+     * @param documents The list of documents to assign
+     * @param docAssignments The list of document assignments for each cluster
+     * @param denseCentroids The list of cluster centroids
+     * @param clusterIds The list of cluster IDs to consider
+     */
+    private void assignDocumentsToCluster(
+        List<DocFreq> documents,
+        List<List<DocFreq>> docAssignments,
+        List<byte[]> denseCentroids,
+        List<Integer> clusterIds
+    ) {
+
+        for (DocFreq docFreq : documents) {
+            SparseVector docVector = reader.read(docFreq.getDocID());
+            if (docVector == null) {
+                continue;
+            }
+
+            int bestCluster = 0;
+            float maxScore = Float.MIN_VALUE;
+
+            for (int clusterId : clusterIds) {
+                byte[] center = denseCentroids.get(clusterId);
+                if (center != null) {
+                    int score = docVector.dotProduct(center);
+                    if (score > maxScore) {
+                        maxScore = score;
+                        bestCluster = clusterId;
+                    }
+                }
+            }
+
+            docAssignments.get(bestCluster).add(docFreq);
+        }
+    }
+
     @Override
     public List<DocumentCluster> cluster(List<DocFreq> docFreqs) throws IOException {
         if (beta == 1) {
@@ -39,7 +78,7 @@ public class RandomClustering implements Clustering {
         int num_cluster = (int) Math.ceil((double) (size * beta) / lambda);
         int[] centers = random.ints(0, size).distinct().limit(num_cluster).toArray();
         List<List<DocFreq>> docAssignments = new ArrayList<>(num_cluster);
-        List<float[]> denseCentroids = new ArrayList<>();
+        List<byte[]> denseCentroids = new ArrayList<>();
         for (int i = 0; i < num_cluster; i++) {
             docAssignments.add(new ArrayList<>());
             SparseVector center = reader.read(centers[i]);

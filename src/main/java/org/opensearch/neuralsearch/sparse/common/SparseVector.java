@@ -12,10 +12,12 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -29,7 +31,8 @@ import java.util.stream.Collectors;
 public class SparseVector implements Accountable {
     // tokens will be stored in order
     private short[] tokens;
-    private float[] freqs;
+    private byte[] freqs;
+    private static final float MAX_FLOAT_VALUE = 3.0f;
 
     public SparseVector(BytesRef bytesRef) throws IOException {
         this(readToMap(bytesRef));
@@ -40,7 +43,12 @@ public class SparseVector implements Accountable {
     }
 
     public SparseVector(Map<String, Float> pairs) {
-        this(pairs.entrySet().stream().map(t -> new Item(convertStringToInteger(t.getKey()), t.getValue())).collect(Collectors.toList()));
+        this(
+            pairs.entrySet()
+                .stream()
+                .map(t -> new Item(convertStringToInteger(t.getKey()), ByteQuantizer.mapPositiveFloatToByte(t.getValue(), MAX_FLOAT_VALUE)))
+                .collect(Collectors.toList())
+        );
     }
 
     private static Integer convertStringToInteger(String value) {
@@ -48,10 +56,10 @@ public class SparseVector implements Accountable {
     }
 
     public SparseVector(List<Item> items) {
-        items.sort((o1, o2) -> o1.getToken() - o2.getToken());
+        items.sort(Comparator.comparingInt(Item::getToken));
         int size = items.size();
         this.tokens = new short[size];
-        this.freqs = new float[size];
+        this.freqs = new byte[size];
         for (int i = 0; i < size; ++i) {
             this.tokens[i] = (short) items.get(i).getToken();
             this.freqs[i] = items.get(i).getFreq();
@@ -77,22 +85,23 @@ public class SparseVector implements Accountable {
         return map;
     }
 
-    public float[] toDenseVector() {
+    public byte[] toDenseVector() {
         int size = getSize();
         if (size == 0) {
-            return new float[0];
+            return new byte[0];
         }
         int maxToken = this.tokens[size - 1];
-        float[] denseVector = new float[maxToken + 1];
+        byte[] denseVector = new byte[maxToken + 1];
         for (int i = 0; i < size; ++i) {
             denseVector[this.tokens[i]] = this.freqs[i];
         }
         return denseVector;
     }
 
-    public float dotProduct(final float[] denseVector) {
-        float score = 0.0f;
+    public int dotProduct(final byte[] denseVector) {
+        int score = 0;
         int size = getSize();
+
         // Early exit for empty vectors
         if (size == 0 || denseVector.length == 0) return 0;
 
@@ -171,9 +180,9 @@ public class SparseVector implements Accountable {
     @EqualsAndHashCode
     public static class Item {
         int token;
-        float freq;
+        byte freq;
 
-        static Item of(int token, float freq) {
+        static Item of(int token, byte freq) {
             return new Item(token, freq);
         }
     }

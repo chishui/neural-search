@@ -16,7 +16,7 @@ import lombok.Getter;
 @EqualsAndHashCode
 public final class DocFreq implements Comparable<DocFreq> {
     private final int docID;
-    private final float freq;
+    private final byte freq;
 
     @Override
     public int compareTo(DocFreq o) {

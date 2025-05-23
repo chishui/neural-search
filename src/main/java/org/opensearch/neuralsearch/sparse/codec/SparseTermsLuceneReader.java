@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer.mapPositiveFloatToByte;
+
 /**
  * This class read terms and clustered posting from lucene index.
  * It stores the posting to in-memory data structure.
@@ -126,14 +128,21 @@ public class SparseTermsLuceneReader extends FieldsProducer {
             long docSize = postingIn.readVLong();
             List<DocFreq> docs = new ArrayList<>((int) docSize);
             for (int k = 0; k < docSize; ++k) {
-                docs.add(new DocFreq(postingIn.readVInt(), ValueEncoder.decodeFeatureValue(postingIn.readVInt())));
+                docs.add(
+                    new DocFreq(postingIn.readVInt(), mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(postingIn.readVInt()), 3.0f))
+                );
             }
             boolean shouldNotSkip = postingIn.readByte() == 1;
             // summary
             long summaryVectorSize = postingIn.readVLong();
             List<SparseVector.Item> items = new ArrayList<>((int) summaryVectorSize);
             for (int k = 0; k < summaryVectorSize; ++k) {
-                items.add(new SparseVector.Item(postingIn.readVInt(), ValueEncoder.decodeFeatureValue(postingIn.readVInt())));
+                items.add(
+                    new SparseVector.Item(
+                        postingIn.readVInt(),
+                        mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(postingIn.readVInt()), 3.0f)
+                    )
+                );
             }
             SparseVector summary = items.isEmpty() ? null : new SparseVector(items);
             DocumentCluster cluster = new DocumentCluster(summary, docs, shouldNotSkip);

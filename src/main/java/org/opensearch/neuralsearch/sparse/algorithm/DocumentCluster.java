@@ -19,7 +19,7 @@ import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -39,15 +39,8 @@ public class DocumentCluster implements Accountable {
     public DocumentCluster(SparseVector summary, List<DocFreq> docs, boolean shouldNotSkip) {
         this.summary = summary;
         List<DocFreq> docsCopy = new ArrayList<>(docs);
-        docsCopy.sort((a, b) -> Integer.compare(a.getDocID(), b.getDocID()));
-        int size = docsCopy.size();
-        this.docIds = new int[size];
-        this.freqs = new float[size];
-        for (int i = 0; i < size; i++) {
-            DocFreq docFreq = docsCopy.get(i);
-            this.docIds[i] = docFreq.getDocID();
-            this.freqs[i] = docFreq.getFreq();
-        }
+        docsCopy.sort(Comparator.comparingInt(DocFreq::getDocID));
+        this.docs = Collections.unmodifiableList(docsCopy);
         this.shouldNotSkip = shouldNotSkip;
     }
 
@@ -68,7 +61,7 @@ public class DocumentCluster implements Accountable {
             final IteratorWrapper<DocFreq> wrapper = new IteratorWrapper<>(iterator());
 
             @Override
-            public float freq() {
+            public byte freq() {
                 return wrapper.getCurrent().getFreq();
             }
 
