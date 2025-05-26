@@ -98,7 +98,7 @@ public class RandomClustering implements Clustering {
             }
             for (int i = 0; i < num_cluster; i++) {
                 float score = Float.MIN_VALUE;
-                float[] center = denseCentroids.get(i);
+                byte[] center = denseCentroids.get(i);
                 if (center != null) {
                     score = docVector.dotProduct(center);
                 }
