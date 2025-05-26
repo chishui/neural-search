@@ -107,7 +107,7 @@ public class PostingWithClustersScorer extends Scorer {
     }
 
     private boolean isHeapFull() {
-        return scoreHeap.size() == sparseQueryContext.getK();
+        return scoreHeap.size() == sparseQueryContext.getK() + 1;
     }
 
     private void addToHeap(Pair<Integer, Float> pair) {
