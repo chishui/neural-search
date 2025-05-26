@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -32,7 +33,7 @@ public class DocumentCluster implements Accountable {
     private SparseVector summary;
     // private final List<DocFreq> docs;
     private final int[] docIds;
-    private final float[] freqs;
+    private final byte[] freqs;
     // if true, docs in this cluster should always be examined
     private boolean shouldNotSkip;
 
@@ -40,7 +41,14 @@ public class DocumentCluster implements Accountable {
         this.summary = summary;
         List<DocFreq> docsCopy = new ArrayList<>(docs);
         docsCopy.sort(Comparator.comparingInt(DocFreq::getDocID));
-        this.docs = Collections.unmodifiableList(docsCopy);
+        int size = docsCopy.size();
+        this.docIds = new int[size];
+        this.freqs = new byte[size];
+        for (int i = 0; i < size; i++) {
+            DocFreq docFreq = docsCopy.get(i);
+            this.docIds[i] = docFreq.getDocID();
+            this.freqs[i] = docFreq.getFreq();
+        }
         this.shouldNotSkip = shouldNotSkip;
     }
 
