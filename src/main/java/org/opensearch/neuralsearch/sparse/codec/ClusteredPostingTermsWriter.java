@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer.mapPositiveFloatToByte;
+import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
 /**
  * ClusteredPostingTermsWriter is used to write postings for each segment.
@@ -145,7 +145,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         if (docID == -1) {
             throw new IllegalStateException("docId must be set before startDoc");
         }
-        docFreqs.add(new DocFreq(docID, mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(freq), 3.0f)));
+        docFreqs.add(new DocFreq(docID, ByteQuantizer.mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(freq), 3.0f)));
     }
 
     @Override

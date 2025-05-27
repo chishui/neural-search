@@ -14,6 +14,7 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
+import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.DocFreq;
@@ -28,8 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer.mapPositiveFloatToByte;
 
 /**
  * This class read terms and clustered posting from lucene index.
@@ -129,7 +128,10 @@ public class SparseTermsLuceneReader extends FieldsProducer {
             List<DocFreq> docs = new ArrayList<>((int) docSize);
             for (int k = 0; k < docSize; ++k) {
                 docs.add(
-                    new DocFreq(postingIn.readVInt(), mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(postingIn.readVInt()), 3.0f))
+                    new DocFreq(
+                        postingIn.readVInt(),
+                        ByteQuantizer.mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(postingIn.readVInt()), 3.0f)
+                    )
                 );
             }
             boolean shouldNotSkip = postingIn.readByte() == 1;
@@ -140,7 +142,7 @@ public class SparseTermsLuceneReader extends FieldsProducer {
                 items.add(
                     new SparseVector.Item(
                         postingIn.readVInt(),
-                        mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(postingIn.readVInt()), 3.0f)
+                        ByteQuantizer.mapPositiveFloatToByte(ValueEncoder.decodeFeatureValue(postingIn.readVInt()), 3.0f)
                     )
                 );
             }

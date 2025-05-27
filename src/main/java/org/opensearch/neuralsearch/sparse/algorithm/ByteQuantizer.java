@@ -4,7 +4,9 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
-public class ByteQuantizer {
+public final class ByteQuantizer {
+
+    private ByteQuantizer() {} // no instance of this utility class
 
     /**
      * Maps a positive float value to an unsigned integer within the range of the specified type.
