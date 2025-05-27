@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 @EqualsAndHashCode
 public class SparseVector implements Accountable {
     // tokens will be stored in order
-    private short[] tokens;
-    private byte[] freqs;
+    private final short[] tokens;
+    private final byte[] freqs;
     private static final float MAX_FLOAT_VALUE = 3.0f;
 
     public SparseVector(BytesRef bytesRef) throws IOException {
@@ -46,7 +46,7 @@ public class SparseVector implements Accountable {
         this(
             pairs.entrySet()
                 .stream()
-                .map(t -> new Item(convertStringToInteger(t.getKey()), ByteQuantizer.mapPositiveFloatToByte(t.getValue(), MAX_FLOAT_VALUE)))
+                .map(t -> new Item(convertStringToInteger(t.getKey()), ByteQuantizer.quantizeFloatToByte(t.getValue(), MAX_FLOAT_VALUE)))
                 .collect(Collectors.toList())
         );
     }
@@ -115,25 +115,25 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += this.freqs[i] * denseVector[this.tokens[i]];
+            score += (this.freqs[i] & 0xFF) * (denseVector[this.tokens[i]] & 0xFF);
 
             if (this.tokens[i + 1] >= denseVector.length) {
                 ++i;
                 break;
             }
-            score += this.freqs[i + 1] * denseVector[this.tokens[i + 1]];
+            score += (this.freqs[i + 1] & 0xFF) * (denseVector[this.tokens[i + 1]] & 0xFF);
 
             if (this.tokens[i + 2] >= denseVector.length) {
                 i += 2;
                 break;
             }
-            score += this.freqs[i + 2] * denseVector[this.tokens[i + 2]];
+            score += (this.freqs[i + 2] & 0xFF) * (denseVector[this.tokens[i + 2]] & 0xFF);
 
             if (this.tokens[i + 3] >= denseVector.length) {
                 i += 3;
                 break;
             }
-            score += this.freqs[i + 3] * denseVector[this.tokens[i + 3]];
+            score += (this.freqs[i + 3] & 0xFF) * (denseVector[this.tokens[i + 3]] & 0xFF);
         }
 
         // Handle remaining elements
@@ -141,7 +141,7 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += this.freqs[i] * denseVector[this.tokens[i]];
+            score += (this.freqs[i] & 0xFF) * (denseVector[this.tokens[i]] & 0xFF);
         }
 
         return score;

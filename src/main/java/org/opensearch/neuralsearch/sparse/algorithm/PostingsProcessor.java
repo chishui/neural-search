@@ -13,6 +13,7 @@ import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,7 @@ public class PostingsProcessor {
         if (K >= postings.size()) {
             return postings;
         }
-        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, (o1, o2) -> Float.compare(o1.getFreq(), o2.getFreq()));
+        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, Comparator.comparingInt(o -> o.getFreq() & 0xFF));
         for (DocFreq docFreq : postings) {
             pq.add(docFreq);
             if (pq.size() > K) {
@@ -47,7 +48,7 @@ public class PostingsProcessor {
     }
 
     public static void summarize(DocumentCluster cluster, SparseVectorReader reader, float alpha) throws IOException {
-        Map<Integer, Byte> summary = new HashMap<>();
+        Map<Integer, Integer> summary = new HashMap<>();
         DocFreqIterator iterator = cluster.getDisi();
         while (iterator.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
             int docId = iterator.docID();
@@ -57,9 +58,9 @@ public class PostingsProcessor {
                 while (vectorIterator.hasNext()) {
                     SparseVector.Item item = vectorIterator.next();
                     if (!summary.containsKey(item.getToken())) {
-                        summary.put(item.getToken(), item.getFreq());
+                        summary.put(item.getToken(), item.getFreq() & 0xFF);
                     } else {
-                        summary.put(item.getToken(), (byte) Math.max(summary.get(item.getToken()), item.getFreq()));
+                        summary.put(item.getToken(), Math.max(summary.get(item.getToken()) & 0xFF, item.getFreq() & 0xFF));
                     }
                 }
             }
@@ -67,17 +68,17 @@ public class PostingsProcessor {
         // convert summary to a SparseVector
         List<SparseVector.Item> items = summary.entrySet()
             .stream()
-            .map(entry -> new SparseVector.Item(entry.getKey(), entry.getValue()))
-            .sorted((o1, o2) -> Float.compare(o2.getFreq(), o1.getFreq()))
+            .map(entry -> new SparseVector.Item(entry.getKey(), (byte) entry.getValue().intValue()))
+            .sorted((o1, o2) -> Integer.compare(o2.getFreq() & 0xFF, o1.getFreq() & 0xFF))
             .collect(Collectors.toList());
         // count total freq of items
-        double totalFreq = items.stream().mapToDouble(SparseVector.Item::getFreq).sum();
-        double freqThreshold = totalFreq * alpha;
-        double freqSum = 0.0;
+        double totalFreq = items.stream().mapToDouble(item -> item.getFreq() & 0xFF).sum();
+        int freqThreshold = (int) Math.floor(totalFreq * alpha);
+        int freqSum = 0;
         int idx = 0;
         for (SparseVector.Item item : items) {
             ++idx;
-            freqSum += item.getFreq();
+            freqSum += (item.getFreq() & 0xFF);
             if (freqSum > freqThreshold) {
                 break;
             }
