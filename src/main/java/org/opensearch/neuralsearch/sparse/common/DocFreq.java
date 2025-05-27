@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.sparse.common;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
 /**
  * DocFreq class to store docID and freq
@@ -21,5 +22,9 @@ public final class DocFreq implements Comparable<DocFreq> {
     @Override
     public int compareTo(DocFreq o) {
         return Integer.compare(this.docID, o.docID);
+    }
+
+    public int getIntFreq() {
+        return ByteQuantizer.getUnsignedByte(freq);
     }
 }

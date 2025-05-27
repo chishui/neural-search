@@ -37,7 +37,7 @@ public class PostingsProcessor {
         if (K >= postings.size()) {
             return postings;
         }
-        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, Comparator.comparingInt(o -> o.getFreq() & 0xFF));
+        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, Comparator.comparingInt(DocFreq::getIntFreq));
         for (DocFreq docFreq : postings) {
             pq.add(docFreq);
             if (pq.size() > K) {
@@ -58,9 +58,9 @@ public class PostingsProcessor {
                 while (vectorIterator.hasNext()) {
                     SparseVector.Item item = vectorIterator.next();
                     if (!summary.containsKey(item.getToken())) {
-                        summary.put(item.getToken(), item.getFreq() & 0xFF);
+                        summary.put(item.getToken(), item.getIntFreq());
                     } else {
-                        summary.put(item.getToken(), Math.max(summary.get(item.getToken()) & 0xFF, item.getFreq() & 0xFF));
+                        summary.put(item.getToken(), Math.max(summary.get(item.getToken()), item.getIntFreq()));
                     }
                 }
             }
@@ -69,16 +69,16 @@ public class PostingsProcessor {
         List<SparseVector.Item> items = summary.entrySet()
             .stream()
             .map(entry -> new SparseVector.Item(entry.getKey(), (byte) entry.getValue().intValue()))
-            .sorted((o1, o2) -> Integer.compare(o2.getFreq() & 0xFF, o1.getFreq() & 0xFF))
+            .sorted((o1, o2) -> Integer.compare(o2.getIntFreq(), o1.getIntFreq()))
             .collect(Collectors.toList());
         // count total freq of items
-        double totalFreq = items.stream().mapToDouble(item -> item.getFreq() & 0xFF).sum();
+        double totalFreq = items.stream().mapToDouble(SparseVector.Item::getIntFreq).sum();
         int freqThreshold = (int) Math.floor(totalFreq * alpha);
         int freqSum = 0;
         int idx = 0;
         for (SparseVector.Item item : items) {
             ++idx;
-            freqSum += (item.getFreq() & 0xFF);
+            freqSum += item.getIntFreq();
             if (freqSum > freqThreshold) {
                 break;
             }

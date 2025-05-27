@@ -114,25 +114,25 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += (this.freqs[i] & 0xFF) * (denseVector[this.tokens[i]] & 0xFF);
+            score += ByteQuantizer.getUnsignedByte(this.freqs[i]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i]]);
 
             if (this.tokens[i + 1] >= denseVector.length) {
                 ++i;
                 break;
             }
-            score += (this.freqs[i + 1] & 0xFF) * (denseVector[this.tokens[i + 1]] & 0xFF);
+            score += ByteQuantizer.getUnsignedByte(this.freqs[i + 1]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i + 1]]);
 
             if (this.tokens[i + 2] >= denseVector.length) {
                 i += 2;
                 break;
             }
-            score += (this.freqs[i + 2] & 0xFF) * (denseVector[this.tokens[i + 2]] & 0xFF);
+            score += ByteQuantizer.getUnsignedByte(this.freqs[i + 2]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i + 2]]);
 
             if (this.tokens[i + 3] >= denseVector.length) {
                 i += 3;
                 break;
             }
-            score += (this.freqs[i + 3] & 0xFF) * (denseVector[this.tokens[i + 3]] & 0xFF);
+            score += ByteQuantizer.getUnsignedByte(this.freqs[i + 3]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i + 3]]);
         }
 
         // Handle remaining elements
@@ -140,7 +140,7 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += (this.freqs[i] & 0xFF) * (denseVector[this.tokens[i]] & 0xFF);
+            score += ByteQuantizer.getUnsignedByte(this.freqs[i]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i]]);
         }
 
         return score;
@@ -183,6 +183,10 @@ public class SparseVector implements Accountable {
 
         static Item of(int token, byte freq) {
             return new Item(token, freq);
+        }
+
+        public int getIntFreq() {
+            return ByteQuantizer.getUnsignedByte(freq);
         }
     }
 }

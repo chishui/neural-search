@@ -28,4 +28,13 @@ public final class ByteQuantizer {
         // Round to nearest integer and cast to byte
         return (byte) Math.round(value);
     }
+
+    /**
+     * Overloaded method to get unsigned frequency directly from a byte
+     * @param value The byte value
+     * @return The unsigned integer value of the frequency
+     */
+    public static int getUnsignedByte(byte value) {
+        return value & 0xFF;
+    }
 }
