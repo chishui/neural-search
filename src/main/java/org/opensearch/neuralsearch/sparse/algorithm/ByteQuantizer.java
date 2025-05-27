@@ -6,22 +6,24 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 public final class ByteQuantizer {
 
+    // The maximum float value to consider
+    private static final float MAX_FLOAT_VALUE = 3.0f;
+
     private ByteQuantizer() {} // no instance of this utility class
 
     /**
      * Maps a positive float value to an unsigned integer within the range of the specified type.
      *
      * @param value The float value to map
-     * @param maxValue The maximum float value to consider
      * @return The mapped unsigned integer value
      */
-    public static byte quantizeFloatToByte(float value, float maxValue) {
+    public static byte quantizeFloatToByte(float value) {
         // Ensure the value is within the specified range
-        value = Math.max(0.0f, Math.min(maxValue, value));
+        value = Math.max(0.0f, Math.min(MAX_FLOAT_VALUE, value));
 
         // Scale the value to fit in the byte range (0-255)
         // Note: In Java, byte is signed (-128 to 127), but we'll use the full precision
-        value = (value * 255.0f) / maxValue;
+        value = (value * 255.0f) / MAX_FLOAT_VALUE;
 
         // Round to nearest integer and cast to byte
         return (byte) Math.round(value);

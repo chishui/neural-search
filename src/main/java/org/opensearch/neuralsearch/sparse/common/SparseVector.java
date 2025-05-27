@@ -32,7 +32,6 @@ public class SparseVector implements Accountable {
     // tokens will be stored in order
     private final short[] tokens;
     private final byte[] freqs;
-    private static final float MAX_FLOAT_VALUE = 3.0f;
 
     public SparseVector(BytesRef bytesRef) throws IOException {
         this(readToMap(bytesRef));
@@ -46,7 +45,7 @@ public class SparseVector implements Accountable {
         this(
             pairs.entrySet()
                 .stream()
-                .map(t -> new Item(convertStringToInteger(t.getKey()), ByteQuantizer.quantizeFloatToByte(t.getValue(), MAX_FLOAT_VALUE)))
+                .map(t -> new Item(convertStringToInteger(t.getKey()), ByteQuantizer.quantizeFloatToByte(t.getValue())))
                 .collect(Collectors.toList())
         );
     }

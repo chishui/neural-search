@@ -145,7 +145,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         if (docID == -1) {
             throw new IllegalStateException("docId must be set before startDoc");
         }
-        docFreqs.add(new DocFreq(docID, ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq), 3.0f)));
+        docFreqs.add(new DocFreq(docID, ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq))));
     }
 
     @Override
