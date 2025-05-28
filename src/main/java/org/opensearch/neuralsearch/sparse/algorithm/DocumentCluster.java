@@ -57,11 +57,7 @@ public class DocumentCluster implements Accountable {
     }
 
     public Iterator<DocFreq> iterator() {
-        return new CombinedIterator<Integer, Float, DocFreq>(
-            new ArrayIterator.IntArrayIterator(docIds),
-            new ArrayIterator.FloatArrayIterator(freqs),
-            DocFreq::new
-        );
+        return new CombinedIterator<>(new ArrayIterator.IntArrayIterator(docIds), new ArrayIterator.ByteArrayIterator(freqs), DocFreq::new);
     }
 
     public DocFreqIterator getDisi() {
