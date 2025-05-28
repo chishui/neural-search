@@ -8,7 +8,7 @@ import java.util.Iterator;
 
 public class ArrayIterator<T> implements Iterator<T> {
     private final T[] array;  // Reference to the original array
-    private int position = 0;
+    private int index = 0;
 
     public ArrayIterator(T[] array) {
         this.array = array;  // Just stores a reference, no duplication
@@ -16,7 +16,7 @@ public class ArrayIterator<T> implements Iterator<T> {
 
     @Override
     public boolean hasNext() {
-        return position < array.length;
+        return index < array.length;
     }
 
     @Override
@@ -24,7 +24,7 @@ public class ArrayIterator<T> implements Iterator<T> {
         if (!hasNext()) {
             return null;
         }
-        return array[position++];
+        return array[index++];
     }
 
     public static class IntArrayIterator implements Iterator<Integer> {

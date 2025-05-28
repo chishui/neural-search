@@ -12,6 +12,7 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.neuralsearch.sparse.jni.NativeLibrary;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -91,51 +92,52 @@ public class SparseVector implements Accountable {
     }
 
     public float dotProduct(final float[] denseVector) {
-        float score = 0.0f;
-        int size = getSize();
-        // Early exit for empty vectors
-        if (size == 0 || denseVector.length == 0) return 0;
-
-        // Loop unrolling for better performance
-        final int unrollFactor = 4;
-        final int limit = size - (size % unrollFactor);
-
-        // Main loop with unrolling
-        int i = 0;
-        for (; i < limit; i += unrollFactor) {
-            if (this.tokens[i] >= denseVector.length) {
-                break;
-            }
-            score += this.freqs[i] * denseVector[this.tokens[i]];
-
-            if (this.tokens[i + 1] >= denseVector.length) {
-                ++i;
-                break;
-            }
-            score += this.freqs[i + 1] * denseVector[this.tokens[i + 1]];
-
-            if (this.tokens[i + 2] >= denseVector.length) {
-                i += 2;
-                break;
-            }
-            score += this.freqs[i + 2] * denseVector[this.tokens[i + 2]];
-
-            if (this.tokens[i + 3] >= denseVector.length) {
-                i += 3;
-                break;
-            }
-            score += this.freqs[i + 3] * denseVector[this.tokens[i + 3]];
-        }
-
-        // Handle remaining elements
-        for (; i < size; ++i) {
-            if (this.tokens[i] >= denseVector.length) {
-                break;
-            }
-            score += this.freqs[i] * denseVector[this.tokens[i]];
-        }
-
-        return score;
+        return NativeLibrary.getInstance().dp(this.tokens, this.freqs, denseVector);
+        // float score = 0.0f;
+        // int size = getSize();
+        // // Early exit for empty vectors
+        // if (size == 0 || denseVector.length == 0) return 0;
+        //
+        // // Loop unrolling for better performance
+        // final int unrollFactor = 4;
+        // final int limit = size - (size % unrollFactor);
+        //
+        // // Main loop with unrolling
+        // int i = 0;
+        // for (; i < limit; i += unrollFactor) {
+        // if (this.tokens[i] >= denseVector.length) {
+        // break;
+        // }
+        // score += this.freqs[i] * denseVector[this.tokens[i]];
+        //
+        // if (this.tokens[i + 1] >= denseVector.length) {
+        // ++i;
+        // break;
+        // }
+        // score += this.freqs[i + 1] * denseVector[this.tokens[i + 1]];
+        //
+        // if (this.tokens[i + 2] >= denseVector.length) {
+        // i += 2;
+        // break;
+        // }
+        // score += this.freqs[i + 2] * denseVector[this.tokens[i + 2]];
+        //
+        // if (this.tokens[i + 3] >= denseVector.length) {
+        // i += 3;
+        // break;
+        // }
+        // score += this.freqs[i + 3] * denseVector[this.tokens[i + 3]];
+        // }
+        //
+        // // Handle remaining elements
+        // for (; i < size; ++i) {
+        // if (this.tokens[i] >= denseVector.length) {
+        // break;
+        // }
+        // score += this.freqs[i] * denseVector[this.tokens[i]];
+        // }
+        //
+        // return score;
     }
 
     public IteratorWrapper<Item> iterator() {
