@@ -28,6 +28,8 @@ import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
 import java.util.PriorityQueue;
 
@@ -76,6 +78,7 @@ public class PostingWithClustersScorer extends Scorer {
         terms = Terms.getTerms(leafReader, fieldName);
         assert terms != null : "Terms must not be null";
         BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
+        boolean shouldOrderCluster = true;
         for (String token : sparseQueryContext.getTokens()) {
             TermsEnum termsEnum = terms.iterator();
             BytesRef term = new BytesRef(token);
@@ -103,7 +106,8 @@ public class PostingWithClustersScorer extends Scorer {
                     reader = (docId) -> { return null; };
                 }
             }
-            subScorers.add(new SingleScorer(sparsePostingsEnum, term));
+            subScorers.add(new SingleScorer(sparsePostingsEnum, term, shouldOrderCluster));
+            shouldOrderCluster = false;
         }
     }
 
@@ -193,9 +197,34 @@ public class PostingWithClustersScorer extends Scorer {
     class SingleScorer extends Scorer {
         private IteratorWrapper<DocumentCluster> clusterIter;
         private DocFreqIterator docs = null;
+        private List<Pair<DocumentCluster, Float>> clusterScorePairs = new ArrayList<>();
+        private IteratorWrapper<Pair<DocumentCluster, Float>> clusterScoreIter;
+        private boolean isClusterOrdered;
 
-        public SingleScorer(SparsePostingsEnum postingsEnum, BytesRef term) throws IOException {
+        public SingleScorer(SparsePostingsEnum postingsEnum, BytesRef term, boolean isClusterOrdered) throws IOException {
             clusterIter = postingsEnum.clusterIterator();
+            this.isClusterOrdered = isClusterOrdered;
+            initializeClusters();
+        }
+
+        private void initializeClusters() {
+            IteratorWrapper<DocumentCluster> tempIter = clusterIter;
+            DocumentCluster cluster;
+
+            while ((cluster = tempIter.next()) != null) {
+                if (cluster.size() > 0) {
+                    float clusterScore = 0.0f;
+                    if (cluster.getSummary() != null) {
+                        clusterScore = cluster.getSummary().dotProduct(PostingWithClustersScorer.this.queryDenseVector);
+                    }
+                    this.clusterScorePairs.add(Pair.of(cluster, clusterScore));
+                }
+            }
+
+            if (this.isClusterOrdered) {
+                Collections.sort(this.clusterScorePairs, Comparator.comparing(Pair<DocumentCluster, Float>::getRight).reversed());
+            }
+            this.clusterScoreIter = new IteratorWrapper<>(this.clusterScorePairs.iterator());
         }
 
         @Override
@@ -211,16 +240,17 @@ public class PostingWithClustersScorer extends Scorer {
             return new DocIdSetIterator() {
 
                 private DocumentCluster nextQualifiedCluster() {
-                    DocumentCluster cluster = clusterIter.next();
-                    while (cluster != null) {
+                    while (clusterScoreIter.hasNext()) {
+                        Pair<DocumentCluster, Float> pair = clusterScoreIter.next();
+                        DocumentCluster cluster = pair.getLeft();
+                        float clusterSummaryScore = pair.getRight();
+
                         if (cluster.isShouldNotSkip()) {
                             return cluster;
                         }
-                        float score = cluster.getSummary().dotProduct(queryDenseVector);
-                        if (scoreHeap.size() == sparseQueryContext.getK()
-                            && score < scoreHeap.peek().getRight() / sparseQueryContext.getHeapFactor()) {
-                            cluster = clusterIter.next();
-                        } else {
+
+                        if (scoreHeap.size() < sparseQueryContext.getK()
+                            || clusterSummaryScore >= scoreHeap.peek().getRight() / sparseQueryContext.getHeapFactor()) {
                             return cluster;
                         }
                     }
