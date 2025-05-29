@@ -64,7 +64,7 @@ public class PostingsProcessor {
         List<SparseVector.Item> items = summary.entrySet()
             .stream()
             .map(entry -> new SparseVector.Item(entry.getKey(), (byte) entry.getValue().intValue()))
-            .sorted((o1, o2) -> ByteQuantizer.compareUnsignedByte(o1.getFreq(), o2.getFreq()))
+            .sorted((o1, o2) -> ByteQuantizer.compareUnsignedByte(o2.getFreq(), o1.getFreq()))
             .collect(Collectors.toList());
         // count total freq of items
         double totalFreq = items.stream().mapToDouble(SparseVector.Item::getIntFreq).sum();
