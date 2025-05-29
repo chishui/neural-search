@@ -37,4 +37,18 @@ public final class ByteQuantizer {
     public static int getUnsignedByte(byte value) {
         return value & 0xFF;
     }
+
+    /**
+     * Compares two bytes as if they were unsigned values (0-255).
+     * This is necessary because Java bytes are signed (-128 to 127).
+     *
+     * @param x First byte to compare
+     * @param y Second byte to compare
+     * @return -1 if x < y in unsigned comparison, 0 if equal, 1 if x > y
+     */
+    public static int unsignedByteCompare(byte x, byte y) {
+        // Convert to unsigned integers (0-255) and compare directly
+        // This is more efficient than the branching approach
+        return Integer.compare(x & 0xFF, y & 0xFF);
+    }
 }

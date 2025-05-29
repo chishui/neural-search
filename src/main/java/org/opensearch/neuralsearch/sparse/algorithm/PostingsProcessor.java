@@ -13,7 +13,6 @@ import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,10 +23,6 @@ import java.util.stream.Collectors;
  * This is a utility class for processing postings. It is used by the clustering algorithm to sort and prune postings.
  */
 public class PostingsProcessor {
-    public static List<DocFreq> sortByFreq(List<DocFreq> postings) {
-        postings.sort((o1, o2) -> Float.compare(o2.getFreq(), o1.getFreq()));
-        return postings;
-    }
 
     public static List<DocFreq> pruneBySize(List<DocFreq> postings, int size) {
         return postings.subList(0, Math.min(postings.size(), size));
@@ -37,7 +32,7 @@ public class PostingsProcessor {
         if (K >= postings.size()) {
             return postings;
         }
-        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, Comparator.comparingInt(DocFreq::getIntFreq));
+        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, (o1, o2) -> ByteQuantizer.unsignedByteCompare(o1.getFreq(), o2.getFreq()));
         for (DocFreq docFreq : postings) {
             pq.add(docFreq);
             if (pq.size() > K) {
@@ -69,7 +64,7 @@ public class PostingsProcessor {
         List<SparseVector.Item> items = summary.entrySet()
             .stream()
             .map(entry -> new SparseVector.Item(entry.getKey(), (byte) entry.getValue().intValue()))
-            .sorted((o1, o2) -> Integer.compare(o2.getIntFreq(), o1.getIntFreq()))
+            .sorted((o1, o2) -> ByteQuantizer.unsignedByteCompare(o1.getFreq(), o2.getFreq()))
             .collect(Collectors.toList());
         // count total freq of items
         double totalFreq = items.stream().mapToDouble(SparseVector.Item::getIntFreq).sum();

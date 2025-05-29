@@ -17,7 +17,6 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -55,7 +54,7 @@ public class SparseVector implements Accountable {
     }
 
     public SparseVector(List<Item> items) {
-        items.sort(Comparator.comparingInt(Item::getToken));
+        items.sort((o1, o2) -> ByteQuantizer.unsignedByteCompare(o1.getFreq(), o2.getFreq()));
         int size = items.size();
         this.tokens = new short[size];
         this.freqs = new byte[size];
