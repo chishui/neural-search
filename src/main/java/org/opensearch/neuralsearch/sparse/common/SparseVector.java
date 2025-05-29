@@ -17,6 +17,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
