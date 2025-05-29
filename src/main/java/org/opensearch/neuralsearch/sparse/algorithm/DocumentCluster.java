@@ -39,7 +39,7 @@ public class DocumentCluster implements Accountable {
     public DocumentCluster(SparseVector summary, List<DocFreq> docs, boolean shouldNotSkip) {
         this.summary = summary;
         List<DocFreq> docsCopy = new ArrayList<>(docs);
-        docsCopy.sort((o1, o2) -> ByteQuantizer.unsignedByteCompare(o1.getFreq(), o2.getFreq()));
+        docsCopy.sort((o1, o2) -> ByteQuantizer.compareUnsignedByte(o1.getFreq(), o2.getFreq()));
         int size = docsCopy.size();
         this.docIds = new int[size];
         this.freqs = new byte[size];
