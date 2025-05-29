@@ -54,7 +54,7 @@ public class SparseVector implements Accountable {
     }
 
     public SparseVector(List<Item> items) {
-        items.sort((o1, o2) -> ByteQuantizer.compareUnsignedByte(o1.getFreq(), o2.getFreq()));
+        items.sort(Comparator.comparingInt(Item::getToken));
         int size = items.size();
         this.tokens = new short[size];
         this.freqs = new byte[size];
