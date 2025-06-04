@@ -65,7 +65,7 @@ public class PostingWithClustersScorer extends Scorer {
         this.sparseQueryContext = sparseQueryContext;
         this.fieldName = fieldName;
         this.queryVector = queryVector;
-        this.queryDenseVector = queryVector.toDenseVector();
+        this.queryDenseVector = queryVector.toDenseVector(InMemorySparseVectorForwardIndex.getMaxDimension());
         this.visitedDocId = new LongBitSet(context.reader().maxDoc());
         this.acceptedDocs = acceptedDocs;
         this.reader = reader;
@@ -161,7 +161,7 @@ public class PostingWithClustersScorer extends Scorer {
                     if (doc == null) {
                         continue;
                     }
-                    score = doc.dotProduct(queryDenseVector);
+                    score = doc.dotProductAccelerated(queryDenseVector);
                     addToHeap(Pair.of(docId, score));
                     return docId;
                 }
@@ -216,7 +216,7 @@ public class PostingWithClustersScorer extends Scorer {
                         if (cluster.isShouldNotSkip()) {
                             return cluster;
                         }
-                        float score = cluster.getSummary().dotProduct(queryDenseVector);
+                        float score = cluster.getSummary().dotProductAccelerated(queryDenseVector);
                         if (scoreHeap.size() == sparseQueryContext.getK()
                             && score < scoreHeap.peek().getRight() / sparseQueryContext.getHeapFactor()) {
                             cluster = clusterIter.next();

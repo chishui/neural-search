@@ -23,6 +23,8 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
 
     private static final Map<InMemoryKey.IndexKey, InMemorySparseVectorForwardIndex> forwardIndexMap = new ConcurrentHashMap<>();
 
+    private static short maxDim;
+
     public static long memUsage() {
         long mem = 0;
         for (Map.Entry<InMemoryKey.IndexKey, InMemorySparseVectorForwardIndex> entry : forwardIndexMap.entrySet()) {
@@ -44,6 +46,10 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
             throw new IllegalArgumentException("Index key cannot be null");
         }
         return forwardIndexMap.get(key);
+    }
+
+    public static short getMaxDimension() {
+        return maxDim;
     }
 
     public static void removeIndex(InMemoryKey.IndexKey key) {
@@ -96,6 +102,7 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
         @Override
         public void write(int docId, SparseVector vector) {
             if (vector == null || docId >= sparseVectors.length) return;
+            maxDim = (maxDim > vector.getDimension()) ? maxDim : vector.getDimension();
             sparseVectors[docId] = vector;
         }
 
