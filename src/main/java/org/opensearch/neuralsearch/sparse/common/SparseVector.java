@@ -39,6 +39,10 @@ public class SparseVector implements Accountable {
         return tokens == null ? 0 : tokens.length;
     }
 
+    public short getDimension() {
+        return tokens == null ? 0 : tokens[tokens.length - 1];
+    }
+
     public SparseVector(Map<String, Float> pairs) {
         this(pairs.entrySet().stream().map(t -> new Item(convertStringToInteger(t.getKey()), t.getValue())).collect(Collectors.toList()));
     }
@@ -78,16 +82,57 @@ public class SparseVector implements Accountable {
     }
 
     public float[] toDenseVector() {
+        return toDenseVector(Short.MAX_VALUE);
+    }
+
+    public float[] toDenseVector(short dim) {
         int size = getSize();
         if (size == 0) {
             return new float[0];
         }
-        int maxToken = this.tokens[size - 1];
-        float[] denseVector = new float[maxToken + 1];
-        for (int i = 0; i < size; ++i) {
-            denseVector[this.tokens[i]] = this.freqs[i];
+
+        int vectorDim;
+        if (dim == Short.MAX_VALUE) {
+            vectorDim = this.tokens[size - 1] + 1;
+        } else {
+            vectorDim = dim + 1;
         }
+
+        float[] denseVector = new float[vectorDim];
+        for (int i = 0; i < size; ++i) {
+            if (this.tokens[i] < vectorDim) {
+                denseVector[this.tokens[i]] = this.freqs[i];
+            }
+        }
+
         return denseVector;
+    }
+
+    public float dotProductAccelerated(final float[] denseVector) {
+        int size = getSize();
+        if (size == 0 || denseVector.length == 0) return 0;
+
+        final int N_LANES = 4;
+        float[] result = new float[N_LANES];
+
+        final short[] tokens = this.tokens;
+        final float[] freqs = this.freqs;
+
+        final int limit = size - (size % N_LANES);
+        int i = 0;
+
+        for (; i < limit; i += N_LANES) {
+            result[0] += freqs[i] * denseVector[tokens[i]];
+            result[1] += freqs[i + 1] * denseVector[tokens[i + 1]];
+            result[2] += freqs[i + 2] * denseVector[tokens[i + 2]];
+            result[3] += freqs[i + 3] * denseVector[tokens[i + 3]];
+        }
+
+        for (; i < size; ++i) {
+            result[0] += freqs[i] * denseVector[tokens[i]];
+        }
+
+        return result[0] + result[1] + result[2] + result[3];
     }
 
     public float dotProduct(final float[] denseVector) {
