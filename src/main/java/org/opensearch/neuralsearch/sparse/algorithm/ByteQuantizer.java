@@ -34,7 +34,7 @@ public final class ByteQuantizer {
      * @param value The byte value
      * @return The unsigned integer value of the frequency
      */
-    public static int getUnsignedByte(byte value) {
+    private static int getUnsignedByte(byte value) {
         return value & 0xFF;
     }
 
@@ -49,6 +49,19 @@ public final class ByteQuantizer {
     public static int compareUnsignedByte(byte x, byte y) {
         // Convert to unsigned integers (0-255) and compare directly
         // This is more efficient than the branching approach
-        return Integer.compare(x & 0xFF, y & 0xFF);
+        return Integer.compare(getUnsignedByte(x), getUnsignedByte(y));
+    }
+
+    /**
+     * Multiplies two bytes as unsigned values (0-255).
+     * This method treats the input bytes as unsigned values by masking with 0xFF,
+     * then performs multiplication on the resulting integers.
+     *
+     * @param x First byte to be treated as unsigned (0-255)
+     * @param y Second byte to be treated as unsigned (0-255)
+     * @return The product of the two unsigned byte values as an integer (0-65025)
+     */
+    public static int multiplyUnsignedByte(byte x, byte y) {
+        return getUnsignedByte(x) * getUnsignedByte(y);
     }
 }

@@ -114,25 +114,25 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += ByteQuantizer.getUnsignedByte(this.freqs[i]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
 
             if (this.tokens[i + 1] >= denseVector.length) {
                 ++i;
                 break;
             }
-            score += ByteQuantizer.getUnsignedByte(this.freqs[i + 1]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i + 1]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 1], denseVector[this.tokens[i + 1]]);
 
             if (this.tokens[i + 2] >= denseVector.length) {
                 i += 2;
                 break;
             }
-            score += ByteQuantizer.getUnsignedByte(this.freqs[i + 2]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i + 2]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 2], denseVector[this.tokens[i + 2]]);
 
             if (this.tokens[i + 3] >= denseVector.length) {
                 i += 3;
                 break;
             }
-            score += ByteQuantizer.getUnsignedByte(this.freqs[i + 3]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i + 3]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 3], denseVector[this.tokens[i + 3]]);
         }
 
         // Handle remaining elements
@@ -140,7 +140,7 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += ByteQuantizer.getUnsignedByte(this.freqs[i]) * ByteQuantizer.getUnsignedByte(denseVector[this.tokens[i]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
         }
 
         return score;
