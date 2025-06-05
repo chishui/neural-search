@@ -36,7 +36,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
 import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
-import org.opensearch.neuralsearch.sparse.jni.NativeLibrary;
+import org.opensearch.neuralsearch.sparse.common.Profiling;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
@@ -174,7 +174,6 @@ public class NeuralSearch extends Plugin
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
         ClusterTrainingRunning.initialize(threadPool);
-        NativeLibrary.getInstance();
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
 
@@ -360,6 +359,11 @@ public class NeuralSearch extends Plugin
                     RamUsageEstimator.humanReadableUnits(InMemorySparseVectorForwardIndex.memUsage()),
                     Accountables.toString(inMemoryClusteredPosting)
                 );
+                if (!v) {
+                    Profiling.INSTANCE.run();
+                } else {
+                    Profiling.INSTANCE.output();
+                }
             });
         }
     }

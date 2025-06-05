@@ -33,7 +33,7 @@ test:
 	ctest --test-dir build
 
 java:
-	javac -h ./include ../src/main/java/org/opensearch/neuralsearch/sparse/common/NativeLibrary.java
+	javac -h ./include --enable-preview --release 23 ../src/main/java/org/opensearch/neuralsearch/sparse/jni/NativeLibrary.java
 
 
 docker: clean

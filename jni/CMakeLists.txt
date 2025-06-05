@@ -69,6 +69,8 @@ if(UNIX AND NOT APPLE)
     set_target_properties(${LIBRARY_NAME} PROPERTIES
         INSTALL_RPATH "${JAVA_HOME}/lib/server"
         BUILD_WITH_INSTALL_RPATH TRUE
+       CXX_VISIBILITY_PRESET hidden
+       VISIBILITY_INLINES_HIDDEN ON
     )
 endif()
 
