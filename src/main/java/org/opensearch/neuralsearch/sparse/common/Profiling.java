@@ -20,6 +20,7 @@ public class Profiling {
     private boolean run = false;
 
     public void run() {
+        clear();
         run = true;
     }
 
@@ -27,6 +28,13 @@ public class Profiling {
         for (ItemId itemId : ItemId.values()) {
             ItemData itemData = new ItemData();
             profilings.add(itemData);
+        }
+    }
+
+    private void clear() {
+        for (ItemId itemId : ItemId.values()) {
+            ItemData itemData = new ItemData();
+            itemData.clear();
         }
     }
 
@@ -80,8 +88,13 @@ public class Profiling {
             count.incrementAndGet();
         }
 
+        void clear() {
+            count.set(0);
+            time.set(0);
+        }
+
         void output() {
-            log.info("count: {}, avg time: {} ms", count, time.get() / count.get());
+            log.info("count: {}, avg time: {} ns", count, time.get() / count.get());
         }
     }
 }
