@@ -44,7 +44,7 @@ public final class ByteQuantizer {
      *
      * @param x First byte to compare
      * @param y Second byte to compare
-     * @return -1 if x < y in unsigned comparison, 0 if equal, 1 if x > y
+     * @return -1 if x is smaller than y in unsigned comparison, 0 if equal, 1 if x is greater than y
      */
     public static int compareUnsignedByte(byte x, byte y) {
         // Convert to unsigned integers (0-255) and compare directly
