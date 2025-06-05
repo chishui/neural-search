@@ -34,7 +34,7 @@ public final class ByteQuantizer {
      * @param value The byte value
      * @return The unsigned integer value of the frequency
      */
-    private static int getUnsignedByte(byte value) {
+    public static int getUnsignedByte(byte value) {
         return value & 0xFF;
     }
 
