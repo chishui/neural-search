@@ -65,7 +65,9 @@ public class Profiling {
         VISITED(2),
         NEXTDOC(3),
         ACCEPTED(4),
-        HEAP(5);
+        HEAP(5),
+        CLUSTER(6),
+        CLUSTERSHOULDNOTSKIP(7);
 
         @Getter
         private int id;
