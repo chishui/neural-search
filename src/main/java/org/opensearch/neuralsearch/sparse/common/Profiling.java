@@ -67,7 +67,8 @@ public class Profiling {
         ACCEPTED(4),
         HEAP(5),
         CLUSTER(6),
-        CLUSTERSHOULDNOTSKIP(7);
+        CLUSTERSHOULDNOTSKIP(7),
+        CLUSTERDP(8);
 
         @Getter
         private int id;
@@ -96,7 +97,12 @@ public class Profiling {
         }
 
         void output() {
-            log.info("count: {}, avg time: {} ns", count, time.get() / count.get());
+            if (count.get() != 0) {
+                log.info("count: {}, avg time: {} ns", count, time.get() / count.get());
+            } else {
+                log.info("count: 0");
+            }
+
         }
     }
 }
