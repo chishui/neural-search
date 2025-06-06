@@ -42,7 +42,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         MergeState mergeState,
         FieldInfo fieldInfo
     ) {
-        this.terms = terms;
+        this.terms = terms.stream().map(BytesRef::deepCopyOf).toList();
         this.key = key;
         this.summaryPruneRatio = summaryPruneRatio;
         this.clusterRatio = clusterRatio;
