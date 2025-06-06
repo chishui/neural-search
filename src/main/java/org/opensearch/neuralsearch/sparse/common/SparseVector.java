@@ -28,10 +28,16 @@ import java.util.stream.Collectors;
  * Sparse vector implementation, which is a list of (token, freq) pairs
  */
 @EqualsAndHashCode
+@Getter
 public class SparseVector implements Accountable {
     // tokens will be stored in order
     private final short[] tokens;
     private final byte[] freqs;
+
+    public SparseVector(short[] tokens, byte[] freqs) {
+        this.tokens = tokens;
+        this.freqs = freqs;
+    }
 
     public SparseVector(BytesRef bytesRef) throws IOException {
         this(readToMap(bytesRef));

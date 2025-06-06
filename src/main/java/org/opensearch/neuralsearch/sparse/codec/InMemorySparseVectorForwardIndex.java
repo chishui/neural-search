@@ -51,10 +51,12 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
     }
 
     // private final Map<Integer, SparseVector> sparseVectorMap = new ConcurrentHashMap<>();
-    private final SparseVector[] sparseVectors;
+    private final short[][] vectorTokens;
+    private final byte[][] vectorFreqs;
 
     public InMemorySparseVectorForwardIndex(int docCount) {
-        sparseVectors = new SparseVector[docCount];
+        vectorTokens = new short[docCount][];
+        vectorFreqs = new byte[docCount][];
     }
 
     @Override
@@ -70,10 +72,8 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
     @Override
     public long ramBytesUsed() {
         long ramUsed = 0;
-        for (SparseVector vector : sparseVectors) {
-            if (vector == null) continue;
-            ramUsed += vector.ramBytesUsed();
-        }
+        ramUsed += RamUsageEstimator.shallowSizeOf(vectorTokens);
+        ramUsed +=  RamUsageEstimator.shallowSizeOf(vectorFreqs);
         return ramUsed;
     }
 
@@ -81,8 +81,8 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
 
         @Override
         public SparseVector readSparseVector(int docId) {
-            assert docId < sparseVectors.length : "docId " + docId + " is out of bounds";
-            return sparseVectors[docId];
+            assert docId < vectorTokens.length : "docId " + docId + " is out of bounds";
+            return new SparseVector(vectorTokens[docId], vectorFreqs[docId]);
         }
 
         @Override
@@ -95,8 +95,9 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
 
         @Override
         public void write(int docId, SparseVector vector) {
-            if (vector == null || docId >= sparseVectors.length) return;
-            sparseVectors[docId] = vector;
+            if (vector == null || docId >= vectorTokens.length) return;
+            vectorTokens[docId] = vector.getTokens();
+            vectorFreqs[docId] = vector.getFreqs();
         }
 
         @Override
