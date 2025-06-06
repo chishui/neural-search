@@ -18,6 +18,8 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -99,52 +101,64 @@ public class SparseVector implements Accountable {
     }
 
     public int dotProduct(final byte[] denseVector) {
-        int score = 0;
-        int size = getSize();
+        ByteBuffer bbTokens = ByteBuffer.allocateDirect(this.tokens.length * Short.BYTES).order(ByteOrder.nativeOrder());
+        bbTokens.asShortBuffer().put(this.tokens);
 
-        // Early exit for empty vectors
-        if (size == 0 || denseVector.length == 0) return 0;
+        ByteBuffer bbFreqs = ByteBuffer.allocateDirect(this.freqs.length).order(ByteOrder.nativeOrder());
+        bbFreqs.put(this.freqs);
+        bbFreqs.flip();
 
-        // Loop unrolling for better performance
-        final int unrollFactor = 4;
-        final int limit = size - (size % unrollFactor);
+        ByteBuffer bbDenseVector = ByteBuffer.allocateDirect(denseVector.length).order(ByteOrder.nativeOrder());
+        bbDenseVector.put(denseVector);
+        bbDenseVector.flip();
 
-        // Main loop with unrolling
-        int i = 0;
-        for (; i < limit; i += unrollFactor) {
-            if (this.tokens[i] >= denseVector.length) {
-                break;
-            }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
-
-            if (this.tokens[i + 1] >= denseVector.length) {
-                ++i;
-                break;
-            }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 1], denseVector[this.tokens[i + 1]]);
-
-            if (this.tokens[i + 2] >= denseVector.length) {
-                i += 2;
-                break;
-            }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 2], denseVector[this.tokens[i + 2]]);
-
-            if (this.tokens[i + 3] >= denseVector.length) {
-                i += 3;
-                break;
-            }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 3], denseVector[this.tokens[i + 3]]);
-        }
-
-        // Handle remaining elements
-        for (; i < size; ++i) {
-            if (this.tokens[i] >= denseVector.length) {
-                break;
-            }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
-        }
-
-        return score;
+        return (int) NativeLibrary.sparseDotProductDirectInt8(bbTokens, bbFreqs, bbDenseVector);
+//        int score = 0;
+//        int size = getSize();
+//
+//        // Early exit for empty vectors
+//        if (size == 0 || denseVector.length == 0) return 0;
+//
+//        // Loop unrolling for better performance
+//        final int unrollFactor = 4;
+//        final int limit = size - (size % unrollFactor);
+//
+//        // Main loop with unrolling
+//        int i = 0;
+//        for (; i < limit; i += unrollFactor) {
+//            if (this.tokens[i] >= denseVector.length) {
+//                break;
+//            }
+//            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
+//
+//            if (this.tokens[i + 1] >= denseVector.length) {
+//                ++i;
+//                break;
+//            }
+//            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 1], denseVector[this.tokens[i + 1]]);
+//
+//            if (this.tokens[i + 2] >= denseVector.length) {
+//                i += 2;
+//                break;
+//            }
+//            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 2], denseVector[this.tokens[i + 2]]);
+//
+//            if (this.tokens[i + 3] >= denseVector.length) {
+//                i += 3;
+//                break;
+//            }
+//            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 3], denseVector[this.tokens[i + 3]]);
+//        }
+//
+//        // Handle remaining elements
+//        for (; i < size; ++i) {
+//            if (this.tokens[i] >= denseVector.length) {
+//                break;
+//            }
+//            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
+//        }
+//
+//        return score;
     }
 
     public IteratorWrapper<Item> iterator() {
