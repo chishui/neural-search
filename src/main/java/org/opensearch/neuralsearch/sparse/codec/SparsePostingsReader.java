@@ -42,6 +42,8 @@ import java.util.concurrent.CompletionException;
 @Log4j2
 public class SparsePostingsReader {
     private final MergeState mergeState;
+    // this is a magic number for now which is effective
+    private static final int BATCH_SIZE = 50;
 
     public SparsePostingsReader(MergeState state) {
         this.mergeState = state;
@@ -81,16 +83,14 @@ public class SparsePostingsReader {
             sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
             clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount);
 
-            // this is a magic number which is effective
-            final int batchSize = 50;
             List<CompletableFuture<List<Pair<BytesRef, PostingClusters>>>> futures = new ArrayList<>(
-                Math.round((float) allTerms.size() / batchSize)
+                Math.round((float) allTerms.size() / BATCH_SIZE)
             );
             int i = 0;
-            List<BytesRef> termBatch = new ArrayList<>(batchSize);
+            List<BytesRef> termBatch = new ArrayList<>(BATCH_SIZE);
             for (BytesRef term : allTerms) {
                 termBatch.add(term);
-                if (termBatch.size() == batchSize || i == allTerms.size() - 1) {
+                if (termBatch.size() == BATCH_SIZE || i == allTerms.size() - 1) {
                     if (beta == 1) {
                         futures.add(
                             CompletableFuture.completedFuture(
@@ -106,7 +106,7 @@ public class SparsePostingsReader {
                             )
                         );
                     }
-                    termBatch = new ArrayList<>(batchSize);
+                    termBatch = new ArrayList<>(BATCH_SIZE);
                 }
                 ++i;
             }
@@ -119,10 +119,11 @@ public class SparsePostingsReader {
                         sparseTermsLuceneWriter.writeTerm(p.getLeft(), state);
                     }
                 } catch (CancellationException | CompletionException ex) {
-                    log.error("Thread of running clustering from term {} during merge has exception", "", ex);
+                    log.error("Thread of running clustering from {}th term batch during merge has exception", j, ex);
                 } catch (IOException ex) {
                     clusteredPostingTermsWriter.closeWithException();
                     sparseTermsLuceneWriter.closeWithException();
+                    throw ex;
                 }
             }
         }
