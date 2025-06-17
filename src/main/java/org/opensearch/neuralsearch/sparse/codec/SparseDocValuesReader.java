@@ -23,8 +23,8 @@ import java.util.List;
 /**
  * It produces SparseDocValues when segments merge happens. It does the actual work for sparse vector merge.
  */
+@Getter
 public class SparseDocValuesReader extends EmptyDocValuesProducer {
-    @Getter
     private final MergeState mergeState;
 
     public SparseDocValuesReader(MergeState state) {
@@ -32,7 +32,7 @@ public class SparseDocValuesReader extends EmptyDocValuesProducer {
     }
 
     @Override
-    public BinaryDocValues getBinary(FieldInfo field) throws IOException {
+    public BinaryDocValues getBinary(FieldInfo field) {
         long totalLiveDocs = 0;
         try {
             List<BinaryDocValuesSub> subs = new ArrayList<>(this.mergeState.docValuesProducers.length);
@@ -46,8 +46,7 @@ public class SparseDocValuesReader extends EmptyDocValuesProducer {
                     }
                     if (values != null) {
                         InMemoryKey.IndexKey key = null;
-                        if (values instanceof SparseBinaryDocValuesPassThrough) {
-                            SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough = (SparseBinaryDocValuesPassThrough) values;
+                        if (values instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
                             key = new InMemoryKey.IndexKey(sparseBinaryDocValuesPassThrough.getSegmentInfo(), field);
                         }
                         totalLiveDocs = totalLiveDocs + getLiveDocsCount(values, this.mergeState.liveDocs[i]);

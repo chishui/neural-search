@@ -14,6 +14,10 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.util.BytesRef;
+import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.io.IOException;
 
@@ -38,7 +42,28 @@ public class SparseDocValuesProducer extends DocValuesProducer {
 
     @Override
     public BinaryDocValues getBinary(FieldInfo field) throws IOException {
-        return new SparseBinaryDocValuesPassThrough(this.delegate.getBinary(field), this.getState().segmentInfo);
+        BinaryDocValues binaryDocValues = this.delegate.getBinary(field);
+        readBinary(field, binaryDocValues);
+        return new SparseBinaryDocValuesPassThrough(binaryDocValues, this.getState().segmentInfo);
+    }
+
+    private void readBinary(FieldInfo field, BinaryDocValues binaryDocValues) throws IOException {
+        InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, field);
+        int docCount = this.state.segmentInfo.maxDoc();
+        SparseVectorForwardIndex.SparseVectorForwardIndexWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount)
+            .getForwardIndexWriter();
+        int docId = binaryDocValues.nextDoc();
+        if (writer == null) {
+            throw new IllegalStateException("Forward index writer is null");
+        }
+        while (docId != DocIdSetIterator.NO_MORE_DOCS) {
+            boolean written = false;
+            if (!written) {
+                BytesRef bytesRef = binaryDocValues.binaryValue();
+                writer.write(docId, bytesRef);
+            }
+            docId = binaryDocValues.nextDoc();
+        }
     }
 
     @Override

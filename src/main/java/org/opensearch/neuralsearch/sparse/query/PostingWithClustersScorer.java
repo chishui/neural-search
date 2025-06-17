@@ -79,13 +79,13 @@ public class PostingWithClustersScorer extends Scorer {
     private void initialize(LeafReader leafReader) throws IOException {
         terms = Terms.getTerms(leafReader, fieldName);
         assert terms != null : "Terms must not be null";
-        BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
         for (String token : sparseQueryContext.getTokens()) {
             TermsEnum termsEnum = terms.iterator();
             BytesRef term = new BytesRef(token);
             if (!termsEnum.seekExact(term)) {
                 continue;
             }
+            BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
             PostingsEnum postingsEnum = termsEnum.postings(null, PostingsEnum.FREQS);
             if (!(postingsEnum instanceof SparsePostingsEnum sparsePostingsEnum)) {
                 log.error("posting enum is not SparsePostingsEnum, actual type: {}", postingsEnum.getClass().getName());
@@ -97,7 +97,7 @@ public class PostingWithClustersScorer extends Scorer {
                 sparsePostingsEnum.size(),
                 sparsePostingsEnum.getClusters().getClusters().size()
             );
-            if (null == reader) {
+            if (reader == null) {
                 SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(sparsePostingsEnum.getIndexKey());
                 if (index != null) {
                     SparseVectorForwardIndex.SparseVectorForwardIndexReader indexReader = index.getForwardIndexReader();

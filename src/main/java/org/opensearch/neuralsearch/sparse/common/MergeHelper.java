@@ -23,12 +23,10 @@ public class MergeHelper {
                     continue;
                 }
                 BinaryDocValues binaryDocValues = producer.getBinary(field);
-                if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough)) {
-                    continue;
+                if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough binaryDocValuesPassThrough) {
+                    InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(binaryDocValuesPassThrough.getSegmentInfo(), field);
+                    consumer.accept(key);
                 }
-                SparseBinaryDocValuesPassThrough binaryDocValuesPassThrough = (SparseBinaryDocValuesPassThrough) binaryDocValues;
-                InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(binaryDocValuesPassThrough.getSegmentInfo(), field);
-                consumer.accept(key);
             }
         }
     }
