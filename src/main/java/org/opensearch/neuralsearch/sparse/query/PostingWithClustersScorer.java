@@ -115,7 +115,7 @@ public class PostingWithClustersScorer extends Scorer {
 
     @Override
     public int docID() {
-        return iterator().docID();
+        throw new UnsupportedOperationException();
     }
 
     @Override

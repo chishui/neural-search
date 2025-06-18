@@ -24,8 +24,11 @@ import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
 import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
+import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -419,6 +422,75 @@ public class PostingWithClustersScorerTests extends OpenSearchQueryTestCase {
         assertEquals(9, scorer.score(), DELTA_FOR_ASSERTION);
 
         // No more docs
+        assertEquals(NO_MORE_DOCS, iterator.nextDoc());
+    }
+
+    public void testNullSparseVectorReaderWithoutInMemoryReader() throws IOException {
+        when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        InMemoryKey.IndexKey indexKey = mock(InMemoryKey.IndexKey.class);
+        when(postingsEnum.getIndexKey()).thenReturn(indexKey);
+
+        // Mock document cluster
+        DocumentCluster cluster = prepareCluster(10, false);
+
+        // Mock cluster iterator
+        IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
+        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
+
+        prepareClusterAndItsDocs(cluster, 1, 2, 2, 3);
+
+        // Create scorer
+        PostingWithClustersScorer scorer = new PostingWithClustersScorer(
+            FIELD_NAME,
+            queryContext,
+            queryVector,
+            leafReader,
+            null,
+            null,
+            simScorer
+        );
+
+        // Test iterator - should skip doc 1 (no vector) and return doc 2
+        DocIdSetIterator iterator = scorer.iterator();
+        assertEquals(NO_MORE_DOCS, iterator.nextDoc());
+    }
+
+    public void testNullSparseVectorReaderWithInMemoryReader() throws IOException {
+        when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        InMemoryKey.IndexKey indexKey = mock(InMemoryKey.IndexKey.class);
+        when(postingsEnum.getIndexKey()).thenReturn(indexKey);
+
+        // Mock document cluster
+        DocumentCluster cluster = prepareCluster(10, false);
+
+        // Mock cluster iterator
+        IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
+        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
+
+        prepareClusterAndItsDocs(cluster, 1, 2, 2, 3);
+
+        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, 10);
+        SparseVector vector = mock(SparseVector.class);
+        when(vector.dotProduct(queryDenseVector)).thenReturn(5);
+        index.getForwardIndexWriter().write(1, vector);
+
+        PostingWithClustersScorer scorer = new PostingWithClustersScorer(
+            FIELD_NAME,
+            queryContext,
+            queryVector,
+            leafReader,
+            null,
+            null,
+            simScorer
+        );
+
+        // Test iterator - should skip doc 1 (no vector) and return doc 2
+        DocIdSetIterator iterator = scorer.iterator();
+        assertEquals(1, iterator.nextDoc());
         assertEquals(NO_MORE_DOCS, iterator.nextDoc());
     }
 
