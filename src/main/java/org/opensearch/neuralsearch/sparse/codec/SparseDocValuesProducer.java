@@ -17,6 +17,7 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
+import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
@@ -44,7 +45,9 @@ public class SparseDocValuesProducer extends DocValuesProducer {
     @Override
     public BinaryDocValues getBinary(FieldInfo field) throws IOException {
         BinaryDocValues binaryDocValues = this.delegate.getBinary(field);
-        readBinary(field, binaryDocValues);
+        if (SparseTokensField.isSparseField(field)) {
+            readBinary(field, binaryDocValues);
+        }
         return new SparseBinaryDocValuesPassThrough(binaryDocValues, this.state.segmentInfo);
     }
 
@@ -61,11 +64,8 @@ public class SparseDocValuesProducer extends DocValuesProducer {
             }
             int docId = binaryDocValues.nextDoc();
             while (docId != DocIdSetIterator.NO_MORE_DOCS) {
-                boolean written = false;
-                if (!written) {
-                    BytesRef bytesRef = binaryDocValues.binaryValue();
-                    writer.write(docId, bytesRef);
-                }
+                BytesRef bytesRef = binaryDocValues.binaryValue();
+                writer.write(docId, bytesRef);
                 docId = binaryDocValues.nextDoc();
             }
         }
