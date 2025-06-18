@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DocValuesSkipper;
@@ -17,13 +18,13 @@ import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.io.IOException;
 
 /**
  *
  */
+@Log4j2
 public class SparseDocValuesProducer extends DocValuesProducer {
     private final DocValuesProducer delegate;
     @Getter
@@ -44,25 +45,29 @@ public class SparseDocValuesProducer extends DocValuesProducer {
     public BinaryDocValues getBinary(FieldInfo field) throws IOException {
         BinaryDocValues binaryDocValues = this.delegate.getBinary(field);
         readBinary(field, binaryDocValues);
-        return new SparseBinaryDocValuesPassThrough(binaryDocValues, this.getState().segmentInfo);
+        return new SparseBinaryDocValuesPassThrough(binaryDocValues, this.state.segmentInfo);
     }
 
     private void readBinary(FieldInfo field, BinaryDocValues binaryDocValues) throws IOException {
         InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, field);
         int docCount = this.state.segmentInfo.maxDoc();
-        SparseVectorForwardIndex.SparseVectorForwardIndexWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount)
-            .getForwardIndexWriter();
-        int docId = binaryDocValues.nextDoc();
-        if (writer == null) {
-            throw new IllegalStateException("Forward index writer is null");
-        }
-        while (docId != DocIdSetIterator.NO_MORE_DOCS) {
-            boolean written = false;
-            if (!written) {
-                BytesRef bytesRef = binaryDocValues.binaryValue();
-                writer.write(docId, bytesRef);
+        InMemorySparseVectorForwardIndex forwardIndex = InMemorySparseVectorForwardIndex.get(key);
+        if (forwardIndex == null) {
+            log.info("Forward index is null. Need to load it from binary doc values");
+            SparseVectorForwardIndex.SparseVectorForwardIndexWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount)
+                .getForwardIndexWriter();
+            if (writer == null) {
+                throw new IllegalStateException("Forward index writer is null");
             }
-            docId = binaryDocValues.nextDoc();
+            int docId = binaryDocValues.nextDoc();
+            while (docId != DocIdSetIterator.NO_MORE_DOCS) {
+                boolean written = false;
+                if (!written) {
+                    BytesRef bytesRef = binaryDocValues.binaryValue();
+                    writer.write(docId, bytesRef);
+                }
+                docId = binaryDocValues.nextDoc();
+            }
         }
     }
 
