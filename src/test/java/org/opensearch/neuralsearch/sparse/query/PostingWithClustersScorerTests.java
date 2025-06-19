@@ -22,7 +22,9 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
-import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
@@ -33,7 +35,7 @@ import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
-public class PostingWithClustersScorerTests extends OpenSearchQueryTestCase {
+public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
 
     private static final String FIELD_NAME = "test_field";
 
@@ -49,38 +51,37 @@ public class PostingWithClustersScorerTests extends OpenSearchQueryTestCase {
     };
     // Test variables
     private SparseQueryContext queryContext;
-    private SparseVector queryVector;
     private byte[] queryDenseVector;
+    @Mock
+    private SparseVector queryVector;
+    @Mock
     private LeafReader leafReader;
+    @Mock
     private Terms terms;
+    @Mock
     private TermsEnum termsEnum;
+    @Mock
     private SparseVectorReader reader;
+    @Mock
     private SparsePostingsEnum postingsEnum;
+    @Mock
     private SparsePostingsEnum postingsEnum2;
 
     @Before
     @Override
     public void setUp() throws Exception {
         super.setUp();
+        MockitoAnnotations.openMocks(this);
         // Initialize common test objects
         queryContext = constructSparseQueryContext(K, HEAP_FACTOR, TOKENS);
-        queryVector = mock(SparseVector.class);
         queryDenseVector = new byte[] { 1, 2, 3, 4 };
         when(queryVector.toDenseVector()).thenReturn(queryDenseVector);
         // Mock LeafReaderContext
-        leafReader = mock(LeafReader.class);
         when(leafReader.maxDoc()).thenReturn(100);
         // Mock Terms
-        terms = mock(Terms.class);
         when(Terms.getTerms(leafReader, FIELD_NAME)).thenReturn(terms);
         // Mock TermsEnum
-        termsEnum = mock(TermsEnum.class);
         when(terms.iterator()).thenReturn(termsEnum);
-        // mock postingEnum
-        postingsEnum = mock(SparsePostingsEnum.class);
-        postingsEnum2 = mock(SparsePostingsEnum.class);
-        // Mock SparseVectorReader with different scores for each doc
-        reader = mock(SparseVectorReader.class);
     }
 
     public void testBasicScoring() throws IOException {
@@ -534,45 +535,6 @@ public class PostingWithClustersScorerTests extends OpenSearchQueryTestCase {
 
     private SparseQueryContext constructSparseQueryContext(int k, float hf, List<String> tokens) {
         return SparseQueryContext.builder().k(k).heapFactor(hf).tokens(tokens).build();
-    }
-
-    private DocFreqIterator constructDocFreqIterator(Integer... docs) {
-        return constructDocFreqIterator(Arrays.asList(docs), Arrays.asList(docs));
-    }
-
-    private DocFreqIterator constructDocFreqIterator(List<Integer> docs, List<Integer> freqs) {
-        return new DocFreqIterator() {
-            int i = -1;
-
-            @Override
-            public byte freq() {
-                return (byte) (freqs.get(i) & 0xff);
-            }
-
-            @Override
-            public int nextDoc() {
-                if (i + 1 == docs.size()) {
-                    return NO_MORE_DOCS;
-                } else {
-                    return docs.get(++i);
-                }
-            }
-
-            @Override
-            public int docID() {
-                return i < 0 ? -1 : i == docs.size() ? NO_MORE_DOCS : docs.get(i);
-            }
-
-            @Override
-            public long cost() {
-                return docs.size();
-            }
-
-            @Override
-            public int advance(int target) throws IOException {
-                return slowAdvance(target);
-            }
-        };
     }
 
     private DocumentCluster prepareCluster(int summaryDP, boolean shouldNotSkip) {
