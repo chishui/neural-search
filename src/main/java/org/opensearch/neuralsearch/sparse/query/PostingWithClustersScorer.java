@@ -241,6 +241,9 @@ public class PostingWithClustersScorer extends Scorer {
 
                 @Override
                 public int docID() {
+                    if (docs == null) {
+                        return -1;
+                    }
                     return docs.docID();
                 }
 
