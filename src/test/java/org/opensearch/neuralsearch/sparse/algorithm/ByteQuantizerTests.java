@@ -63,8 +63,8 @@ public class ByteQuantizerTests extends AbstractSparseTestBase {
 
         // Test multiplication with values that would be negative as signed bytes
         Assert.assertEquals(255, ByteQuantizer.multiplyUnsignedByte((byte) 1, (byte) -1));
-        Assert.assertEquals(16384, ByteQuantizer.multiplyUnsignedByte((byte) -128, (byte) -128));
-        Assert.assertEquals(65025, ByteQuantizer.multiplyUnsignedByte((byte) -1, (byte) -1));
+        Assert.assertEquals(128 * 128, ByteQuantizer.multiplyUnsignedByte((byte) -128, (byte) -128));
+        Assert.assertEquals(255 * 255, ByteQuantizer.multiplyUnsignedByte((byte) -1, (byte) -1));
     }
 
     public void testGetSimScorer() {
@@ -72,15 +72,15 @@ public class ByteQuantizerTests extends AbstractSparseTestBase {
         Similarity.SimScorer scorer = ByteQuantizer.getSimScorer(1.0f);
         float expectedRatio = ByteQuantizer.SCORE_RESCALE_RATIO;
 
-        Assert.assertEquals(0.0f, scorer.score(0.0f, 0), 0.0001f);
-        Assert.assertEquals(expectedRatio, scorer.score(1.0f, 0), 0.0001f);
-        Assert.assertEquals(2 * expectedRatio, scorer.score(2.0f, 0), 0.0001f);
+        Assert.assertEquals(0.0f, scorer.score(0.0f, 0), DELTA_FOR_ASSERTION);
+        Assert.assertEquals(expectedRatio, scorer.score(1.0f, 0), DELTA_FOR_ASSERTION);
+        Assert.assertEquals(2 * expectedRatio, scorer.score(2.0f, 0), DELTA_FOR_ASSERTION);
 
         // Test with boost = 2.0f
         scorer = ByteQuantizer.getSimScorer(2.0f);
-        Assert.assertEquals(0.0f, scorer.score(0.0f, 0), 0.0001f);
-        Assert.assertEquals(2 * expectedRatio, scorer.score(1.0f, 0), 0.0001f);
-        Assert.assertEquals(4 * expectedRatio, scorer.score(2.0f, 0), 0.0001f);
+        Assert.assertEquals(0.0f, scorer.score(0.0f, 0), DELTA_FOR_ASSERTION);
+        Assert.assertEquals(2 * expectedRatio, scorer.score(1.0f, 0), DELTA_FOR_ASSERTION);
+        Assert.assertEquals(4 * expectedRatio, scorer.score(2.0f, 0), DELTA_FOR_ASSERTION);
     }
 
     public void testScoreRescaleRatio() {
@@ -89,6 +89,6 @@ public class ByteQuantizerTests extends AbstractSparseTestBase {
         float maxUnsignedByteValue = 255.0f;
         float expectedRatio = maxFloatValue * maxFloatValue / maxUnsignedByteValue / maxUnsignedByteValue;
 
-        Assert.assertEquals(expectedRatio, ByteQuantizer.SCORE_RESCALE_RATIO, 0.0001f);
+        Assert.assertEquals(expectedRatio, ByteQuantizer.SCORE_RESCALE_RATIO, DELTA_FOR_ASSERTION);
     }
 }
