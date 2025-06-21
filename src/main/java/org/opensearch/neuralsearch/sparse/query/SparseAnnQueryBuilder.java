@@ -109,8 +109,12 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
             Map<String, Float> queryTokens = in.readMap(StreamInput::readString, StreamInput::readFloat);
             this.queryTokensSupplier = () -> queryTokens;
         }
-        // to be backward compatible with previous version, we need to use writeString/readString API instead of optionalString API
-        // after supporting query by tokens, queryText and modelId can be null. here we write an empty String instead
+        // Add these lines to read the missing parameters
+        this.queryCut = in.readOptionalInt();
+        this.k = in.readOptionalInt();
+        this.heapFactor = in.readOptionalFloat();
+
+        // Existing code for backward compatibility
         if (StringUtils.EMPTY.equals(this.queryText)) {
             this.queryText = null;
         }
@@ -122,8 +126,6 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
     @Override
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeString(this.fieldName);
-        // to be backward compatible with previous version, we need to use writeString/readString API instead of optionalString API
-        // after supporting query by tokens, queryText and modelId can be null. here we write an empty String instead
         out.writeString(StringUtils.defaultString(this.queryText, StringUtils.EMPTY));
         if (isClusterOnOrAfterMinReqVersionForDefaultModelIdSupport()) {
             out.writeOptionalString(this.modelId);
@@ -136,6 +138,9 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
         } else {
             out.writeBoolean(false);
         }
+        out.writeOptionalInt(this.queryCut);
+        out.writeOptionalInt(this.k);
+        out.writeOptionalFloat(this.heapFactor);
     }
 
     @Override
