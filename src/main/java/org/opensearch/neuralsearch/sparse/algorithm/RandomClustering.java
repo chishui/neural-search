@@ -10,10 +10,11 @@ import org.opensearch.neuralsearch.sparse.common.DocFreq;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
+import org.opensearch.common.Randomness;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Random clustering algorithm
@@ -23,7 +24,7 @@ public class RandomClustering implements Clustering {
 
     private final int lambda;
     private final float alpha;
-    private final int beta;
+    private final float cluster_ratio;
     @NonNull
     private final SparseVectorReader reader;
 
@@ -32,17 +33,14 @@ public class RandomClustering implements Clustering {
         if (docFreqs.isEmpty()) {
             return List.of();
         }
-        if (beta == 1) {
+        if (cluster_ratio == 0) {
             DocumentCluster cluster = new DocumentCluster(null, docFreqs, true);
             return List.of(cluster);
         }
         int size = docFreqs.size();
         // generate beta unique random centers
-        Random random = new Random();
-        int num_cluster = (int) Math.ceil((double) (size * beta) / lambda);
-        // Ensure num_cluster doesn't exceed the available document count
-        num_cluster = Math.min(num_cluster, size);
-        int[] centers = random.ints(0, size).distinct().limit(num_cluster).toArray();
+        int num_cluster = Math.min(size, Math.max(1, (int) Math.ceil(size * cluster_ratio)));
+        int[] centers = Randomness.get().ints(0, size).distinct().limit(num_cluster).toArray();
         List<List<DocFreq>> docAssignments = new ArrayList<>(num_cluster);
         List<SparseVector> sparseVectors = new ArrayList<>();
         for (int i = 0; i < num_cluster; i++) {

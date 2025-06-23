@@ -10,18 +10,34 @@ import org.apache.lucene.document.FeatureField;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
+import org.opensearch.common.ValidationException;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.mapper.FieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;
+import org.opensearch.index.mapper.Mapper;
+import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgoType;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DEFAULT_THRESHOLD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_THRESHOLD_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALPHA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.DEFAULT_ALPHA;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.DEFAULT_CLUSTER_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.DEFAULT_LAMBDA;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.LAMBDA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 
 /**
  * FieldMapper for SparseTokensField
@@ -63,8 +79,6 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
     private static SparseTokensFieldType ft(FieldMapper in) {
         return ((SparseTokensFieldMapper) in).fieldType();
     }
-
-    public static final TypeParser PARSER = new TypeParser((n, c) -> new Builder(n));
 
     public static class Builder extends ParametrizedFieldMapper.Builder {
         protected final Parameter<Boolean> stored = Parameter.storeParam(m -> ft(m).stored, false);
@@ -147,7 +161,7 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
             );
         }
 
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); DataOutputStream dos = new DataOutputStream(baos)) {
             String feature = "";
             for (XContentParser.Token token = context.parser().nextToken(); token != XContentParser.Token.END_OBJECT; token = context
                 .parser()
@@ -173,8 +187,10 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                     setFieldTypeAttributes((FieldType) featureField.fieldType(), sparseMethodContext);
 
                     context.doc().addWithKey(key, featureField);
-                    oos.writeObject(feature);
-                    oos.writeFloat(value);
+                    byte[] featureBytes = feature.getBytes(StandardCharsets.UTF_8);
+                    dos.writeInt(featureBytes.length);
+                    dos.write(featureBytes);
+                    dos.writeFloat(value);
                 } else {
                     throw new IllegalArgumentException(
                         "["
@@ -185,16 +201,23 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                     );
                 }
             }
-            oos.flush();
+            dos.flush();
             context.doc().add(new SparseTokensField(name(), baos.toByteArray(), fieldType));
         }
     }
 
     private void setFieldTypeAttributes(FieldType fieldType, SparseMethodContext sparseMethodContext) {
-        fieldType.putAttribute(SparseMethodContext.LAMBDA_FIELD, String.valueOf(sparseMethodContext.getLambda()));
-        fieldType.putAttribute(SparseMethodContext.ALPHA_FIELD, String.valueOf(sparseMethodContext.getAlpha()));
-        fieldType.putAttribute(SparseMethodContext.BETA_FIELD, String.valueOf(sparseMethodContext.getBeta()));
-        fieldType.putAttribute(SparseMethodContext.CLUSTER_UNTIL_FIELD, String.valueOf(sparseMethodContext.getClusterUntilDocCountReach()));
+        if (sparseMethodContext.getName().equals(SEISMIC)) {
+            Integer lambda = (Integer) sparseMethodContext.getMethodComponentContext().getParameter(LAMBDA_FIELD, DEFAULT_LAMBDA);
+            Float cluster_ratio = sparseMethodContext.getMethodComponentContext().getFloat(CLUSTER_RATIO_FIELD, DEFAULT_CLUSTER_RATIO);
+            Float alpha = sparseMethodContext.getMethodComponentContext().getFloat(ALPHA_FIELD, DEFAULT_ALPHA);
+            Integer algoTriggerThreshold = (Integer) sparseMethodContext.getMethodComponentContext()
+                .getParameter(ALGO_TRIGGER_THRESHOLD_FIELD, ALGO_TRIGGER_DEFAULT_THRESHOLD);
+            fieldType.putAttribute(LAMBDA_FIELD, String.valueOf(lambda));
+            fieldType.putAttribute(ALPHA_FIELD, String.valueOf(alpha));
+            fieldType.putAttribute(CLUSTER_RATIO_FIELD, String.valueOf(cluster_ratio));
+            fieldType.putAttribute(ALGO_TRIGGER_THRESHOLD_FIELD, String.valueOf(algoTriggerThreshold));
+        }
     }
 
     public static class Defaults {
@@ -210,6 +233,30 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
             TOKEN_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS);
             TOKEN_FIELD_TYPE.putAttribute(SparseTokensField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
             TOKEN_FIELD_TYPE.freeze();
+        }
+    }
+
+    public static class SparseTypeParser implements Mapper.TypeParser {
+
+        @Override
+        public Mapper.Builder<?> parse(String name, Map<String, Object> node, ParserContext parserContext) throws MapperParsingException {
+            Builder builder = new Builder(name);
+            builder.parse(name, parserContext, node);
+            SparseMethodContext context = builder.sparseMethodContext.getValue();
+            if (context == null) {
+                throw new MapperParsingException("[" + CONTENT_TYPE + "] requires [method] parameter");
+            }
+            if (context.getName() == null) {
+                throw new MapperParsingException("[" + CONTENT_TYPE + "] requires [method.name] parameter");
+            }
+            if (!SparseAlgoType.SEISMIC.getName().equals(context.getName())) {
+                throw new MapperParsingException("[method.name]: " + context.getName() + " is not supported");
+            }
+            ValidationException exception = SparseAlgoType.SEISMIC.validateMethod(context);
+            if (exception != null) {
+                throw new MapperParsingException(exception.getMessage());
+            }
+            return builder;
         }
     }
 }

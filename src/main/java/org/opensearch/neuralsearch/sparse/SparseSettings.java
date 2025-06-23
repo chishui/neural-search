@@ -4,8 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Setting;
 
 import static org.opensearch.common.settings.Setting.Property.Final;
@@ -14,18 +13,23 @@ import static org.opensearch.common.settings.Setting.Property.IndexScope;
 /**
  * It holds index settings of a sparse vector index.
  */
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class SparseSettings {
     public static final String SPARSE_INDEX = "index.sparse";
     public static final String MEMORY_USAGE = "index.sparse.memory";
+    public static final String ALGO_TRIGGER_THRESHOLD = "index.sparse.algo_trigger_doc_count";
 
     private static SparseSettings INSTANCE;
+    private ClusterService clusterService;
 
     public static synchronized SparseSettings state() {
         if (INSTANCE == null) {
             INSTANCE = new SparseSettings();
         }
         return INSTANCE;
+    }
+
+    public void initialize(ClusterService clusterService) {
+        this.clusterService = clusterService;
     }
 
     /**
@@ -41,5 +45,4 @@ public class SparseSettings {
         IndexScope,
         Setting.Property.Dynamic
     );
-
 }

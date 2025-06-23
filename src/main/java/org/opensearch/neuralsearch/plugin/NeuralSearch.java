@@ -174,6 +174,7 @@ public class NeuralSearch extends Plugin
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
         ClusterTrainingRunning.initialize(threadPool);
+        SparseSettings.state().initialize(clusterService);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
 
@@ -328,7 +329,7 @@ public class NeuralSearch extends Plugin
 
     @Override
     public Map<String, Mapper.TypeParser> getMappers() {
-        return Collections.singletonMap(SparseTokensFieldMapper.CONTENT_TYPE, SparseTokensFieldMapper.PARSER);
+        return Collections.singletonMap(SparseTokensFieldMapper.CONTENT_TYPE, new SparseTokensFieldMapper.SparseTypeParser());
     }
 
     @Override

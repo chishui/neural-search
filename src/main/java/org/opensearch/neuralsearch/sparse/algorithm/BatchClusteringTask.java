@@ -28,7 +28,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
     private final List<BytesRef> terms;
     private final InMemoryKey.IndexKey key;
     private final float alpha;
-    private final int beta;
+    private final float cluster_ratio;
     private final int lambda;
     private final MergeState mergeState;
     private final FieldInfo fieldInfo;
@@ -37,7 +37,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         List<BytesRef> terms,
         InMemoryKey.IndexKey key,
         float alpha,
-        int beta,
+        float cluster_ratio,
         int lambda,
         MergeState mergeState,
         FieldInfo fieldInfo
@@ -45,7 +45,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         this.terms = terms;
         this.key = key;
         this.alpha = alpha;
-        this.beta = beta;
+        this.cluster_ratio = cluster_ratio;
         this.lambda = lambda;
         this.mergeState = mergeState;
         this.fieldInfo = fieldInfo;
@@ -65,7 +65,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                 );
                 PostingClustering postingClustering = new PostingClustering(
                     lambda,
-                    new RandomClustering(lambda, alpha, beta, (newDocId) -> {
+                    new RandomClustering(lambda, alpha, cluster_ratio, (newDocId) -> {
                         Pair<Integer, InMemoryKey.IndexKey> oldDocId = newToOldDocIdMap.get(newDocId);
                         if (oldDocId != null) {
                             InMemorySparseVectorForwardIndex oldIndex = InMemorySparseVectorForwardIndex.get(oldDocId.getRight());
