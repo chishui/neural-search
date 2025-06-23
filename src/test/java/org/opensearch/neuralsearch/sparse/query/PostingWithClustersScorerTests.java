@@ -139,23 +139,23 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
         when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1).thenReturn(postingsEnum2);
 
         // Mock clusters in term1
-        DocumentCluster c1_1 = prepareCluster(10, false);
-        DocumentCluster c1_2 = prepareCluster(0, true);
-        DocumentCluster c1_3 = prepareCluster(1, false);
-        DocumentCluster c2_1 = prepareCluster(3, false);
+        DocumentCluster cluster1_1 = prepareCluster(10, false);
+        DocumentCluster cluster1_2 = prepareCluster(0, true);
+        DocumentCluster cluster1_3 = prepareCluster(1, false);
+        DocumentCluster cluster2_1 = prepareCluster(3, false);
 
         // Mock cluster iterator
         IteratorWrapper<DocumentCluster> clusterIterator1 = mock(IteratorWrapper.class);
         IteratorWrapper<DocumentCluster> clusterIterator2 = mock(IteratorWrapper.class);
         when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator1);
         when(postingsEnum2.clusterIterator()).thenReturn(clusterIterator2);
-        when(clusterIterator1.next()).thenReturn(c1_1).thenReturn(c1_2).thenReturn(c1_3).thenReturn(null);
-        when(clusterIterator2.next()).thenReturn(c2_1).thenReturn(null);
+        when(clusterIterator1.next()).thenReturn(cluster1_1).thenReturn(cluster1_2).thenReturn(cluster1_3).thenReturn(null);
+        when(clusterIterator2.next()).thenReturn(cluster2_1).thenReturn(null);
 
-        prepareClusterAndItsDocs(c1_1, 1, 2, 2, 2); // first cluster will be examined
-        prepareClusterAndItsDocs(c1_2, 3, 0); // second cluster should not be skipped
-        prepareClusterAndItsDocs(c1_3, 4, 1); // third cluster will be skipped
-        prepareClusterAndItsDocs(c2_1, 5, 1, 1, 10); // fourth cluster will be examined
+        prepareClusterAndItsDocs(cluster1_1, 1, 2, 2, 2); // first cluster will be examined
+        prepareClusterAndItsDocs(cluster1_2, 3, 0); // second cluster should not be skipped
+        prepareClusterAndItsDocs(cluster1_3, 4, 1); // third cluster will be skipped
+        prepareClusterAndItsDocs(cluster2_1, 5, 1, 1, 10); // fourth cluster will be examined
 
         // Create scorer
         PostingWithClustersScorer scorer = new PostingWithClustersScorer(
