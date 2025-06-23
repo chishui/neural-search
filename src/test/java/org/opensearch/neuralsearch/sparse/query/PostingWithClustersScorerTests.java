@@ -63,7 +63,7 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
     @Mock
     private SparseVectorReader reader;
     @Mock
-    private SparsePostingsEnum postingsEnum;
+    private SparsePostingsEnum postingsEnum1;
     @Mock
     private SparsePostingsEnum postingsEnum2;
 
@@ -88,7 +88,7 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
         when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
         when(termsEnum.seekExact(new BytesRef("token2"))).thenReturn(false);
 
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
 
         // Mock document clusters
         DocumentCluster cluster = mock(DocumentCluster.class);
@@ -98,7 +98,7 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
 
         // Mock cluster iterator
         IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
         // Mock DocFreqIterator
@@ -136,7 +136,7 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
         when(termsEnum.seekExact(new BytesRef("token2"))).thenReturn(true);
 
         // Mock SparsePostingsEnum
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum).thenReturn(postingsEnum2);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1).thenReturn(postingsEnum2);
 
         // Mock clusters in term1
         DocumentCluster c1_1 = prepareCluster(10, false);
@@ -145,11 +145,11 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
         DocumentCluster c2_1 = prepareCluster(3, false);
 
         // Mock cluster iterator
-        IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
+        IteratorWrapper<DocumentCluster> clusterIterator1 = mock(IteratorWrapper.class);
         IteratorWrapper<DocumentCluster> clusterIterator2 = mock(IteratorWrapper.class);
-        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator1);
         when(postingsEnum2.clusterIterator()).thenReturn(clusterIterator2);
-        when(clusterIterator.next()).thenReturn(c1_1).thenReturn(c1_2).thenReturn(c1_3).thenReturn(null);
+        when(clusterIterator1.next()).thenReturn(c1_1).thenReturn(c1_2).thenReturn(c1_3).thenReturn(null);
         when(clusterIterator2.next()).thenReturn(c2_1).thenReturn(null);
 
         prepareClusterAndItsDocs(c1_1, 1, 2, 2, 2); // first cluster will be examined
@@ -385,14 +385,14 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
         when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
 
         // Mock SparsePostingsEnum
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
         // cluster 1 will always be examined, cluster2 will be not as its dp score won't surpass heap's lowest
         DocumentCluster cluster1 = prepareCluster(10, false);
         DocumentCluster cluster2 = prepareCluster(9, true);
 
         // Mock cluster iterator
         IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster1).thenReturn(cluster2).thenReturn(null);
 
         prepareClusterAndItsDocs(cluster1, 1, 5, 2, 10);
@@ -428,16 +428,16 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
 
     public void testNullSparseVectorReaderWithoutInMemoryReader() throws IOException {
         when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
         InMemoryKey.IndexKey indexKey = mock(InMemoryKey.IndexKey.class);
-        when(postingsEnum.getIndexKey()).thenReturn(indexKey);
+        when(postingsEnum1.getIndexKey()).thenReturn(indexKey);
 
         // Mock document cluster
         DocumentCluster cluster = prepareCluster(10, false);
 
         // Mock cluster iterator
         IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
         prepareClusterAndItsDocs(cluster, 1, 2, 2, 3);
@@ -460,16 +460,16 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
 
     public void testNullSparseVectorReaderWithInMemoryReader() throws IOException {
         when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
         InMemoryKey.IndexKey indexKey = mock(InMemoryKey.IndexKey.class);
-        when(postingsEnum.getIndexKey()).thenReturn(indexKey);
+        when(postingsEnum1.getIndexKey()).thenReturn(indexKey);
 
         // Mock document cluster
         DocumentCluster cluster = prepareCluster(10, false);
 
         // Mock cluster iterator
         IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
         prepareClusterAndItsDocs(cluster, 1, 2, 2, 3);
@@ -497,14 +497,14 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
 
     public void testMissingVector() throws IOException {
         when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum);
+        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
 
         // Mock document cluster
         DocumentCluster cluster = prepareCluster(10, false);
 
         // Mock cluster iterator
         IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
         // Mock DocFreqIterator with two docs - one with vector and one without
