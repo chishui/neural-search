@@ -38,9 +38,9 @@ import java.util.List;
 
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALPHA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.LAMBDA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 
 /**
  * ClusteredPostingTermsWriter is used to write postings for each segment.
@@ -82,11 +82,11 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
         assert (index != null);
         float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-        int lambda = Integer.parseInt(fieldInfo.attributes().get(LAMBDA_FIELD));
-        float alpha = Float.parseFloat(fieldInfo.attributes().get(ALPHA_FIELD));
+        int nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+        float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
         this.postingClustering = new PostingClustering(
-            lambda,
-            new RandomClustering(lambda, alpha, cluster_ratio, (docId) -> index.getForwardIndexReader().readSparseVector(docId))
+            nPostings,
+            new RandomClustering(summaryPruneRatio, cluster_ratio, (docId) -> index.getForwardIndexReader().readSparseVector(docId))
         );
     }
 

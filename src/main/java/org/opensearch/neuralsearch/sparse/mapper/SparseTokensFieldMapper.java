@@ -29,14 +29,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DEFAULT_THRESHOLD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_THRESHOLD_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALPHA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.DEFAULT_ALPHA;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.DEFAULT_CLUSTER_RATIO;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.DEFAULT_LAMBDA;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.LAMBDA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_SUMMARY_PRUNE_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTER_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_ALGO_TRIGGER_DOC_COUNT;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 
 /**
@@ -208,15 +208,15 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
 
     private void setFieldTypeAttributes(FieldType fieldType, SparseMethodContext sparseMethodContext) {
         if (sparseMethodContext.getName().equals(SEISMIC)) {
-            Integer lambda = (Integer) sparseMethodContext.getMethodComponentContext().getParameter(LAMBDA_FIELD, DEFAULT_LAMBDA);
-            Float cluster_ratio = sparseMethodContext.getMethodComponentContext().getFloat(CLUSTER_RATIO_FIELD, DEFAULT_CLUSTER_RATIO);
-            Float alpha = sparseMethodContext.getMethodComponentContext().getFloat(ALPHA_FIELD, DEFAULT_ALPHA);
+            Integer nPostings = (Integer) sparseMethodContext.getMethodComponentContext().getParameter(N_POSTINGS_FIELD, DEFAULT_N_POSTINGS);
+            Float clusterRatio = sparseMethodContext.getMethodComponentContext().getFloat(CLUSTER_RATIO_FIELD, DEFAULT_CLUSTER_RATIO);
+            Float summaryPruneRatio = sparseMethodContext.getMethodComponentContext().getFloat(SUMMARY_PRUNE_RATIO_FIELD, DEFAULT_SUMMARY_PRUNE_RATIO);
             Integer algoTriggerThreshold = (Integer) sparseMethodContext.getMethodComponentContext()
-                .getParameter(ALGO_TRIGGER_THRESHOLD_FIELD, ALGO_TRIGGER_DEFAULT_THRESHOLD);
-            fieldType.putAttribute(LAMBDA_FIELD, String.valueOf(lambda));
-            fieldType.putAttribute(ALPHA_FIELD, String.valueOf(alpha));
-            fieldType.putAttribute(CLUSTER_RATIO_FIELD, String.valueOf(cluster_ratio));
-            fieldType.putAttribute(ALGO_TRIGGER_THRESHOLD_FIELD, String.valueOf(algoTriggerThreshold));
+                .getParameter(ALGO_TRIGGER_DOC_COUNT_FIELD, DEFAULT_ALGO_TRIGGER_DOC_COUNT);
+            fieldType.putAttribute(N_POSTINGS_FIELD, String.valueOf(nPostings));
+            fieldType.putAttribute(SUMMARY_PRUNE_RATIO_FIELD, String.valueOf(summaryPruneRatio));
+            fieldType.putAttribute(CLUSTER_RATIO_FIELD, String.valueOf(clusterRatio));
+            fieldType.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, String.valueOf(algoTriggerThreshold));
         }
     }
 

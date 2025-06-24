@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import lombok.Getter;
 import org.opensearch.common.ValidationException;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseMethodContext;
 
 import java.util.HashSet;
@@ -13,7 +14,7 @@ import java.util.Set;
 
 @Getter
 public enum SparseAlgoType implements SparseAlgorithm {
-    SEISMIC("seismic", Seismic.INSTANCE);
+    SEISMIC(SparseConstants.SEISMIC, Seismic.INSTANCE);
 
     private String name;
     private SparseAlgorithm algorithm;

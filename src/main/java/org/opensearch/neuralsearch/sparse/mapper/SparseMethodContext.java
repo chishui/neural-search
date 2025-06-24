@@ -78,7 +78,7 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
 
                 // Interpret all map parameters as sub-MethodComponentContexts
                 @SuppressWarnings("unchecked")
-                Map<String, Object> parameters1 = ((Map<String, Object>) value).entrySet()
+                Map<String, Object> parametersTemp = ((Map<String, Object>) value).entrySet()
                     .stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> {
                         Object v = e.getValue();
@@ -88,7 +88,7 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
                         return v;
                     }));
 
-                parameters = parameters1;
+                parameters = parametersTemp;
             } else {
                 throw new MapperParsingException("Invalid parameter: " + key);
             }

@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_THRESHOLD_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALPHA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.LAMBDA_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Seismic implements SparseAlgorithm {
@@ -34,19 +34,19 @@ public class Seismic implements SparseAlgorithm {
         ValidationException validationException = null;
         final List<String> errorMessages = new ArrayList<>();
         Map<String, Object> parameters = new HashMap<>(sparseMethodContext.getMethodComponentContext().getParameters());
-        if (parameters.containsKey(ALPHA_FIELD)) {
-            float alpha = ((Number) parameters.get(ALPHA_FIELD)).floatValue();
-            if (alpha <= 0 || alpha > 1) {
+        if (parameters.containsKey(SUMMARY_PRUNE_RATIO_FIELD)) {
+            float summaryPruneRatio = ((Number) parameters.get(SUMMARY_PRUNE_RATIO_FIELD)).floatValue();
+            if (summaryPruneRatio <= 0 || summaryPruneRatio > 1) {
                 errorMessages.add("summary prune ratio should be in (0, 1]");
             }
-            parameters.remove(ALPHA_FIELD);
+            parameters.remove(SUMMARY_PRUNE_RATIO_FIELD);
         }
-        if (parameters.containsKey(LAMBDA_FIELD)) {
-            Integer lambda = (Integer) parameters.get(LAMBDA_FIELD);
-            if (lambda <= 0) {
+        if (parameters.containsKey(N_POSTINGS_FIELD)) {
+            Integer nPostings = (Integer) parameters.get(N_POSTINGS_FIELD);
+            if (nPostings <= 0) {
                 errorMessages.add("n_postings should be a positive integer");
             }
-            parameters.remove(LAMBDA_FIELD);
+            parameters.remove(N_POSTINGS_FIELD);
         }
         if (parameters.containsKey(CLUSTER_RATIO_FIELD)) {
             float clusterRatio = ((Number) parameters.get(CLUSTER_RATIO_FIELD)).floatValue();
@@ -55,12 +55,12 @@ public class Seismic implements SparseAlgorithm {
             }
             parameters.remove(CLUSTER_RATIO_FIELD);
         }
-        if (parameters.containsKey(ALGO_TRIGGER_THRESHOLD_FIELD)) {
-            Integer algoTriggerThreshold = (Integer) parameters.get(ALGO_TRIGGER_THRESHOLD_FIELD);
+        if (parameters.containsKey(ALGO_TRIGGER_DOC_COUNT_FIELD)) {
+            Integer algoTriggerThreshold = (Integer) parameters.get(ALGO_TRIGGER_DOC_COUNT_FIELD);
             if (algoTriggerThreshold < 0) {
                 errorMessages.add("algo trigger doc count should be a non-negative integer");
             }
-            parameters.remove(ALGO_TRIGGER_THRESHOLD_FIELD);
+            parameters.remove(ALGO_TRIGGER_DOC_COUNT_FIELD);
         }
         for (String key : parameters.keySet()) {
             errorMessages.add(String.format(Locale.ROOT, "Unknown parameter '%s' found", key));

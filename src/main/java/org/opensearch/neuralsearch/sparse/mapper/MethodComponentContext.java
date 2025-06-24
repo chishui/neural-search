@@ -108,12 +108,12 @@ public class MethodComponentContext implements ToXContentFragment, Writeable {
                 }
 
                 if (!(value instanceof Map)) {
-                    throw new MapperParsingException("Unable to parse parameters for  method component");
+                    throw new MapperParsingException("Unable to parse parameters for method component");
                 }
 
-                // Check to interpret map parameters as sub-methodComponentContexts
+                // Check to interpret map parameters as sub-MethodComponentContexts
                 @SuppressWarnings("unchecked")
-                Map<String, Object> parameters1 = ((Map<String, Object>) value).entrySet()
+                Map<String, Object> parametersTemp = ((Map<String, Object>) value).entrySet()
                     .stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> {
                         Object v = e.getValue();
@@ -123,7 +123,7 @@ public class MethodComponentContext implements ToXContentFragment, Writeable {
                         return v;
                     }));
 
-                parameters = parameters1;
+                parameters = parametersTemp;
             } else {
                 throw new MapperParsingException("Invalid parameter for MethodComponentContext: " + key);
             }
