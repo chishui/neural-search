@@ -38,7 +38,6 @@ import java.util.List;
 
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALPHA_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.LAMBDA_FIELD;
@@ -87,12 +86,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         float alpha = Float.parseFloat(fieldInfo.attributes().get(ALPHA_FIELD));
         this.postingClustering = new PostingClustering(
             lambda,
-            new RandomClustering(
-                lambda,
-                alpha,
-                cluster_ratio,
-                (docId) -> index.getForwardIndexReader().readSparseVector(docId)
-            )
+            new RandomClustering(lambda, alpha, cluster_ratio, (docId) -> index.getForwardIndexReader().readSparseVector(docId))
         );
     }
 
