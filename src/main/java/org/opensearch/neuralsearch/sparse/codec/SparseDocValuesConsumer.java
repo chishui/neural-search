@@ -58,8 +58,7 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
         BinaryDocValues binaryDocValues = valuesProducer.getBinary(field);
         InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, field);
         int docCount = this.state.segmentInfo.maxDoc();
-        SparseVectorForwardIndex.SparseVectorForwardIndexWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount)
-            .getForwardIndexWriter();
+        SparseVectorForwardIndex.SparseVectorWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount).getWriter();
         if (writer == null) {
             throw new IllegalStateException("Forward index writer is null");
         }

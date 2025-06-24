@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -169,7 +168,8 @@ public class SparsePostingsReader {
         MergeState mergeState,
         BytesRef term,
         FieldInfo fieldInfo,
-        Map<Integer, Pair<Integer, InMemoryKey.IndexKey>> newToOldDocIdMap
+        int[] newIdToFieldProducerIndex,
+        int[] newIdToOldId
     ) throws IOException {
         List<DocFreq> docFreqs = new ArrayList<>();
         for (int i = 0; i < mergeState.fieldsProducers.length; i++) {
@@ -180,6 +180,7 @@ public class SparsePostingsReader {
                 log.error("binaryDocValues is not SparseBinaryDocValuesPassThrough, {}", binaryDocValues.getClass().getName());
                 continue;
             }
+            SparseBinaryDocValuesPassThrough sparseBinaryDocValues = (SparseBinaryDocValuesPassThrough) binaryDocValues;
             Terms terms = fieldsProducer.terms(fieldInfo.name);
             if (terms == null) {
                 log.error("terms is null");
@@ -196,11 +197,6 @@ public class SparsePostingsReader {
                 continue;
             }
             PostingsEnum postings = termsEnum.postings(null);
-            InMemoryKey.IndexKey oldKey = new InMemoryKey.IndexKey(
-                ((SparseBinaryDocValuesPassThrough) binaryDocValues).getSegmentInfo(),
-                fieldInfo
-            );
-
             boolean isSparsePostings = postings instanceof SparsePostingsEnum;
             int docId = postings.nextDoc();
             while (docId != PostingsEnum.NO_MORE_DOCS) {
@@ -212,7 +208,8 @@ public class SparsePostingsReader {
                 if (newDocId == -1) {
                     continue;
                 }
-                newToOldDocIdMap.put(newDocId, Pair.of(docId, oldKey));
+                newIdToFieldProducerIndex[newDocId] = i;
+                newIdToOldId[newDocId] = docId;
                 int freq = postings.freq();
                 byte freqByte = 0;
                 if (isSparsePostings) {
