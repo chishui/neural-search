@@ -174,7 +174,6 @@ public class NeuralSearch extends Plugin
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
         ClusterTrainingRunning.initialize(threadPool);
-        SparseSettings.state().initialize(clusterService);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
 
