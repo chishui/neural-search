@@ -151,9 +151,6 @@ public class SparsePostingsConsumer extends FieldsConsumer {
             };
             this.delegate.write(maskedFields, norms);
         }
-        if (!sparseFields.isEmpty()) {
-            this.state.segmentInfo.putAttribute("sparse_ann_segment", "1");
-        }
         // if this is not a merge, write the sparse fields, if it's from merge, we handle it from merge()
         if (!this.fromMerge && !sparseFields.isEmpty()) {
             writeSparseTerms(fields, norms, sparseFields);
