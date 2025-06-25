@@ -4,17 +4,26 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
+import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LongBitSet;
+import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
+import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -26,18 +35,19 @@ import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
 
-public abstract class SeismicSearchBase {
+@Log4j2
+public abstract class SeismicBaseScorer extends Scorer {
     protected final HeapWrapper scoreHeap;
-    protected float heapThreshold = Float.MIN_VALUE;
     protected final LongBitSet visitedDocId;
     protected final String fieldName;
     protected final SparseQueryContext sparseQueryContext;
     protected final byte[] queryDenseVector;
     protected final Bits acceptedDocs;
+    @Getter
     protected SparseVectorReader reader;
     protected List<Scorer> subScorers = new ArrayList<>();
 
-    public SeismicSearchBase(
+    public SeismicBaseScorer(
         LeafReader leafReader,
         String fieldName,
         SparseQueryContext sparseQueryContext,
@@ -50,22 +60,88 @@ public abstract class SeismicSearchBase {
         this.fieldName = fieldName;
         this.sparseQueryContext = sparseQueryContext;
         this.queryDenseVector = queryVector.toDenseVector();
-        this.reader = reader;
+        this.reader = getSparseVectorReader(leafReader, reader);
         this.acceptedDocs = acceptedDocs;
         scoreHeap = new HeapWrapper(sparseQueryContext.getK());
-        if (reader == null) {
-            BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
-            if (docValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
-                this.reader = sparseBinaryDocValuesPassThrough;
+        initialize(leafReader);
+    }
+
+    private SparseVectorReader getSparseVectorReader(LeafReader leafReader, SparseVectorReader reader) throws IOException {
+        if (reader != null) {
+            return reader;
+        }
+        BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
+        if (docValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
+            SegmentInfo segmentInfo = sparseBinaryDocValuesPassThrough.getSegmentInfo();
+            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
+            SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
+            if (index != null) {
+                SparseVectorReader inMemoryReader = index.getReader();
+                reader = (docId) -> {
+                    SparseVector vector = inMemoryReader.read(docId);
+                    if (vector != null) {
+                        return vector;
+                    }
+                    return sparseBinaryDocValuesPassThrough.read(docId);
+                };
+            } else {
+                reader = sparseBinaryDocValuesPassThrough;
+            }
+            return reader;
+        }
+        return (docId) -> { return null; };
+    }
+
+    protected void initialize(LeafReader leafReader) throws IOException {
+        Terms terms = Terms.getTerms(leafReader, fieldName);
+        assert terms != null : "Terms must not be null";
+
+        for (String token : sparseQueryContext.getTokens()) {
+            TermsEnum termsEnum = terms.iterator();
+            BytesRef term = new BytesRef(token);
+            if (!termsEnum.seekExact(term)) {
+                continue;
+            }
+            PostingsEnum postingsEnum = termsEnum.postings(null, PostingsEnum.FREQS);
+            if (!(postingsEnum instanceof SparsePostingsEnum sparsePostingsEnum)) {
+                log.error("posting enum is not SparsePostingsEnum, actual type: {}", postingsEnum.getClass().getName());
+                return;
+            }
+            subScorers.add(new SingleScorer(sparsePostingsEnum));
+        }
+    }
+
+    protected List<Pair<Integer, Float>> searchUpfront(int resultSize) throws IOException {
+        HeapWrapper resultHeap = new HeapWrapper(resultSize);
+        for (Scorer scorer : subScorers) {
+            DocIdSetIterator iterator = scorer.iterator();
+            int docId = 0;
+            while ((docId = iterator.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
+                if (acceptedDocs != null && !acceptedDocs.get(docId)) {
+                    continue;
+                }
+                if (visitedDocId.get(docId)) {
+                    continue;
+                }
+                visitedDocId.set(docId);
+                SparseVector doc = reader.read(docId);
+                if (doc == null) {
+                    continue;
+                }
+                float score = doc.dotProduct(queryDenseVector);
+                scoreHeap.add(Pair.of(docId, score));
+                resultHeap.add(Pair.of(docId, score));
+                docId = iterator.nextDoc();
             }
         }
+        return resultHeap.toOrderedList();
     }
 
     protected static PriorityQueue<Pair<Integer, Float>> makeHeap() {
         return new PriorityQueue<>((a, b) -> Float.compare(a.getRight(), b.getRight()));
     }
 
-    class HeapWrapper {
+    protected static class HeapWrapper {
         private final PriorityQueue<Pair<Integer, Float>> heap = makeHeap();
         private float heapThreshold = Float.MIN_VALUE;
         private final int K;
@@ -74,11 +150,16 @@ public abstract class SeismicSearchBase {
             this.K = K;
         }
 
+        public boolean isFull() {
+            return heap.size() == this.K;
+        }
+
         public void add(Pair<Integer, Float> pair) {
             if (pair.getRight() > heapThreshold) {
                 heap.add(pair);
                 if (heap.size() > K) {
                     heap.poll();
+                    assert heap.peek() != null;
                     heapThreshold = heap.peek().getRight();
                 }
             }
@@ -107,7 +188,7 @@ public abstract class SeismicSearchBase {
         private final IteratorWrapper<DocumentCluster> clusterIter;
         private DocFreqIterator docs = null;
 
-        public SingleScorer(SparsePostingsEnum postingsEnum, BytesRef term) throws IOException {
+        public SingleScorer(SparsePostingsEnum postingsEnum) throws IOException {
             clusterIter = postingsEnum.clusterIterator();
         }
 
@@ -130,7 +211,7 @@ public abstract class SeismicSearchBase {
                             return cluster;
                         }
                         int score = cluster.getSummary().dotProduct(queryDenseVector);
-                        if (scoreHeap.size() == sparseQueryContext.getK()
+                        if (scoreHeap.isFull()
                             && score < Objects.requireNonNull(scoreHeap.peek()).getRight() / sparseQueryContext.getHeapFactor()) {
                             cluster = clusterIter.next();
                         } else {

@@ -7,10 +7,9 @@ package org.opensearch.neuralsearch.sparse.query;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.Bits;
-import org.opensearch.neuralsearch.sparse.algorithm.SeismicSearch;
+import org.opensearch.neuralsearch.sparse.algorithm.SeismicBaseScorer;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -18,10 +17,11 @@ import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 import java.io.IOException;
 import java.util.List;
 
-public class OrderedPostingWithClustersScorer extends Scorer {
+public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
 
     private final Similarity.SimScorer simScorer;
     private final IteratorWrapper<Pair<Integer, Float>> resultsIterator;
+    private static final int MAX_SEARCH_RESULT_SIZE = 10000;
 
     public OrderedPostingWithClustersScorer(
         String fieldName,
@@ -32,9 +32,9 @@ public class OrderedPostingWithClustersScorer extends Scorer {
         SparseVectorReader reader,
         Similarity.SimScorer simScorer
     ) throws IOException {
+        super(leafReader, fieldName, sparseQueryContext, leafReader.maxDoc(), queryVector, reader, acceptedDocs);
         this.simScorer = simScorer;
-        SeismicSearch seismicSearch = new SeismicSearch(fieldName, sparseQueryContext, queryVector, leafReader, acceptedDocs, reader);
-        List<Pair<Integer, Float>> results = seismicSearch.search();
+        List<Pair<Integer, Float>> results = searchUpfront(MAX_SEARCH_RESULT_SIZE);
         resultsIterator = new IteratorWrapper<>(results.iterator());
     }
 
