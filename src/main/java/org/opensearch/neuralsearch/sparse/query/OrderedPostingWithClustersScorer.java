@@ -42,7 +42,7 @@ public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
     public int docID() {
         if (resultsIterator.getCurrent() == null) {
             return -1;
-        } else if (resultsIterator.isEnd()) {
+        } else if (!resultsIterator.hasNext()) {
             return DocIdSetIterator.NO_MORE_DOCS;
         } else {
             return resultsIterator.getCurrent().getKey();
@@ -56,7 +56,7 @@ public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
             public int docID() {
                 if (resultsIterator.getCurrent() == null) {
                     return -1;
-                } else if (resultsIterator.isEnd()) {
+                } else if (!resultsIterator.hasNext()) {
                     return DocIdSetIterator.NO_MORE_DOCS;
                 } else {
                     return resultsIterator.getCurrent().getKey();

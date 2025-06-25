@@ -14,8 +14,6 @@ import java.util.Iterator;
 public class IteratorWrapper<T> implements Iterator<T> {
     private final Iterator<T> iterator;
     T current;
-    @Getter
-    private boolean end = false;
 
     public IteratorWrapper(Iterator<T> iterator) {
         this.iterator = iterator;
@@ -33,7 +31,6 @@ public class IteratorWrapper<T> implements Iterator<T> {
             current = iterator.next();
             return current;
         }
-        end = true;
         return null;
     }
 
