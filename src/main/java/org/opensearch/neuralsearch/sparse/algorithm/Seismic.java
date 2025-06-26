@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Seismic implements SparseAlgorithm {
@@ -39,6 +40,13 @@ public class Seismic implements SparseAlgorithm {
                 errorMessages.add("summary prune ratio should be in (0, 1]");
             }
             parameters.remove(SUMMARY_PRUNE_RATIO_FIELD);
+        }
+        if (parameters.containsKey(N_POSTINGS_FIELD)) {
+            Integer nPostings = (Integer) parameters.get(N_POSTINGS_FIELD);
+            if (nPostings <= 0) {
+                errorMessages.add("n_postings should be a positive integer");
+            }
+            parameters.remove(N_POSTINGS_FIELD);
         }
         if (parameters.containsKey(CLUSTER_RATIO_FIELD)) {
             float clusterRatio = ((Number) parameters.get(CLUSTER_RATIO_FIELD)).floatValue();
