@@ -37,7 +37,8 @@ import java.util.concurrent.CompletionException;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
 
 /**
  * Merge sparse postings
@@ -74,7 +75,7 @@ public class SparsePostingsReader {
 
             InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(mergeState.segmentInfo, fieldInfo);
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-            int nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+            int nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * docCount), DEFAULT_POSTING_MINIMUM_LENGTH);
             float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
             int clusterUtilDocCountReach = Integer.parseInt(fieldInfo.attributes().get(ALGO_TRIGGER_DOC_COUNT_FIELD));
 
