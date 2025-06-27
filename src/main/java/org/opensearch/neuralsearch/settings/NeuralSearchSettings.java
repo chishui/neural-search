@@ -14,7 +14,9 @@ import lombok.NoArgsConstructor;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
-
+    private static final int INDEX_THREAD_QTY_MAX = 32;
+    public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "sparse.algo_param.index_thread_qty";
+    public static final Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = 1;
     /**
      * Gates the functionality of hybrid search
      * Currently query phase searcher added with hybrid search will conflict with concurrent search in core.
@@ -43,6 +45,15 @@ public final class NeuralSearchSettings {
     public static final Setting<Boolean> NEURAL_STATS_ENABLED = Setting.boolSetting(
         "plugins.neural_search.stats_enabled",
         false,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
+
+    public static final Setting<Integer> SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
+        SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
+        SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
+        1,
+        INDEX_THREAD_QTY_MAX,
         Setting.Property.NodeScope,
         Setting.Property.Dynamic
     );

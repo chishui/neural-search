@@ -29,6 +29,7 @@ import org.opensearch.neuralsearch.highlight.SemanticHighlighterEngine;
 import org.opensearch.neuralsearch.highlight.extractor.QueryTextExtractorRegistry;
 import com.google.common.collect.ImmutableList;
 import org.opensearch.action.ActionRequest;
+import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
@@ -173,7 +174,7 @@ public class NeuralSearch extends Plugin
         pipelineServiceUtil = new PipelineServiceUtil(clusterService);
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
-        ClusterTrainingRunning.initialize(threadPool);
+        ClusterTrainingRunning.initialize(threadPool, clusterService);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
 
@@ -287,7 +288,8 @@ public class NeuralSearch extends Plugin
             RERANKER_MAX_DOC_FIELDS,
             NEURAL_STATS_ENABLED,
             SparseSettings.IS_SPARSE_INDEX_SETTING,
-            SparseSettings.SPARSE_MEMORY_SETTING
+            SparseSettings.SPARSE_MEMORY_SETTING,
+            NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
         );
     }
 

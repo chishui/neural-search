@@ -12,6 +12,7 @@ public final class SparseConstants {
     public static final String SEISMIC = "seismic";
     public static final String CLUSTER_RATIO_FIELD = "cluster_ratio";
     public static final String ALGO_TRIGGER_DOC_COUNT_FIELD = "algo_trigger_doc_count";
+    public static final String INDEX_THREAD_QTY = "indexThreadQty";
 
     public final class Seismic {
         public static final int DEFAULT_N_POSTINGS = 6000;

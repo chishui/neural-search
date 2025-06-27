@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Semaphore;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
@@ -87,6 +88,8 @@ public class SparsePostingsReader {
             sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
             clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount);
 
+            Semaphore threadLimiter = ClusterTrainingRunning.getInstance().getThreadLimiter();
+
             List<CompletableFuture<List<Pair<BytesRef, PostingClusters>>>> futures = new ArrayList<>(
                 Math.round((float) allTerms.size() / BATCH_SIZE)
             );
@@ -103,12 +106,28 @@ public class SparsePostingsReader {
                             )
                         );
                     } else {
-                        futures.add(
-                            CompletableFuture.supplyAsync(
-                                new BatchClusteringTask(termBatch, key, summaryPruneRatio, clusterRatio, nPostings, mergeState, fieldInfo),
-                                ClusterTrainingRunning.getInstance().getExecutor()
-                            )
+                        BatchClusteringTask task = new BatchClusteringTask(
+                            termBatch,
+                            key,
+                            summaryPruneRatio,
+                            clusterRatio,
+                            nPostings,
+                            mergeState,
+                            fieldInfo
                         );
+                        futures.add(CompletableFuture.supplyAsync(() -> {
+                            try {
+                                threadLimiter.acquire();
+                                try {
+                                    return task.get();
+                                } finally {
+                                    threadLimiter.release();
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw new CompletionException(e);
+                            }
+                        }, ClusterTrainingRunning.getInstance().getExecutor()));
                     }
                     termBatch = new ArrayList<>(BATCH_SIZE);
                 }
