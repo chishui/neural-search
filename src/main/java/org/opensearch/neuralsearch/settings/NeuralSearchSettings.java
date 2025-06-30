@@ -14,9 +14,9 @@ import lombok.NoArgsConstructor;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
-    private static final int INDEX_THREAD_QTY_MAX = 32;
+    private static final int INDEX_THREAD_QTY_MAX = Runtime.getRuntime().availableProcessors();
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "sparse.algo_param.index_thread_qty";
-    public static final Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = 1;
+    public static final Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
     /**
      * Gates the functionality of hybrid search
      * Currently query phase searcher added with hybrid search will conflict with concurrent search in core.
@@ -49,27 +49,11 @@ public final class NeuralSearchSettings {
         Setting.Property.Dynamic
     );
 
-    public static int getMaxIndexThreadQty() {
-        return Runtime.getRuntime().availableProcessors(); // Cap at 64 for safety
-    }
-
-    public static int getDefaultIndexThreadQty() {
-        return Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
-    }
-
-    // public static final Setting<Integer> SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
-    // SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
-    // SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
-    // 1,
-    // INDEX_THREAD_QTY_MAX,
-    // Setting.Property.NodeScope,
-    // Setting.Property.Dynamic
-    // );
     public static final Setting<Integer> SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
         SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
-        getDefaultIndexThreadQty(),
+        SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
         1,
-        getMaxIndexThreadQty(),
+        INDEX_THREAD_QTY_MAX,
         Setting.Property.NodeScope,
         Setting.Property.Dynamic
     );
