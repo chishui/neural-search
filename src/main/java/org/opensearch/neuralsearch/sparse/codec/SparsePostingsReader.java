@@ -98,36 +98,23 @@ public class SparsePostingsReader {
             for (BytesRef term : allTerms) {
                 termBatch.add(term);
                 if (termBatch.size() == BATCH_SIZE || index == allTerms.size() - 1) {
+                    BatchClusteringTask task = new BatchClusteringTask(
+                        termBatch,
+                        key,
+                        summaryPruneRatio,
+                        clusterRatio,
+                        nPostings,
+                        mergeState,
+                        fieldInfo
+                    );
                     if (clusterRatio == 0) {
-                        futures.add(
-                            CompletableFuture.completedFuture(
-                                new BatchClusteringTask(termBatch, key, summaryPruneRatio, clusterRatio, nPostings, mergeState, fieldInfo)
-                                    .get()
-                            )
-                        );
+                        futures.add(CompletableFuture.completedFuture(task.get()));
                     } else {
-                        BatchClusteringTask task = new BatchClusteringTask(
-                            termBatch,
-                            key,
-                            summaryPruneRatio,
-                            clusterRatio,
-                            nPostings,
-                            mergeState,
-                            fieldInfo
+                        threadLimiter.acquire();
+                        futures.add(
+                            CompletableFuture.supplyAsync(task, ClusterTrainingRunning.getInstance().getExecutor())
+                                .whenComplete((result, throwable) -> threadLimiter.release())
                         );
-                        futures.add(CompletableFuture.supplyAsync(() -> {
-                            try {
-                                threadLimiter.acquire();
-                                try {
-                                    return task.get();
-                                } finally {
-                                    threadLimiter.release();
-                                }
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                throw new CompletionException(e);
-                            }
-                        }, ClusterTrainingRunning.getInstance().getExecutor()));
                     }
                     termBatch = new ArrayList<>(BATCH_SIZE);
                 }
