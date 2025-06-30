@@ -56,7 +56,6 @@ public class ClusterTrainingRunning {
 
         // Read from cluster settings for dynamic settings
         int threadCount = clusterService.getClusterSettings().get(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING);
-        log.debug("Getting index thread count from cluster settings: {}", threadCount);
 
         return threadCount;
     }
