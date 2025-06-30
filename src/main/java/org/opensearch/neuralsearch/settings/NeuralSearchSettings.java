@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
+    
     private static final int INDEX_THREAD_QTY_MAX = Runtime.getRuntime().availableProcessors();
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "sparse.algo_param.index_thread_qty";
     public static final Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
