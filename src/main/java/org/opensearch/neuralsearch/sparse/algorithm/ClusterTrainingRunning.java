@@ -12,9 +12,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
-import lombok.extern.log4j.Log4j2;
 
-@Log4j2
 public class ClusterTrainingRunning {
     private static ThreadPool threadpool = null;
     private static ClusterTrainingRunning INSTANCE;
@@ -47,17 +45,11 @@ public class ClusterTrainingRunning {
 
     public int getIndexThreadCount() {
         if (clusterService == null) {
-            log.debug(
-                "clusterService is null, returning default thread count: {}",
-                NeuralSearchSettings.SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY
-            );
             return NeuralSearchSettings.SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY;
         }
 
         // Read from cluster settings for dynamic settings
-        int threadCount = clusterService.getClusterSettings().get(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING);
-
-        return threadCount;
+        return clusterService.getClusterSettings().get(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING);
     }
 
     public Semaphore getThreadLimiter() {
