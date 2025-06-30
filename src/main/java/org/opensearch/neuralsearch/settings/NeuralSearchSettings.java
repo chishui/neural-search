@@ -49,12 +49,29 @@ public final class NeuralSearchSettings {
         Setting.Property.Dynamic
     );
 
+    public static int getMaxIndexThreadQty() {
+        return Runtime.getRuntime().availableProcessors(); // Cap at 64 for safety
+    }
+
+    public static int getDefaultIndexThreadQty() {
+        return Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
+    }
+
+    // public static final Setting<Integer> SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
+    // SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
+    // SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
+    // 1,
+    // INDEX_THREAD_QTY_MAX,
+    // Setting.Property.NodeScope,
+    // Setting.Property.Dynamic
+    // );
     public static final Setting<Integer> SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
         SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
-        SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
+        getDefaultIndexThreadQty(),
         1,
-        INDEX_THREAD_QTY_MAX,
+        getMaxIndexThreadQty(),
         Setting.Property.NodeScope,
         Setting.Property.Dynamic
     );
+
 }
