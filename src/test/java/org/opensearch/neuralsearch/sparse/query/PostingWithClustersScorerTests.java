@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -103,7 +104,7 @@ public class PostingWithClustersScorerTests extends AbstractSparseTestBase {
             true,
             null,
             Map.of(),
-            "1234567890123456".getBytes(),
+            "1234567890123456".getBytes(StandardCharsets.UTF_8),
             Map.of(),
             null
         );

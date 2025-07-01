@@ -4,8 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
-import lombok.Getter;
-
 import java.util.Iterator;
 
 /**

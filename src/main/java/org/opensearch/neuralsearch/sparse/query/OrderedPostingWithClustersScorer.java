@@ -20,8 +20,7 @@ import java.util.List;
 public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
 
     private final Similarity.SimScorer simScorer;
-    private final IteratorWrapper<Pair<Integer, Float>> resultsIterator;
-    private static final int MAX_SEARCH_RESULT_SIZE = 10000;
+    private final IteratorWrapper<Pair<Integer, Integer>> resultsIterator;
 
     public OrderedPostingWithClustersScorer(
         String fieldName,
@@ -34,7 +33,7 @@ public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
     ) throws IOException {
         super(leafReader, fieldName, sparseQueryContext, leafReader.maxDoc(), queryVector, reader, acceptedDocs);
         this.simScorer = simScorer;
-        List<Pair<Integer, Float>> results = searchUpfront(MAX_SEARCH_RESULT_SIZE);
+        List<Pair<Integer, Integer>> results = searchUpfront(sparseQueryContext.getK());
         resultsIterator = new IteratorWrapper<>(results.iterator());
     }
 
@@ -77,7 +76,7 @@ public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
                     return docID();
                 }
                 while (resultsIterator.hasNext()) {
-                    Pair<Integer, Float> pair = resultsIterator.next();
+                    Pair<Integer, Integer> pair = resultsIterator.next();
                     if (pair.getKey() >= target) {
                         return pair.getKey();
                     }

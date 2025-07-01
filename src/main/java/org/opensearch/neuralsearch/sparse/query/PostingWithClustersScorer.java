@@ -26,7 +26,7 @@ import java.io.IOException;
  */
 @Log4j2
 public class PostingWithClustersScorer extends SeismicBaseScorer {
-    private float score;
+    private int score;
     private final Similarity.SimScorer simScorer;
 
     public PostingWithClustersScorer(

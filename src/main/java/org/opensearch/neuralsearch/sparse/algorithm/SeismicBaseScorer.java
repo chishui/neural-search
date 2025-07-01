@@ -37,6 +37,7 @@ import java.util.PriorityQueue;
 
 @Log4j2
 public abstract class SeismicBaseScorer extends Scorer {
+    private final static int SEISMIC_HEAP_SIZE = 10;
     protected final HeapWrapper scoreHeap;
     protected final LongBitSet visitedDocId;
     protected final String fieldName;
@@ -62,7 +63,7 @@ public abstract class SeismicBaseScorer extends Scorer {
         this.queryDenseVector = queryVector.toDenseVector();
         this.reader = getSparseVectorReader(leafReader, reader);
         this.acceptedDocs = acceptedDocs;
-        scoreHeap = new HeapWrapper(sparseQueryContext.getK());
+        scoreHeap = new HeapWrapper(SEISMIC_HEAP_SIZE);
         initialize(leafReader);
     }
 
@@ -111,7 +112,7 @@ public abstract class SeismicBaseScorer extends Scorer {
         }
     }
 
-    protected List<Pair<Integer, Float>> searchUpfront(int resultSize) throws IOException {
+    protected List<Pair<Integer, Integer>> searchUpfront(int resultSize) throws IOException {
         HeapWrapper resultHeap = new HeapWrapper(resultSize);
         for (Scorer scorer : subScorers) {
             DocIdSetIterator iterator = scorer.iterator();
@@ -128,7 +129,7 @@ public abstract class SeismicBaseScorer extends Scorer {
                 if (doc == null) {
                     continue;
                 }
-                float score = doc.dotProduct(queryDenseVector);
+                int score = doc.dotProduct(queryDenseVector);
                 scoreHeap.add(Pair.of(docId, score));
                 resultHeap.add(Pair.of(docId, score));
                 docId = iterator.nextDoc();
@@ -137,13 +138,13 @@ public abstract class SeismicBaseScorer extends Scorer {
         return resultHeap.toOrderedList();
     }
 
-    protected static PriorityQueue<Pair<Integer, Float>> makeHeap() {
-        return new PriorityQueue<>((a, b) -> Float.compare(a.getRight(), b.getRight()));
+    protected static PriorityQueue<Pair<Integer, Integer>> makeHeap() {
+        return new PriorityQueue<>((a, b) -> Integer.compare(a.getRight(), b.getRight()));
     }
 
     protected static class HeapWrapper {
-        private final PriorityQueue<Pair<Integer, Float>> heap = makeHeap();
-        private float heapThreshold = Float.MIN_VALUE;
+        private final PriorityQueue<Pair<Integer, Integer>> heap = makeHeap();
+        private float heapThreshold = Integer.MIN_VALUE;
         private final int K;
 
         HeapWrapper(int K) {
@@ -154,7 +155,7 @@ public abstract class SeismicBaseScorer extends Scorer {
             return heap.size() == this.K;
         }
 
-        public void add(Pair<Integer, Float> pair) {
+        public void add(Pair<Integer, Integer> pair) {
             if (pair.getRight() > heapThreshold) {
                 heap.add(pair);
                 if (heap.size() > K) {
@@ -165,12 +166,12 @@ public abstract class SeismicBaseScorer extends Scorer {
             }
         }
 
-        public List<Pair<Integer, Float>> toList() {
+        public List<Pair<Integer, Integer>> toList() {
             return new ArrayList<>(heap);
         }
 
-        public List<Pair<Integer, Float>> toOrderedList() {
-            List<Pair<Integer, Float>> list = new ArrayList<>(heap);
+        public List<Pair<Integer, Integer>> toOrderedList() {
+            List<Pair<Integer, Integer>> list = new ArrayList<>(heap);
             list.sort((a, b) -> Float.compare(a.getLeft(), b.getLeft()));
             return list;
         }
@@ -179,7 +180,7 @@ public abstract class SeismicBaseScorer extends Scorer {
             return heap.size();
         }
 
-        public Pair<Integer, Float> peek() {
+        public Pair<Integer, Integer> peek() {
             return heap.peek();
         }
     }
