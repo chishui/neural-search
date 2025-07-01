@@ -40,6 +40,7 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
 
 /**
  * Merge sparse postings
@@ -77,7 +78,7 @@ public class SparsePostingsReader {
             InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(mergeState.segmentInfo, fieldInfo);
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
             int nPostings;
-            if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) < 0) {
+            if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
                 nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * docCount), DEFAULT_POSTING_MINIMUM_LENGTH);
             } else {
                 nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
