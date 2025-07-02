@@ -191,8 +191,8 @@ public class NeuralSearch extends Plugin
             );
 
             Settings threadPoolSettings = Settings.builder()
-                    .put(String.format("%s.size", ClusterTrainingRunning.THREAD_POOL_NAME), newThreadQty)
-                    .build();
+                .put(String.format("%s.size", ClusterTrainingRunning.THREAD_POOL_NAME), newThreadQty)
+                .build();
 
             threadPool.setThreadPool(threadPoolSettings);
 

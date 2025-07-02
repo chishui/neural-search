@@ -51,6 +51,11 @@ import org.opensearch.search.query.QueryPhaseSearcher;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
+import static org.mockito.Mockito.verify;
+import org.mockito.ArgumentCaptor;
+import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
+import java.lang.reflect.Method;
 
 public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
@@ -210,4 +215,75 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         assertEquals("Unexpected number of executor builders are registered", 1, executorBuilders.size());
         assertTrue(executorBuilders.get(0) instanceof FixedExecutorBuilder);
     }
+
+    public void testUpdateThreadPoolSize() {
+        // Mock ThreadPool and OpenSearchThreadPoolExecutor
+        ThreadPool mockThreadPool = mock(ThreadPool.class);
+        OpenSearchThreadPoolExecutor mockExecutor = mock(OpenSearchThreadPoolExecutor.class);
+
+        // Setup mock behavior
+        when(mockThreadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME)).thenReturn(mockExecutor);
+        when(mockExecutor.getCorePoolSize()).thenReturn(6);
+        when(mockExecutor.getMaximumPoolSize()).thenReturn(6);
+
+        // Test updateThreadPoolSize method via reflection
+        try {
+            Method updateMethod = NeuralSearch.class.getDeclaredMethod("updateThreadPoolSize", ThreadPool.class, Integer.class);
+            updateMethod.setAccessible(true);
+
+            // Test update from 6 to 10
+            updateMethod.invoke(plugin, mockThreadPool, 10);
+
+            // Verify setThreadPool was called with correct settings
+            ArgumentCaptor<Settings> settingsCaptor = ArgumentCaptor.forClass(Settings.class);
+            verify(mockThreadPool).setThreadPool(settingsCaptor.capture());
+
+            Settings capturedSettings = settingsCaptor.getValue();
+            assertEquals("10", capturedSettings.get(ClusterTrainingRunning.THREAD_POOL_NAME + ".size"));
+
+        } catch (Exception e) {
+            fail("Failed to test updateThreadPoolSize: " + e.getMessage());
+        }
+    }
+
+    public void testThreadPoolSettingRegistration() {
+        List<Setting<?>> settings = plugin.getSettings();
+
+        // Verify SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING is registered
+        assertTrue(
+            "SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING should be registered",
+            settings.contains(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING)
+        );
+
+        // Verify setting properties
+        Setting<Integer> threadQtySetting = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING;
+        assertEquals("sparse.algo_param.index_thread_qty", threadQtySetting.getKey());
+        assertTrue("Setting should be dynamic", threadQtySetting.isDynamic());
+        assertTrue("Setting should be node scope", threadQtySetting.hasNodeScope());
+
+        // Test default value calculation
+        int expectedDefault = Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
+        assertEquals(expectedDefault, (int) threadQtySetting.getDefault(Settings.EMPTY));
+    }
+
+    public void testGetExecutorBuildersWithCustomThreadQty() {
+        // Test with custom thread quantity
+        Settings customSettings = Settings.builder().put(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, 12).build();
+
+        List<ExecutorBuilder<?>> executorBuilders = plugin.getExecutorBuilders(customSettings);
+
+        assertNotNull(executorBuilders);
+        assertEquals(2, executorBuilders.size()); // One for Hybrid, one for Fixed
+
+        // Verify it's a FixedExecutorBuilder
+        ExecutorBuilder<?> builder = executorBuilders.get(0);
+        assertTrue("Should be FixedExecutorBuilder", builder instanceof FixedExecutorBuilder);
+
+        // Test with default settings
+        Settings defaultSettings = Settings.builder().build();
+        List<ExecutorBuilder<?>> defaultBuilders = plugin.getExecutorBuilders(defaultSettings);
+        assertEquals(2, defaultBuilders.size());
+        assertTrue(defaultBuilders.get(0) instanceof FixedExecutorBuilder);
+    }
+
 }
