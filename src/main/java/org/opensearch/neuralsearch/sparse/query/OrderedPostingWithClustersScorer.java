@@ -12,7 +12,6 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.opensearch.neuralsearch.sparse.algorithm.SeismicBaseScorer;
-import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
@@ -64,56 +63,4 @@ public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
     public float score() throws IOException {
         return this.simScorer.score(conjunctionDisi.cost(), 0);
     }
-
-    static class ResultsDocValueIterator extends DocIdSetIterator {
-        private final IteratorWrapper<Pair<Integer, Integer>> resultsIterator;
-        private int docId;
-
-        ResultsDocValueIterator(List<Pair<Integer, Integer>> results) {
-            resultsIterator = new IteratorWrapper<>(results.iterator());
-            docId = -1;
-        }
-
-        @Override
-        public int docID() {
-            return docId;
-        }
-
-        @Override
-        public int nextDoc() throws IOException {
-            if (resultsIterator.next() == null) {
-                docId = NO_MORE_DOCS;
-                return NO_MORE_DOCS;
-            }
-            docId = resultsIterator.getCurrent().getLeft();
-            return docId;
-        }
-
-        @Override
-        public int advance(int target) throws IOException {
-            if (target <= docId) {
-                return docId;
-            }
-            while (resultsIterator.hasNext()) {
-                Pair<Integer, Integer> pair = resultsIterator.next();
-                if (pair.getKey() >= target) {
-                    docId = pair.getKey();
-                    return docId;
-                }
-            }
-            docId = NO_MORE_DOCS;
-            return NO_MORE_DOCS;
-        }
-
-        // we use cost() to return prestored score
-        @Override
-        public long cost() {
-            if (resultsIterator.getCurrent() == null || !resultsIterator.hasNext()) {
-                return 0;
-            } else {
-                return resultsIterator.getCurrent().getValue();
-            }
-        }
-    }
-
 }
