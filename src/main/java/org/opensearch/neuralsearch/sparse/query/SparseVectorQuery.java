@@ -83,8 +83,11 @@ public class SparseVectorQuery extends Query {
         if (!this.originalQuery.equals(otherQuery.getOriginalQuery())) {
             return false;
         }
-        if (this.filter != null && otherQuery.getFilter() != null) {
-            return this.filter.equals(otherQuery.getFilter());
+        if ((this.filter == null) != (otherQuery.getFilter() == null)) {
+            return false;
+        }
+        if (this.filter != null && !this.filter.equals(otherQuery.getFilter())) {
+            return false;
         }
         return queryVector.equals(otherQuery.getQueryVector());
     }
