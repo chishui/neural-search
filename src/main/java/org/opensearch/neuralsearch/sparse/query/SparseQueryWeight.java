@@ -125,21 +125,26 @@ public class SparseQueryWeight extends Weight {
             sparseReader = index != null ? index.getReader() : (docId -> { return null; });
         }
         Similarity.SimScorer simScorer = ByteQuantizer.getSimScorer(boost);
-        BitSet filter = query.getFilterResults().get(context.id());
-        if (filter != null) {
-            int ord = filter.cardinality();
-            if (ord <= query.getQueryContext().getK()) {
-                return new ExactMatchScorer(new BitSetIterator(filter, ord), query.getQueryVector(), sparseReader, simScorer);
+        BitSetIterator filterBitIterator = null;
+        if (query.getFilterResults() != null) {
+            BitSet filter = query.getFilterResults().get(context.id());
+            if (filter != null) {
+                int ord = filter.cardinality();
+                filterBitIterator = new BitSetIterator(filter, ord);
+                if (ord <= query.getQueryContext().getK()) {
+                    return new ExactMatchScorer(filterBitIterator, query.getQueryVector(), sparseReader, simScorer);
+                }
             }
         }
-        return new PostingWithClustersScorer(
+        return new OrderedPostingWithClustersScorer(
             query.getFieldName(),
             query.getQueryContext(),
             query.getQueryVector(),
             context.reader(),
             context.reader().getLiveDocs(),
             sparseReader,
-            simScorer
+            simScorer,
+            filterBitIterator
         );
     }
 

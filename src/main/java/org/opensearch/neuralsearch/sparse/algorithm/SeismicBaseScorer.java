@@ -132,7 +132,6 @@ public abstract class SeismicBaseScorer extends Scorer {
                 int score = doc.dotProduct(queryDenseVector);
                 scoreHeap.add(Pair.of(docId, score));
                 resultHeap.add(Pair.of(docId, score));
-                docId = iterator.nextDoc();
             }
         }
         return resultHeap.toOrderedList();
