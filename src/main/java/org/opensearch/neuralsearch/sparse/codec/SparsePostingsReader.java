@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Semaphore;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
@@ -88,8 +87,6 @@ public class SparsePostingsReader {
             sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
             clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount);
 
-            Semaphore threadLimiter = ClusterTrainingRunning.getInstance().getThreadLimiter();
-
             List<CompletableFuture<List<Pair<BytesRef, PostingClusters>>>> futures = new ArrayList<>(
                 Math.round((float) allTerms.size() / BATCH_SIZE)
             );
@@ -98,22 +95,19 @@ public class SparsePostingsReader {
             for (BytesRef term : allTerms) {
                 termBatch.add(term);
                 if (termBatch.size() == BATCH_SIZE || index == allTerms.size() - 1) {
-                    BatchClusteringTask task = new BatchClusteringTask(
-                        termBatch,
-                        key,
-                        summaryPruneRatio,
-                        clusterRatio,
-                        nPostings,
-                        mergeState,
-                        fieldInfo
-                    );
                     if (clusterRatio == 0) {
-                        futures.add(CompletableFuture.completedFuture(task.get()));
-                    } else {
-                        threadLimiter.acquire();
                         futures.add(
-                            CompletableFuture.supplyAsync(task, ClusterTrainingRunning.getInstance().getExecutor())
-                                .whenComplete((result, throwable) -> threadLimiter.release())
+                            CompletableFuture.completedFuture(
+                                new BatchClusteringTask(termBatch, key, summaryPruneRatio, clusterRatio, nPostings, mergeState, fieldInfo)
+                                    .get()
+                            )
+                        );
+                    } else {
+                        futures.add(
+                            CompletableFuture.supplyAsync(
+                                new BatchClusteringTask(termBatch, key, summaryPruneRatio, clusterRatio, nPostings, mergeState, fieldInfo),
+                                ClusterTrainingRunning.getInstance().getExecutor()
+                            )
                         );
                     }
                     termBatch = new ArrayList<>(BATCH_SIZE);

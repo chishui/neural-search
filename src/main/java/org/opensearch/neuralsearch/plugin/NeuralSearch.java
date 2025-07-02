@@ -18,7 +18,6 @@ import java.util.function.Supplier;
 
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
@@ -174,8 +173,31 @@ public class NeuralSearch extends Plugin
         pipelineServiceUtil = new PipelineServiceUtil(clusterService);
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
-        ClusterTrainingRunning.initialize(threadPool, clusterService);
+        clusterService.getClusterSettings()
+            .addSettingsUpdateConsumer(
+                NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
+                newThreadQty -> updateThreadPoolSize(threadPool, newThreadQty)
+            );
+        ClusterTrainingRunning.initialize(threadPool);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
+    }
+
+    private void updateThreadPoolSize(ThreadPool threadPool, Integer newThreadQty) {
+        try {
+            log.info(
+                "Attempting to update thread pool [{}] size from current to [{}]",
+                ClusterTrainingRunning.THREAD_POOL_NAME,
+                newThreadQty
+            );
+
+            Settings threadPoolSettings = Settings.builder().put(ClusterTrainingRunning.THREAD_POOL_NAME + ".size", newThreadQty).build();
+
+            threadPool.setThreadPool(threadPoolSettings);
+
+            log.info("Successfully updated thread pool [{}] size to [{}]", ClusterTrainingRunning.THREAD_POOL_NAME, newThreadQty);
+        } catch (Exception e) {
+            log.error("Failed to update thread pool size to [{}]", newThreadQty, e);
+        }
     }
 
     @Override
@@ -209,15 +231,15 @@ public class NeuralSearch extends Plugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        int allocatedProcessors = OpenSearchExecutors.allocatedProcessors(settings);
+        int threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
         return List.of(
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
                 settings,
                 ClusterTrainingRunning.THREAD_POOL_NAME,
-                allocatedProcessors,
+                threadQty,
                 -1,
-                ClusterTrainingRunning.THREAD_POOL_NAME,
+                "thread_pool." + ClusterTrainingRunning.THREAD_POOL_NAME,
                 false
             )
         );
