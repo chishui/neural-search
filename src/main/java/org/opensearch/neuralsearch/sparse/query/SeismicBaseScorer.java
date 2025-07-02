@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.algorithm;
+package org.opensearch.neuralsearch.sparse.query;
 
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
@@ -18,6 +18,7 @@ import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LongBitSet;
+import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
@@ -27,7 +28,6 @@ import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
-import org.opensearch.neuralsearch.sparse.query.SparseQueryContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -105,7 +105,10 @@ public abstract class SeismicBaseScorer extends Scorer {
             }
             PostingsEnum postingsEnum = termsEnum.postings(null, PostingsEnum.FREQS);
             if (!(postingsEnum instanceof SparsePostingsEnum sparsePostingsEnum)) {
-                log.error("posting enum is not SparsePostingsEnum, actual type: {}", postingsEnum.getClass().getName());
+                log.error(
+                    "posting enum is not SparsePostingsEnum, actual type: {}",
+                    postingsEnum == null ? null : postingsEnum.getClass().getName()
+                );
                 return;
             }
             subScorers.add(new SingleScorer(sparsePostingsEnum));
@@ -205,6 +208,9 @@ public abstract class SeismicBaseScorer extends Scorer {
             return new DocIdSetIterator() {
 
                 private DocumentCluster nextQualifiedCluster() {
+                    if (clusterIter == null) {
+                        return null;
+                    }
                     DocumentCluster cluster = clusterIter.next();
                     while (cluster != null) {
                         if (cluster.isShouldNotSkip()) {
@@ -315,7 +321,7 @@ public abstract class SeismicBaseScorer extends Scorer {
         // we use cost() to return prestored score
         @Override
         public long cost() {
-            if (resultsIterator.getCurrent() == null || !resultsIterator.hasNext()) {
+            if (resultsIterator.getCurrent() == null || docId == NO_MORE_DOCS) {
                 return 0;
             } else {
                 return resultsIterator.getCurrent().getValue();
