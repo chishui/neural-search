@@ -16,6 +16,8 @@ import org.opensearch.neuralsearch.sparse.common.DocFreq;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.query.SparseQueryContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -112,5 +114,44 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
         when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
+    }
+
+    protected SparseQueryContext constructSparseQueryContext(int k, float hf, List<String> tokens) {
+        return SparseQueryContext.builder().k(k).heapFactor(hf).tokens(tokens).build();
+    }
+
+    protected DocumentCluster prepareCluster(int summaryDP, boolean shouldNotSkip, byte[] queryDenseVector) {
+        // Mock document cluster
+        DocumentCluster cluster = mock(DocumentCluster.class);
+        SparseVector clusterSummary = mock(SparseVector.class);
+        when(cluster.getSummary()).thenReturn(clusterSummary);
+        when(clusterSummary.dotProduct(queryDenseVector)).thenReturn(summaryDP);
+        when(cluster.isShouldNotSkip()).thenReturn(shouldNotSkip);
+        return cluster;
+    }
+
+    protected void prepareVectors(SparseVectorReader reader, byte[] queryDenseVector, int... arguments) throws IOException {
+        for (int i = 0; i < arguments.length; i += 2) {
+            prepareVector(arguments[i], arguments[i + 1], reader, queryDenseVector);
+        }
+    }
+
+    protected SparseVector prepareVector(int docId, int dpScore, SparseVectorReader reader, byte[] queryDenseVector) throws IOException {
+        SparseVector docVector = mock(SparseVector.class);
+        when(reader.read(docId)).thenReturn(docVector);
+        when(docVector.dotProduct(queryDenseVector)).thenReturn(dpScore);
+        return docVector;
+    }
+
+    protected void prepareClusterAndItsDocs(SparseVectorReader reader, byte[] queryDenseVector, DocumentCluster cluster, int... docScores)
+        throws IOException {
+        prepareVectors(reader, queryDenseVector, docScores);
+        List<Integer> docs = new ArrayList<>();
+        for (int i = 0; i < docScores.length; i += 2) {
+            docs.add(docScores[i]);
+        }
+        // Mock DocFreqIterator with two docs - one with vector and one without
+        DocFreqIterator docIterator = constructDocFreqIterator(docs, docs);
+        when(cluster.getDisi()).thenReturn(docIterator);
     }
 }
