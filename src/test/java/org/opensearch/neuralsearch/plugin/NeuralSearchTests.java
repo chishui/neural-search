@@ -262,7 +262,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         assertTrue("Setting should be node scope", threadQtySetting.hasNodeScope());
 
         // Test default value calculation
-        int expectedDefault = Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
+        int expectedDefault = -1;
         assertEquals(expectedDefault, (int) threadQtySetting.getDefault(Settings.EMPTY));
     }
 
@@ -273,17 +273,17 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         List<ExecutorBuilder<?>> executorBuilders = plugin.getExecutorBuilders(customSettings);
 
         assertNotNull(executorBuilders);
-        assertEquals(2, executorBuilders.size()); // One for Hybrid, one for Fixed
+        assertEquals(2, executorBuilders.size()); // One for Hybrid, one for ClusterTraining
 
-        // Verify it's a FixedExecutorBuilder
-        ExecutorBuilder<?> builder = executorBuilders.get(0);
+        // Verify the second one is a FixedExecutorBuilder for ClusterTraining
+        ExecutorBuilder<?> builder = executorBuilders.get(1);
         assertTrue("Should be FixedExecutorBuilder", builder instanceof FixedExecutorBuilder);
 
         // Test with default settings
         Settings defaultSettings = Settings.builder().build();
         List<ExecutorBuilder<?>> defaultBuilders = plugin.getExecutorBuilders(defaultSettings);
         assertEquals(2, defaultBuilders.size());
-        assertTrue(defaultBuilders.get(0) instanceof FixedExecutorBuilder);
+        assertTrue(defaultBuilders.get(1) instanceof FixedExecutorBuilder);
     }
 
 }

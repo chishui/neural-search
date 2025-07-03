@@ -29,7 +29,7 @@ public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
         assertOK(getResponse);
         System.out.println(EntityUtils.toString(getResponse.getEntity()));
         String responseBody = EntityUtils.toString(getResponse.getEntity());
-        assertTrue(responseBody.contains("\"index_thread_qty\":\"8\""));
+        assertTrue(responseBody.contains("\"sparse\":{\"algo_param\":{\"index_thread_qty\":\"8\"}"));
     }
 
     public void testThreadPoolStats() throws IOException, ParseException {
@@ -40,6 +40,18 @@ public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
         String responseBody = EntityUtils.toString(response.getEntity());
         assertNotNull(responseBody);
         assertTrue(responseBody.contains("thread_pool"));
+        // Check if cluster_training_thread_pool exists in the response
+        assertTrue(responseBody.contains("cluster_training_thread_pool"));
     }
 
+    public void testDefaultThreadPoolSetting() throws IOException, ParseException {
+        // Test that the default setting is properly handled
+        Request getRequest = new Request("GET", "/_cluster/settings?include_defaults=true");
+        Response getResponse = client().performRequest(getRequest);
+        assertOK(getResponse);
+
+        String responseBody = EntityUtils.toString(getResponse.getEntity());
+        // The default value should be -1, which means auto-calculated
+        assertTrue(responseBody.contains("\"sparse\":{\"algo_param\":{\"index_thread_qty\""));
+    }
 }
