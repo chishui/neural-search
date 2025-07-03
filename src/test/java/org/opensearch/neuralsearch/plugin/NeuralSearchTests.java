@@ -55,9 +55,13 @@ import static org.mockito.Mockito.verify;
 import org.mockito.ArgumentCaptor;
 import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
-import java.lang.reflect.Method;
 
 public class NeuralSearchTests extends OpenSearchQueryTestCase {
+
+    private static final int NEW_THREAD_COUNT = 10;
+    private static final int CURRENT_THREAD_COUNT = 6;
+    private static final int CUSTOM_THREAD_QTY = 12;
+    private static final int EXPECTED_EXECUTOR_BUILDERS_COUNT = 2;
 
     private NeuralSearch plugin;
 
@@ -217,72 +221,55 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
     }
 
     public void testUpdateThreadPoolSize() {
-        // Mock ThreadPool and OpenSearchThreadPoolExecutor
         ThreadPool mockThreadPool = mock(ThreadPool.class);
         OpenSearchThreadPoolExecutor mockExecutor = mock(OpenSearchThreadPoolExecutor.class);
 
-        // Setup mock behavior
         when(mockThreadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME)).thenReturn(mockExecutor);
-        when(mockExecutor.getCorePoolSize()).thenReturn(6);
-        when(mockExecutor.getMaximumPoolSize()).thenReturn(6);
+        when(mockExecutor.getCorePoolSize()).thenReturn(CURRENT_THREAD_COUNT);
+        when(mockExecutor.getMaximumPoolSize()).thenReturn(CURRENT_THREAD_COUNT);
 
-        // Test updateThreadPoolSize method via reflection
-        try {
-            Method updateMethod = NeuralSearch.class.getDeclaredMethod("updateThreadPoolSize", ThreadPool.class, Integer.class);
-            updateMethod.setAccessible(true);
+        ClusterTrainingRunning.initialize(mockThreadPool);
+        ClusterTrainingRunning.updateThreadPoolSize(NEW_THREAD_COUNT);
 
-            // Test update from 6 to 10
-            updateMethod.invoke(plugin, mockThreadPool, 10);
+        ArgumentCaptor<Settings> settingsCaptor = ArgumentCaptor.forClass(Settings.class);
+        verify(mockThreadPool).setThreadPool(settingsCaptor.capture());
 
-            // Verify setThreadPool was called with correct settings
-            ArgumentCaptor<Settings> settingsCaptor = ArgumentCaptor.forClass(Settings.class);
-            verify(mockThreadPool).setThreadPool(settingsCaptor.capture());
-
-            Settings capturedSettings = settingsCaptor.getValue();
-            assertEquals("10", capturedSettings.get(ClusterTrainingRunning.THREAD_POOL_NAME + ".size"));
-
-        } catch (Exception e) {
-            fail("Failed to test updateThreadPoolSize: " + e.getMessage());
-        }
+        Settings capturedSettings = settingsCaptor.getValue();
+        assertEquals(String.valueOf(NEW_THREAD_COUNT), capturedSettings.get(ClusterTrainingRunning.THREAD_POOL_NAME + ".size"));
     }
 
     public void testThreadPoolSettingRegistration() {
         List<Setting<?>> settings = plugin.getSettings();
 
-        // Verify SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING is registered
         assertTrue(
             "SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING should be registered",
             settings.contains(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING)
         );
 
-        // Verify setting properties
         Setting<Integer> threadQtySetting = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING;
-        assertEquals("sparse.algo_param.index_thread_qty", threadQtySetting.getKey());
+        assertEquals(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, threadQtySetting.getKey());
         assertTrue("Setting should be dynamic", threadQtySetting.isDynamic());
         assertTrue("Setting should be node scope", threadQtySetting.hasNodeScope());
 
-        // Test default value calculation
-        int expectedDefault = -1;
-        assertEquals(expectedDefault, (int) threadQtySetting.getDefault(Settings.EMPTY));
+        assertEquals(NeuralSearchSettings.INITIAL_INDEX_THREAD_QTY, (int) threadQtySetting.getDefault(Settings.EMPTY));
     }
 
     public void testGetExecutorBuildersWithCustomThreadQty() {
-        // Test with custom thread quantity
-        Settings customSettings = Settings.builder().put(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, 12).build();
+        Settings customSettings = Settings.builder()
+            .put(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, CUSTOM_THREAD_QTY)
+            .build();
 
         List<ExecutorBuilder<?>> executorBuilders = plugin.getExecutorBuilders(customSettings);
 
         assertNotNull(executorBuilders);
-        assertEquals(2, executorBuilders.size()); // One for Hybrid, one for ClusterTraining
+        assertEquals(EXPECTED_EXECUTOR_BUILDERS_COUNT, executorBuilders.size());
 
-        // Verify the second one is a FixedExecutorBuilder for ClusterTraining
-        ExecutorBuilder<?> builder = executorBuilders.get(1);
-        assertTrue("Should be FixedExecutorBuilder", builder instanceof FixedExecutorBuilder);
+        ExecutorBuilder<?> clusterTrainingBuilder = executorBuilders.get(1);
+        assertTrue("Should be FixedExecutorBuilder", clusterTrainingBuilder instanceof FixedExecutorBuilder);
 
-        // Test with default settings
         Settings defaultSettings = Settings.builder().build();
         List<ExecutorBuilder<?>> defaultBuilders = plugin.getExecutorBuilders(defaultSettings);
-        assertEquals(2, defaultBuilders.size());
+        assertEquals(EXPECTED_EXECUTOR_BUILDERS_COUNT, defaultBuilders.size());
         assertTrue(defaultBuilders.get(1) instanceof FixedExecutorBuilder);
     }
 

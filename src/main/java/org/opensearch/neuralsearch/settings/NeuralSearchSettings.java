@@ -8,17 +8,22 @@ import org.opensearch.common.settings.Setting;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.OpenSearchExecutors;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
+import org.opensearch.threadpool.FixedExecutorBuilder;
 
 /**
  * Class defines settings specific to neural-search plugin
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
+    public static final int INITIAL_INDEX_THREAD_QTY = -1; // -1 represents that user did not give a specific
+                                                           // thread
+                                                           // quantity
     public static int INDEX_THREAD_QTY_MAX = 1024; // Initial max value, will be updated based on actual CPU cores
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "sparse.algo_param.index_thread_qty";
-    public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = -1; // -1 represents that user did not give a specific
-                                                                           // thread
-                                                                           // quantity
+    public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = INITIAL_INDEX_THREAD_QTY;
     /**
      * Gates the functionality of hybrid search
      * Currently query phase searcher added with hybrid search will conflict with concurrent search in core.
@@ -60,7 +65,12 @@ public final class NeuralSearchSettings {
         Setting.Property.Dynamic
     );
 
-    public static void updateThreadQtySettings(Integer threadQty, Integer maxThreadQty) {
+    public static FixedExecutorBuilder updateThreadQtySettings(Settings settings) {
+        int maxThreadQty = OpenSearchExecutors.allocatedProcessors(settings);
+        int threadQty = SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
+        if (threadQty == INITIAL_INDEX_THREAD_QTY) {
+            threadQty = Math.max(maxThreadQty / 2, 1);
+        }
         INDEX_THREAD_QTY_MAX = maxThreadQty;
         SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = threadQty;
         SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
@@ -70,6 +80,14 @@ public final class NeuralSearchSettings {
             INDEX_THREAD_QTY_MAX,
             Setting.Property.NodeScope,
             Setting.Property.Dynamic
+        );
+        return new FixedExecutorBuilder(
+            settings,
+            ClusterTrainingRunning.THREAD_POOL_NAME,
+            threadQty,
+            -1,
+            String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
+            false
         );
     }
 

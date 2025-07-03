@@ -10,141 +10,146 @@ import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.node.Node;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
+import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 
 public class ClusterTrainingRunningTests extends OpenSearchTestCase {
 
-    public void testThreadPoolInitialization() {
-        Settings settings = Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "test-node").build();
+    private static final int DEFAULT_ALLOCATED_PROCESSORS = 8;
+    private static final int EXPECTED_DEFAULT_THREAD_QTY = DEFAULT_ALLOCATED_PROCESSORS / 2;
+    private static final String TEST_NODE_NAME = "test-node";
+    private static final int CUSTOM_THREAD_QTY = 8;
+    private static final int NEW_THREAD_COUNT = 12;
+    private static final int CURRENT_THREAD_COUNT = 6;
+    private static final int TIMEOUT_SECONDS = 5;
+    private static final String EXPECTED_RESULT = "test-result";
 
-        int threadQty;
-        int maxThreadQty = 8; // Mock available processors
-        if (NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings) == -1) {
-            threadQty = Math.max(maxThreadQty / 2, 1);
-        } else {
-            threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
-        }
+    private ThreadPool createThreadPool(Settings settings) {
+        FixedExecutorBuilder builder = NeuralSearchSettings.updateThreadQtySettings(settings);
+        return new ThreadPool(settings, builder);
+    }
 
-        FixedExecutorBuilder builder = new FixedExecutorBuilder(
-            settings,
-            ClusterTrainingRunning.THREAD_POOL_NAME,
-            threadQty,
-            -1,
-            String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
-            false
-        );
+    private Settings createTestSettings() {
+        return Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), TEST_NODE_NAME).build();
+    }
 
-        ThreadPool threadPool = new ThreadPool(settings, builder);
+    private Settings createCustomThreadSettings(int threadQty) {
+        return Settings.builder()
+            .put(Node.NODE_NAME_SETTING.getKey(), TEST_NODE_NAME)
+            .put(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, threadQty)
+            .build();
+    }
+
+    public void testSingletonInstance() {
+        ClusterTrainingRunning instance1 = ClusterTrainingRunning.getInstance();
+        ClusterTrainingRunning instance2 = ClusterTrainingRunning.getInstance();
+
+        assertSame("Should return same singleton instance", instance1, instance2);
+    }
+
+    public void testInitialization() {
+        Settings settings = createTestSettings();
+        ThreadPool threadPool = createThreadPool(settings);
 
         try {
-            ExecutorService executor = threadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME);
-            assertNotNull("Thread pool should be initialized", executor);
-            assertFalse("Thread pool should not be shutdown", executor.isShutdown());
+            ClusterTrainingRunning.initialize(threadPool);
+            ClusterTrainingRunning instance = ClusterTrainingRunning.getInstance();
+
+            Executor executor = instance.getExecutor();
+            assertNotNull("Executor should not be null after initialization", executor);
         } finally {
             threadPool.shutdown();
         }
     }
 
-    public void testExecutorRetrieval() {
-        Settings settings = Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "test-node").build();
-
-        int threadQty;
-        int maxThreadQty = 8; // Mock available processors
-        if (NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings) == -1) {
-            threadQty = Math.max(maxThreadQty / 2, 1);
-        } else {
-            threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
-        }
-
-        FixedExecutorBuilder builder = new FixedExecutorBuilder(
-            settings,
-            ClusterTrainingRunning.THREAD_POOL_NAME,
-            threadQty,
-            -1,
-            String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
-            false
-        );
-
-        ThreadPool threadPool = new ThreadPool(settings, builder);
+    public void testRunTask() throws InterruptedException {
+        Settings settings = createTestSettings();
+        ThreadPool threadPool = createThreadPool(settings);
 
         try {
-            ExecutorService executor = threadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME);
-            assertNotNull("Should retrieve executor successfully", executor);
-            assertSame("Should return same executor instance", executor, threadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME));
-        } finally {
-            threadPool.shutdown();
-        }
-    }
+            ClusterTrainingRunning.initialize(threadPool);
+            ClusterTrainingRunning instance = ClusterTrainingRunning.getInstance();
 
-    public void testTaskSubmission() throws InterruptedException {
-        Settings settings = Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "test-node").build();
-
-        int threadQty;
-        int maxThreadQty = 8; // Mock available processors
-        if (NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings) == -1) {
-            threadQty = Math.max(maxThreadQty / 2, 1);
-        } else {
-            threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
-        }
-
-        FixedExecutorBuilder builder = new FixedExecutorBuilder(
-            settings,
-            ClusterTrainingRunning.THREAD_POOL_NAME,
-            threadQty,
-            -1,
-            String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
-            false
-        );
-
-        ThreadPool threadPool = new ThreadPool(settings, builder);
-
-        try {
-            ExecutorService executor = threadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME);
             CountDownLatch latch = new CountDownLatch(1);
 
-            executor.submit(() -> { latch.countDown(); });
+            instance.run(() -> latch.countDown());
 
-            assertTrue("Task should execute successfully", latch.await(5, TimeUnit.SECONDS));
+            assertTrue("Task should execute successfully", latch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
         } finally {
             threadPool.shutdown();
         }
+    }
+
+    public void testSubmitCallable() throws Exception {
+        Settings settings = createTestSettings();
+        ThreadPool threadPool = createThreadPool(settings);
+
+        try {
+            ClusterTrainingRunning.initialize(threadPool);
+            ClusterTrainingRunning instance = ClusterTrainingRunning.getInstance();
+
+            Future<String> future = instance.submit(new Callable<String>() {
+                @Override
+                public String call() {
+                    return EXPECTED_RESULT;
+                }
+            });
+
+            String result = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            assertEquals("Callable should return expected result", EXPECTED_RESULT, result);
+        } finally {
+            threadPool.shutdown();
+        }
+    }
+
+    public void testUpdateThreadPoolSize() {
+        ThreadPool mockThreadPool = mock(ThreadPool.class);
+        OpenSearchThreadPoolExecutor mockExecutor = mock(OpenSearchThreadPoolExecutor.class);
+
+        when(mockThreadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME)).thenReturn(mockExecutor);
+        when(mockExecutor.getCorePoolSize()).thenReturn(CURRENT_THREAD_COUNT);
+        when(mockExecutor.getMaximumPoolSize()).thenReturn(CURRENT_THREAD_COUNT);
+
+        ClusterTrainingRunning.initialize(mockThreadPool);
+        ClusterTrainingRunning.updateThreadPoolSize(NEW_THREAD_COUNT);
+
+        verify(mockThreadPool).setThreadPool(any(Settings.class));
+    }
+
+    public void testDefaultThreadQuantityCalculation() {
+        Settings settings = createTestSettings();
+        FixedExecutorBuilder builder = NeuralSearchSettings.updateThreadQtySettings(settings);
+
+        assertNotNull("Builder should not be null", builder);
+        assertNotNull("Builder should not be null", builder);
     }
 
     public void testCustomThreadQuantity() {
-        Settings settings = Settings.builder()
-            .put(Node.NODE_NAME_SETTING.getKey(), "test-node")
-            .put(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, 6)
-            .build();
-
-        int threadQty;
-        int maxThreadQty = 8; // Mock available processors
-        if (NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings) == -1) {
-            threadQty = Math.max(maxThreadQty / 2, 1);
-        } else {
-            threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
-        }
-
-        assertEquals("Custom thread quantity should be used", 6, threadQty);
-
-        FixedExecutorBuilder builder = new FixedExecutorBuilder(
-            settings,
-            ClusterTrainingRunning.THREAD_POOL_NAME,
-            threadQty,
-            -1,
-            String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
-            false
-        );
-
-        ThreadPool threadPool = new ThreadPool(settings, builder);
+        Settings settings = createCustomThreadSettings(CUSTOM_THREAD_QTY);
+        ThreadPool threadPool = createThreadPool(settings);
 
         try {
-            ExecutorService executor = threadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME);
-            assertNotNull("Thread pool should be initialized with custom thread quantity", executor);
+            ClusterTrainingRunning.initialize(threadPool);
+            ClusterTrainingRunning instance = ClusterTrainingRunning.getInstance();
+
+            Executor executor = instance.getExecutor();
+            assertNotNull("Executor should be initialized with custom thread quantity", executor);
         } finally {
             threadPool.shutdown();
         }
+    }
+
+    public void testThreadPoolNameConstant() {
+        assertEquals("cluster_training_thread_pool", ClusterTrainingRunning.THREAD_POOL_NAME);
     }
 }

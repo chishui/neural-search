@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.plugin;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_SEARCH_HYBRID_SEARCH_DISABLED;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.RERANKER_MAX_DOC_FIELDS;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_STATS_ENABLED;
+import static org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning.updateThreadPoolSize;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -18,7 +19,6 @@ import java.util.function.Supplier;
 
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
@@ -44,7 +44,6 @@ import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
 import org.opensearch.plugins.EnginePlugin;
 import org.opensearch.plugins.MapperPlugin;
-import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.transport.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
@@ -177,17 +176,10 @@ public class NeuralSearch extends Plugin
         clusterService.getClusterSettings()
             .addSettingsUpdateConsumer(
                 NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
-                newThreadQty -> updateThreadPoolSize(threadPool, newThreadQty)
+                newThreadQty -> updateThreadPoolSize(newThreadQty)
             );
         ClusterTrainingRunning.initialize(threadPool);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
-    }
-
-    private void updateThreadPoolSize(ThreadPool threadPool, Integer newThreadQty) {
-        Settings threadPoolSettings = Settings.builder()
-            .put(String.format("%s.size", ClusterTrainingRunning.THREAD_POOL_NAME), newThreadQty)
-            .build();
-        threadPool.setThreadPool(threadPoolSettings);
     }
 
     @Override
@@ -221,25 +213,7 @@ public class NeuralSearch extends Plugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        int threadQty;
-        int maxThreadQty = OpenSearchExecutors.allocatedProcessors(settings);
-        if (NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings) == -1) {
-            threadQty = Math.max(maxThreadQty / 2, 1);
-        } else {
-            threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
-        }
-        NeuralSearchSettings.updateThreadQtySettings(threadQty, maxThreadQty);
-        return List.of(
-            HybridQueryExecutor.getExecutorBuilder(settings),
-            new FixedExecutorBuilder(
-                settings,
-                ClusterTrainingRunning.THREAD_POOL_NAME,
-                threadQty,
-                -1,
-                String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
-                false
-            )
-        );
+        return List.of(HybridQueryExecutor.getExecutorBuilder(settings), NeuralSearchSettings.updateThreadQtySettings(settings));
     }
 
     @Override
