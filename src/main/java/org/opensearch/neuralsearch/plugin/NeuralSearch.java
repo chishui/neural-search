@@ -18,6 +18,7 @@ import java.util.function.Supplier;
 
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
@@ -183,23 +184,10 @@ public class NeuralSearch extends Plugin
     }
 
     private void updateThreadPoolSize(ThreadPool threadPool, Integer newThreadQty) {
-        try {
-            log.info(
-                "Attempting to update thread pool [{}] size from current to [{}]",
-                ClusterTrainingRunning.THREAD_POOL_NAME,
-                newThreadQty
-            );
-
-            Settings threadPoolSettings = Settings.builder()
-                .put(String.format("%s.size", ClusterTrainingRunning.THREAD_POOL_NAME), newThreadQty)
-                .build();
-
-            threadPool.setThreadPool(threadPoolSettings);
-
-            log.info("Successfully updated thread pool [{}] size to [{}]", ClusterTrainingRunning.THREAD_POOL_NAME, newThreadQty);
-        } catch (Exception e) {
-            log.error("Failed to update thread pool size to [{}]", newThreadQty, e);
-        }
+        Settings threadPoolSettings = Settings.builder()
+            .put(String.format("%s.size", ClusterTrainingRunning.THREAD_POOL_NAME), newThreadQty)
+            .build();
+        threadPool.setThreadPool(threadPoolSettings);
     }
 
     @Override
@@ -233,7 +221,14 @@ public class NeuralSearch extends Plugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        int threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
+        int threadQty;
+        int maxThreadQty = OpenSearchExecutors.allocatedProcessors(settings);
+        if (NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings) == -1) {
+            threadQty = Math.max(maxThreadQty / 2, 1);
+        } else {
+            threadQty = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
+        }
+        NeuralSearchSettings.updateThreadQtySettings(threadQty, maxThreadQty);
         return List.of(
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
