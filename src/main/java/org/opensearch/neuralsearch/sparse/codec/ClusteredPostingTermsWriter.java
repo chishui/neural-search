@@ -43,6 +43,7 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
 
 /**
  * ClusteredPostingTermsWriter is used to write postings for each segment.
@@ -85,7 +86,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         assert (index != null);
         float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
         int nPostings;
-        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) < 0) {
+        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
             nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
         } else {
             nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
