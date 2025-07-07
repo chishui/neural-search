@@ -35,7 +35,15 @@ public class ClusterTrainingRunningTests extends OpenSearchTestCase {
     private static final String EXPECTED_RESULT = "test-result";
 
     private ThreadPool createThreadPool(Settings settings) {
-        FixedExecutorBuilder builder = NeuralSearchSettings.updateThreadQtySettings(settings);
+        int allocatedProcessors = NeuralSearchSettings.updateThreadQtySettings(settings);
+        FixedExecutorBuilder builder = new FixedExecutorBuilder(
+            settings,
+            ClusterTrainingRunning.THREAD_POOL_NAME,
+            allocatedProcessors,
+            -1,
+            ClusterTrainingRunning.THREAD_POOL_NAME,
+            false
+        );
         return new ThreadPool(settings, builder);
     }
 
@@ -128,7 +136,15 @@ public class ClusterTrainingRunningTests extends OpenSearchTestCase {
 
     public void testDefaultThreadQuantityCalculation() {
         Settings settings = createTestSettings();
-        FixedExecutorBuilder builder = NeuralSearchSettings.updateThreadQtySettings(settings);
+        int allocatedProcessors = NeuralSearchSettings.updateThreadQtySettings(settings);
+        FixedExecutorBuilder builder = new FixedExecutorBuilder(
+            settings,
+            ClusterTrainingRunning.THREAD_POOL_NAME,
+            allocatedProcessors,
+            -1,
+            ClusterTrainingRunning.THREAD_POOL_NAME,
+            false
+        );
 
         assertNotNull("Builder should not be null", builder);
         assertNotNull("Builder should not be null", builder);

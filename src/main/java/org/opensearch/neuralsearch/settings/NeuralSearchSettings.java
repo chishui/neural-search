@@ -10,8 +10,6 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
-import org.opensearch.threadpool.FixedExecutorBuilder;
 
 /**
  * Class defines settings specific to neural-search plugin
@@ -65,7 +63,7 @@ public final class NeuralSearchSettings {
         Setting.Property.Dynamic
     );
 
-    public static FixedExecutorBuilder updateThreadQtySettings(Settings settings) {
+    public static int updateThreadQtySettings(Settings settings) {
         int maxThreadQty = OpenSearchExecutors.allocatedProcessors(settings);
         int threadQty = SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
         if (threadQty == INITIAL_INDEX_THREAD_QTY) {
@@ -81,14 +79,7 @@ public final class NeuralSearchSettings {
             Setting.Property.NodeScope,
             Setting.Property.Dynamic
         );
-        return new FixedExecutorBuilder(
-            settings,
-            ClusterTrainingRunning.THREAD_POOL_NAME,
-            threadQty,
-            -1,
-            String.format("thread_pool.%s", ClusterTrainingRunning.THREAD_POOL_NAME),
-            false
-        );
+        return threadQty;
     }
 
 }

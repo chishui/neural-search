@@ -44,6 +44,7 @@ import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
 import org.opensearch.plugins.EnginePlugin;
 import org.opensearch.plugins.MapperPlugin;
+import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.transport.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
@@ -213,7 +214,18 @@ public class NeuralSearch extends Plugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        return List.of(HybridQueryExecutor.getExecutorBuilder(settings), NeuralSearchSettings.updateThreadQtySettings(settings));
+        int allocatedProcessors = NeuralSearchSettings.updateThreadQtySettings(settings);
+        return List.of(
+            HybridQueryExecutor.getExecutorBuilder(settings),
+            new FixedExecutorBuilder(
+                settings,
+                ClusterTrainingRunning.THREAD_POOL_NAME,
+                allocatedProcessors,
+                -1,
+                ClusterTrainingRunning.THREAD_POOL_NAME,
+                false
+            )
+        );
     }
 
     @Override
