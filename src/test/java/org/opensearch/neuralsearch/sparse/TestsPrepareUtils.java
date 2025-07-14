@@ -270,7 +270,7 @@ public class TestsPrepareUtils {
         return mergeState;
     }
 
-    public static IndexableFieldType prepareMockIndexableFieldType() {
+    public static IndexableFieldType prepareIndexableFieldType() {
         return new IndexableFieldType() {
             @Override
             public boolean stored() {

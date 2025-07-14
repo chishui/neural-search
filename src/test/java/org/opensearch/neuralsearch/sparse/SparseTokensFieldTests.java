@@ -13,7 +13,7 @@ public class SparseTokensFieldTests extends AbstractSparseTestBase {
 
     private final static String fieldName = "testField";
     private final static byte[] testValue = new byte[] { 1, 2, 3 };
-    private final static IndexableFieldType mockType = TestsPrepareUtils.prepareMockIndexableFieldType();
+    private final static IndexableFieldType mockType = TestsPrepareUtils.prepareIndexableFieldType();
 
     public void testSparseTokensFieldConstructor() {
         SparseTokensField field = new SparseTokensField(fieldName, testValue, mockType);
