@@ -28,6 +28,7 @@ import java.util.Collection;
 public class MemoryStatSnapshot implements Writeable, StatSnapshot<String> {
 
     private final MetricStatName statName;
+    private final boolean isAggregationMetric;
     private String value;
     private long byteSize;
 
@@ -38,17 +39,9 @@ public class MemoryStatSnapshot implements Writeable, StatSnapshot<String> {
      */
     public MemoryStatSnapshot(StreamInput in) throws IOException {
         this.statName = in.readEnum(MetricStatName.class);
+        this.isAggregationMetric = in.readBoolean();
         this.value = in.readString();
         this.byteSize = in.readLong();
-    }
-
-    /**
-     * Gets the value of the counter
-     * @return the value of the counter
-     */
-    @Override
-    public String getValue() {
-        return value;
     }
 
     /**
@@ -59,13 +52,14 @@ public class MemoryStatSnapshot implements Writeable, StatSnapshot<String> {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeEnum(statName);
+        out.writeBoolean(isAggregationMetric);
         out.writeString(value);
         out.writeLong(byteSize);
     }
 
     /**
      * Static method to aggregate multiple event stats snapshots.
-     * This is intended for combining stat snapshots from multiple nodes to give an cluster level aggregate
+     * This is intended for combining stat snapshots from multiple nodes to give a cluster level aggregate
      * for the stat across nodes.
      * Different metadata fields are aggregated differently
      * @param snapshots the collection of snapshots

@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
  */
 @Getter
 public enum MetricStatName implements StatName {
-    MEMORY_SPARSE_TOTAL_USAGE("total_usage", "memory.sparse", MetricStatType.MEMORY),
+    MEMORY_SPARSE_MEMORY_USAGE("sparse_memory_usage", "memory.sparse", MetricStatType.MEMORY),
+    MEMORY_SPARSE_MEMORY_USAGE_PERCENTAGE("sparse_memory_usage_percentage", "memory.sparse", MetricStatType.MEMORY),
     MEMORY_SPARSE_FORWARD_INDEX_USAGE("forward_index_usage", "memory.sparse", MetricStatType.MEMORY),
     MEMORY_SPARSE_CLUSTERED_POSTING_USAGE("clustered_posting_usage", "memory.sparse", MetricStatType.MEMORY);
 

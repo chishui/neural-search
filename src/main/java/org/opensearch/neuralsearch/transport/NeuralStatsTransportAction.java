@@ -148,7 +148,8 @@ public class NeuralStatsTransportAction extends TransportNodesAction<
     /**
      * Helper to aggregate node response event stats to give cluster level aggregate info on node-level stats
      * @param responses node stat responses
-     * @param eventStatsToRetrieve a list of stats to filter
+     * @param eventStatsToRetrieve a list of event stats to filter
+     * @param eventStatsToRetrieve a list of metrics stats to filter
      * @return A map associating cluster level aggregated stat name strings with their stat snapshot values
      */
     private Map<String, StatSnapshot<?>> aggregateNodesResponses(
@@ -195,7 +196,9 @@ public class NeuralStatsTransportAction extends TransportNodesAction<
         for (MetricStatName metricStatName : metricStatsToRetrieve) {
             Set<MemoryStatSnapshot> memoryStatSnapshotCollection = new HashSet<>();
             for (Map<MetricStatName, MemoryStatSnapshot> metricStats : nodeMetricStatsList) {
-                memoryStatSnapshotCollection.add(metricStats.get(metricStatName));
+                if (metricStats.get(metricStatName).isAggregationMetric()) {
+                    memoryStatSnapshotCollection.add(metricStats.get(metricStatName));
+                }
             }
 
             MemoryStatSnapshot aggregatedMetricSnapshot = MemoryStatSnapshot.aggregateMetricSnapshots(memoryStatSnapshotCollection);
