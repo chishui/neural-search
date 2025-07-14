@@ -85,6 +85,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     private String modelId;
     private Float maxTokenScore;
     private Supplier<Map<String, Float>> queryTokensSupplier;
+    private Supplier<Map<String, Float>> originalTokensSupplier;
     // A field that for neural_sparse_two_phase_processor, if twoPhaseSharedQueryToken is not null,
     // it means it's origin NeuralSparseQueryBuilder and should split the low score tokens form itself then put it into
     // twoPhaseSharedQueryToken.
@@ -124,6 +125,10 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             Map<String, Float> queryTokens = in.readMap(StreamInput::readString, StreamInput::readFloat);
             this.queryTokensSupplier = () -> queryTokens;
         }
+        if (in.readBoolean()) {
+            Map<String, Float> originalTokens = in.readMap(StreamInput::readString, StreamInput::readFloat);
+            this.originalTokensSupplier = () -> originalTokens;
+        }
         // to be backward compatible with previous version, we need to use writeString/readString API instead of optionalString API
         // after supporting query by tokens, queryText and modelId can be null. here we write an empty String instead
         if (StringUtils.EMPTY.equals(this.queryText)) {
@@ -155,8 +160,10 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             // Splitting tokens based on a threshold value: tokens greater than the threshold are stored in v1,
             // while those less than or equal to the threshold are stored in v2.
             Tuple<Map<String, Float>, Map<String, Float>> splitTokens = PruneUtils.splitSparseVector(pruneType, pruneRatio, tokens);
-            this.queryTokensSupplier(() -> splitTokens.v1());
-            copy.queryTokensSupplier(() -> splitTokens.v2());
+            this.queryTokensSupplier(splitTokens::v1);
+            copy.queryTokensSupplier(splitTokens::v2);
+            this.originalTokensSupplier(() -> tokens);
+            copy.originalTokensSupplier(() -> tokens);
         } else {
             this.twoPhaseSharedQueryToken = new HashMap<>();
             copy.queryTokensSupplier(() -> this.twoPhaseSharedQueryToken);
@@ -179,6 +186,13 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (!Objects.isNull(this.queryTokensSupplier) && !Objects.isNull(this.queryTokensSupplier.get())) {
             out.writeBoolean(true);
             out.writeMap(this.queryTokensSupplier.get(), StreamOutput::writeString, StreamOutput::writeFloat);
+        } else {
+            out.writeBoolean(false);
+        }
+        // Write originalTokensSupplier
+        if (!Objects.isNull(this.originalTokensSupplier) && !Objects.isNull(this.originalTokensSupplier.get())) {
+            out.writeBoolean(true);
+            out.writeMap(this.originalTokensSupplier.get(), StreamOutput::writeString, StreamOutput::writeFloat);
         } else {
             out.writeBoolean(false);
         }
@@ -346,6 +360,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             .modelId(modelId)
             .maxTokenScore(maxTokenScore)
             .queryTokensSupplier(queryTokensSetOnce::get)
+            .originalTokensSupplier(originalTokensSupplier)
             .twoPhaseSharedQueryToken(twoPhaseSharedQueryToken)
             .twoPhasePruneRatio(twoPhasePruneRatio)
             .sparseAnnQueryBuilder(sparseAnnQueryBuilder);
@@ -399,7 +414,15 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             if (filter != null) {
                 builder.add(filter.toQuery(context), BooleanClause.Occur.FILTER);
             }
-            return sparseAnnQueryBuilder.queryTokens(queryTokens).fieldName(fieldName).fallbackQuery(builder.build()).doToQuery(context);
+
+            if (originalTokensSupplier == null) {
+                int a = 1;
+            }
+            Map<String, Float> tokensForSeismic = originalTokensSupplier == null ? queryTokens : originalTokensSupplier.get();
+            return sparseAnnQueryBuilder.queryTokens(tokensForSeismic)
+                .fieldName(fieldName)
+                .fallbackQuery(builder.build())
+                .doToQuery(context);
         }
     }
 
@@ -431,6 +454,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             return false;
         }
         if (Objects.isNull(queryTokensSupplier) != Objects.isNull(obj.queryTokensSupplier)) {
+            return false;
+        }
+        if (Objects.isNull(originalTokensSupplier) != Objects.isNull(obj.originalTokensSupplier)) {
             return false;
         }
         if (Objects.isNull(sparseAnnQueryBuilder) != Objects.isNull(obj.sparseAnnQueryBuilder)) {
