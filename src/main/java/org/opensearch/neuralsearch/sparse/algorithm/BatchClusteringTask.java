@@ -13,6 +13,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
+import org.opensearch.neuralsearch.sparse.codec.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
@@ -97,7 +98,8 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                 );
                 List<DocumentCluster> clusters = postingClustering.cluster(docFreqs);
                 postingClusters.add(Pair.of(term, new PostingClusters(clusters)));
-                InMemoryClusteredPosting.InMemoryClusteredPostingWriter.writePostingClusters(key, term, clusters);
+                ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(key).getWriter();
+                writer.write(term, clusters);
             }
         } catch (IOException e) {
             log.error("cluster failed", e);
