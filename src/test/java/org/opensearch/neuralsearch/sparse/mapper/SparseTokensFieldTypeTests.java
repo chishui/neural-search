@@ -89,8 +89,8 @@ public class SparseTokensFieldTypeTests extends AbstractSparseTestBase {
         QueryShardContext context = mock(QueryShardContext.class);
 
         IllegalArgumentException exception = expectThrows(
-                IllegalArgumentException.class,
-                () -> { fieldType.termQuery("test_value", context); }
+            IllegalArgumentException.class,
+            () -> { fieldType.termQuery("test_value", context); }
         );
         assertTrue(exception.getMessage().contains("Queries on [sparse_tokens] fields are not supported"));
     }
@@ -142,8 +142,8 @@ public class SparseTokensFieldTypeTests extends AbstractSparseTestBase {
         assertTrue(intException.getMessage().contains("Queries on [sparse_tokens] fields are not supported"));
 
         IllegalArgumentException nullException = expectThrows(
-                IllegalArgumentException.class,
-                () -> { fieldType.termQuery(null, context); }
+            IllegalArgumentException.class,
+            () -> { fieldType.termQuery(null, context); }
         );
         assertTrue(nullException.getMessage().contains("Queries on [sparse_tokens] fields are not supported"));
     }

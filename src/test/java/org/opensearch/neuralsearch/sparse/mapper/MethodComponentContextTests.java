@@ -70,8 +70,8 @@ public class MethodComponentContextTests extends AbstractSparseTestBase {
         when(mockParser.map()).thenReturn(new HashMap<>());
 
         MapperParsingException exception = expectThrows(
-                MapperParsingException.class,
-                () -> { MethodComponentContext.fromXContent(mockParser); }
+            MapperParsingException.class,
+            () -> { MethodComponentContext.fromXContent(mockParser); }
         );
         assertEquals("name needs to be set", exception.getMessage());
     }
@@ -82,8 +82,8 @@ public class MethodComponentContextTests extends AbstractSparseTestBase {
         when(mockParser.nextToken()).thenReturn(null);
 
         MapperParsingException exception = expectThrows(
-                MapperParsingException.class,
-                () -> { MethodComponentContext.fromXContent(mockParser); }
+            MapperParsingException.class,
+            () -> { MethodComponentContext.fromXContent(mockParser); }
         );
         assertEquals("name needs to be set", exception.getMessage());
     }
@@ -197,7 +197,7 @@ public class MethodComponentContextTests extends AbstractSparseTestBase {
         builder.endObject();
 
         String expected =
-                "{\"name\":\"parentMethod\",\"parameters\":{\"nestedContext\":{\"name\":\"nested_method\",\"parameters\":{\"nestedParam\":\"nestedValue\"}}}}";
+            "{\"name\":\"parentMethod\",\"parameters\":{\"nestedContext\":{\"name\":\"nested_method\",\"parameters\":{\"nestedParam\":\"nestedValue\"}}}}";
         assertEquals(expected, builder.toString());
     }
 

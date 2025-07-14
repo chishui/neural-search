@@ -21,7 +21,7 @@ import org.opensearch.index.mapper.Mapper;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.testsPrepareUtils;
+import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.ToXContent;
@@ -67,7 +67,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
         builder.sparseMethodContext.setValue(sparseMethodContext);
 
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         assertNotNull(mapper);
@@ -81,7 +81,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
         builder.stored.setValue(true);
 
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         assertTrue(mapper.isStored());
@@ -92,7 +92,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
         builder.hasDocValues.setValue(false);
 
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         assertFalse(mapper.isHasDocValues());
@@ -105,7 +105,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testGetMergeBuilder_returnsNewBuilder() {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         SparseTokensFieldMapper.Builder mergeBuilder = (SparseTokensFieldMapper.Builder) mapper.getMergeBuilder();
@@ -117,7 +117,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testClone_createsNewInstance() {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         SparseTokensFieldMapper cloned = mapper.clone();
@@ -135,7 +135,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testFieldType_returnsCorrectType() {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         SparseTokensFieldType fieldType = mapper.fieldType();
@@ -147,7 +147,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testParseCreateField_withExternalValueSet_throwsException() throws IOException {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         ParseContext context = mock(ParseContext.class);
@@ -160,7 +160,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testParseCreateField_withInvalidToken_throwsException() throws IOException {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         ParseContext context = mock(ParseContext.class);
@@ -184,9 +184,9 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
         node.put("method", method);
 
         SparseTokensFieldMapper.Builder result = (SparseTokensFieldMapper.Builder) parser.parse(
-                "test_field",
-                node,
-                mock(Mapper.TypeParser.ParserContext.class)
+            "test_field",
+            node,
+            mock(Mapper.TypeParser.ParserContext.class)
         );
 
         assertNotNull(result);
@@ -275,7 +275,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testParseCreateField_withValidJsonObject_parsesSuccessfully() throws IOException {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         ParseContext context = mock(ParseContext.class);
@@ -287,8 +287,8 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
         when(context.doc()).thenReturn(doc);
         when(parser.currentToken()).thenReturn(XContentParser.Token.START_OBJECT);
         when(parser.nextToken()).thenReturn(XContentParser.Token.FIELD_NAME)
-                .thenReturn(XContentParser.Token.VALUE_NUMBER)
-                .thenReturn(XContentParser.Token.END_OBJECT);
+            .thenReturn(XContentParser.Token.VALUE_NUMBER)
+            .thenReturn(XContentParser.Token.END_OBJECT);
         when(parser.currentName()).thenReturn("feature1");
         when(parser.floatValue(true)).thenReturn(0.5f);
         when(doc.getByKey(any())).thenReturn(null);
@@ -302,7 +302,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testParseCreateField_withNullValue_ignoresFeature() throws IOException {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         ParseContext context = mock(ParseContext.class);
@@ -314,8 +314,8 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
         when(context.doc()).thenReturn(doc);
         when(parser.currentToken()).thenReturn(XContentParser.Token.START_OBJECT);
         when(parser.nextToken()).thenReturn(XContentParser.Token.FIELD_NAME)
-                .thenReturn(XContentParser.Token.VALUE_NULL)
-                .thenReturn(XContentParser.Token.END_OBJECT);
+            .thenReturn(XContentParser.Token.VALUE_NULL)
+            .thenReturn(XContentParser.Token.END_OBJECT);
         when(parser.currentName()).thenReturn("feature1");
 
         mapper.parseCreateField(context);
@@ -326,7 +326,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testParseCreateField_withDuplicateFeature_throwsException() throws IOException {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         ParseContext context = mock(ParseContext.class);
@@ -349,7 +349,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testParseCreateField_withInvalidTokenType_throwsException() throws IOException {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         ParseContext context = mock(ParseContext.class);
@@ -370,7 +370,7 @@ public class SparseTokensFieldMapperTests extends AbstractSparseTestBase {
     public void testSparseMethodContextSerialization_withValidContext_serializesCorrectly() throws Exception {
         builder.sparseMethodContext.setValue(sparseMethodContext);
         SparseTokensFieldMapper mapper = (SparseTokensFieldMapper) builder.build(
-                new ParametrizedFieldMapper.BuilderContext(testsPrepareUtils.prepareIndexSettings(), testsPrepareUtils.prepareContentPath())
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
 
         // Use XContentFactory to create a real XContentBuilder

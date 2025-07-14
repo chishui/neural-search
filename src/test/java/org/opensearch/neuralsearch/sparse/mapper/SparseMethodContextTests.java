@@ -77,7 +77,6 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
     }
 
     public void testSparseMethodConstructorWithStreamInput() throws IOException {
-        StreamInput mockStreamInput = mock(StreamInput.class);
         when(mockStreamInput.readString()).thenReturn("testMethod");
 
         SparseMethodContext sparseMethodContext = new SparseMethodContext(mockStreamInput);

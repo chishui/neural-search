@@ -39,32 +39,32 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
-public class testsPrepareUtils {
+public class TestsPrepareUtils {
 
-    private final String fieldName = "test_field";
+    private final static String fieldName = "test_field";
 
-    public FieldInfo prepareKeyFieldInfo() {
+    public static FieldInfo prepareKeyFieldInfo() {
 
         // Create a FieldInfo object
         FieldInfo keyFieldInfo = new FieldInfo(
-                fieldName,                     // name
-                0,                             // number
-                false,                         // storeTermVector
-                false,                         // omitNorms
-                false,                         // storePayloads
-                IndexOptions.DOCS,             // indexOptions
-                DocValuesType.BINARY,          // docValuesType
-                DocValuesSkipIndexType.NONE,   // docValuesSkipIndex
-                -1,                            // dvGen
-                new HashMap<>(),               // attributes
-                0,                             // pointDimensionCount
-                0,                             // pointIndexDimensionCount
-                0,                             // pointNumBytes
-                0,                             // vectorDimension
-                VectorEncoding.FLOAT32,        // vectorEncoding
-                VectorSimilarityFunction.EUCLIDEAN, // vectorSimilarityFunction
-                false,                         // softDeletesField
-                false                          // isParentField
+            fieldName,                     // name
+            0,                             // number
+            false,                         // storeTermVector
+            false,                         // omitNorms
+            false,                         // storePayloads
+            IndexOptions.DOCS,             // indexOptions
+            DocValuesType.BINARY,          // docValuesType
+            DocValuesSkipIndexType.NONE,   // docValuesSkipIndex
+            -1,                            // dvGen
+            new HashMap<>(),               // attributes
+            0,                             // pointDimensionCount
+            0,                             // pointIndexDimensionCount
+            0,                             // pointNumBytes
+            0,                             // vectorDimension
+            VectorEncoding.FLOAT32,        // vectorEncoding
+            VectorSimilarityFunction.EUCLIDEAN, // vectorSimilarityFunction
+            false,                         // softDeletesField
+            false                          // isParentField
         );
         return keyFieldInfo;
     }
@@ -79,18 +79,18 @@ public class testsPrepareUtils {
         }
 
         SegmentInfo segmentInfo = new SegmentInfo(
-                dir,                           // directory
-                Version.LATEST,                // version
-                Version.LATEST,                // minVersion
-                "_test_segment",               // name
-                10,                            // maxDoc
-                false,                         // isCompoundFile
-                false,                         // hasBlocks
-                Codec.getDefault(),            // codec
-                Collections.emptyMap(),        // diagnostics
-                id,                            // id
-                Collections.emptyMap(),        // attributes
-                null                           // indexSort
+            dir,                           // directory
+            Version.LATEST,                // version
+            Version.LATEST,                // minVersion
+            "_test_segment",               // name
+            10,                            // maxDoc
+            false,                         // isCompoundFile
+            false,                         // hasBlocks
+            Codec.getDefault(),            // codec
+            Collections.emptyMap(),        // diagnostics
+            id,                            // id
+            Collections.emptyMap(),        // attributes
+            null                           // indexSort
         );
         return segmentInfo;
     }
@@ -145,7 +145,7 @@ public class testsPrepareUtils {
         return binaryDocValues;
     }
 
-    public DocValuesProducer prepareDocValuesProducer(BinaryDocValues binaryDocValues) {
+    public static DocValuesProducer prepareDocValuesProducer(BinaryDocValues binaryDocValues) {
         DocValuesProducer docValuesProducer = new DocValuesProducer() {
             @Override
             public NumericDocValues getNumeric(FieldInfo field) {
@@ -189,7 +189,7 @@ public class testsPrepareUtils {
         return docValuesProducer;
     }
 
-    public FieldsProducer prepareFieldsProducer() {
+    public static FieldsProducer prepareFieldsProducer() {
         FieldsProducer fieldsProducer = new FieldsProducer() {
             @Override
             public Iterator<String> iterator() {
@@ -215,7 +215,7 @@ public class testsPrepareUtils {
         return fieldsProducer;
     }
 
-    public MergeState prepareMergeState(boolean isEmptyMaxDocs) {
+    public static MergeState prepareMergeState(boolean isEmptyMaxDocs) {
         MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
         docMaps[0] = docID -> docID;
         SegmentInfo segmentInfo = prepareSegmentInfo();
@@ -250,22 +250,22 @@ public class testsPrepareUtils {
 
         // Create MergeState
         MergeState mergeState = new MergeState(
-                docMaps,
-                segmentInfo,
-                fieldInfos,                // mergeFieldInfos
-                null,                      // storedFieldsReaders
-                null,                      // termVectorsReaders
-                null,                      // normsProducers
-                docValuesProducers,        // docValuesProducers
-                fieldInfosArray,           // fieldInfos
-                null,                      // liveDocs
-                fieldsProducers,           // fieldsProducers
-                null,                      // pointsReaders
-                null,                      // knnVectorsReaders
-                maxDocs,
-                InfoStream.getDefault(),
-                Executors.newSingleThreadExecutor(),
-                false                      // needsIndexSort
+            docMaps,
+            segmentInfo,
+            fieldInfos,                // mergeFieldInfos
+            null,                      // storedFieldsReaders
+            null,                      // termVectorsReaders
+            null,                      // normsProducers
+            docValuesProducers,        // docValuesProducers
+            fieldInfosArray,           // fieldInfos
+            null,                      // liveDocs
+            fieldsProducers,           // fieldsProducers
+            null,                      // pointsReaders
+            null,                      // knnVectorsReaders
+            maxDocs,
+            InfoStream.getDefault(),
+            Executors.newSingleThreadExecutor(),
+            false                      // needsIndexSort
         );
         return mergeState;
     }

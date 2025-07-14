@@ -14,16 +14,15 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.similarities.Similarity;
-import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
-import org.apache.lucene.util.Version;
 import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
@@ -36,7 +35,6 @@ import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -110,20 +108,7 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
             }
         };
         when(leafReader.getBinaryDocValues(anyString())).thenReturn(sparseBinaryDocValues);
-        segmentInfo = new SegmentInfo(
-            new ByteBuffersDirectory(),
-            Version.LATEST,
-            Version.LATEST,
-            "name",
-            1,
-            true,
-            true,
-            null,
-            Map.of(),
-            "1234567890123456".getBytes(StandardCharsets.UTF_8),
-            Map.of(),
-            null
-        );
+        segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
         when(sparseBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
     }
 
