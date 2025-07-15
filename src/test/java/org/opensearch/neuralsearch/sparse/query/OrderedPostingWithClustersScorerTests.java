@@ -27,7 +27,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
