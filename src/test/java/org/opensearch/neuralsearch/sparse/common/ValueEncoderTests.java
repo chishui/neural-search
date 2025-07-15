@@ -126,15 +126,15 @@ public class ValueEncoderTests extends AbstractSparseTestBase {
 
     public void testDecodeFeatureValue_withNonPositiveInput_handlesGracefully() {
         float negativeInput = -100.0f;
-        IllegalArgumentException exception_1 = expectThrows(IllegalArgumentException.class, () -> {
-            float negativeDecoded = ValueEncoder.decodeFeatureValue(negativeInput);
-        });
-        assertTrue(exception_1.getMessage().contains("featureValue must be a positive normal float"));
+        AssertionError error1 = expectThrows(
+            AssertionError.class,
+            () -> { float negativeDecoded = ValueEncoder.decodeFeatureValue(negativeInput); }
+        );
+        assertTrue(error1.getMessage().contains("featureValue must be a positive normal float"));
 
         float zeroInput = 0.0f;
-        IllegalArgumentException exception_2 = expectThrows(IllegalArgumentException.class, () -> {
-            float decoded = ValueEncoder.decodeFeatureValue(zeroInput);
-        });
-        assertTrue(exception_2.getMessage().contains("featureValue must be a positive normal float"));
+        AssertionError error2 = expectThrows(AssertionError.class, () -> { float decoded = ValueEncoder.decodeFeatureValue(zeroInput); });
+        assertTrue(error2.getMessage().contains("featureValue must be a positive normal float"));
+
     }
 }
