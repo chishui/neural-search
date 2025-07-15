@@ -453,7 +453,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (Objects.isNull(queryTokensSupplier) != Objects.isNull(obj.queryTokensSupplier)) {
             return false;
         }
-        if (Objects.isNull(originalTokensSupplier) != Objects.isNull(obj.originalTokensSupplier)) {
+        if (Objects.isNull(twoPhaseTokensSupplier) != Objects.isNull(obj.twoPhaseTokensSupplier)) {
             return false;
         }
         if (Objects.isNull(sparseAnnQueryBuilder) != Objects.isNull(obj.sparseAnnQueryBuilder)) {
