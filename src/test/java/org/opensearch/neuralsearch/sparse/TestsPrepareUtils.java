@@ -29,6 +29,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.Version;
+import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.ContentPath;
 
@@ -93,6 +94,12 @@ public class TestsPrepareUtils {
             null                           // indexSort
         );
         return segmentInfo;
+    }
+
+    public static SparseBinaryDocValuesPassThrough prepareSparseBinaryDocValuesPassThrough() {
+        BinaryDocValues delegate = prepareBinaryDocValues();
+        SegmentInfo segmentInfo = prepareSegmentInfo();
+        return new SparseBinaryDocValuesPassThrough(delegate, segmentInfo);
     }
 
     public static BinaryDocValues prepareBinaryDocValues() {
