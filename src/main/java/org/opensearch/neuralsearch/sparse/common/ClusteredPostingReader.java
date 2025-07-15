@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.sparse.common;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 
+import java.io.IOException;
 import java.util.Set;
 
 /**
@@ -22,7 +23,7 @@ public interface ClusteredPostingReader {
      * @param term The term for which to retrieve document clusters, represented as a BytesRef
      * @return PostingClusters object containing the document clusters for the specified term
      */
-    PostingClusters read(BytesRef term);
+    PostingClusters read(BytesRef term) throws IOException;
 
     /**
      * Returns the set of all terms stored in the clustered posting list.

@@ -15,7 +15,6 @@ import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +39,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
         return mem;
     }
 
-    public static synchronized InMemoryClusteredPosting getOrCreate(InMemoryKey.IndexKey key) {
+    public static InMemoryClusteredPosting getOrCreate(InMemoryKey.IndexKey key) {
         if (key == null) {
             throw new IllegalArgumentException("Index key cannot be null");
         }
@@ -86,7 +85,9 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
 
         @Override
         public Set<BytesRef> getTerms() {
-            return Collections.unmodifiableSet(clusteredPostings.keySet());
+            // Note: We're returning the keySet directly instead of using Collections.unmodifiableSet()
+            // for performance reasons. Callers should treat this as a read-only view.
+            return clusteredPostings.keySet();
         }
 
         @Override

@@ -89,7 +89,7 @@ public class SparseTerms extends Terms {
         private Iterator<BytesRef> termIterator;
 
         SparseTermsEnum() throws IOException {
-            terms = reader.terms();
+            terms = reader.getTerms();
             if (terms != null) {
                 termIterator = terms.iterator();
             }
