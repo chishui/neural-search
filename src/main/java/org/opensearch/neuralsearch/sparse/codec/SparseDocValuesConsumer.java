@@ -19,6 +19,7 @@ import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
 
 import java.io.IOException;

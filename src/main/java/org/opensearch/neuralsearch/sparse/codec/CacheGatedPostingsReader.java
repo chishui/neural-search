@@ -6,6 +6,8 @@ package org.opensearch.neuralsearch.sparse.codec;
 
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;

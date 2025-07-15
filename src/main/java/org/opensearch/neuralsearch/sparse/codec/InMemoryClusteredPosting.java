@@ -10,6 +10,9 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPosting;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.util.Collections;

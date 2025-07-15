@@ -29,7 +29,7 @@ import org.apache.lucene.util.Bits;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
-import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;

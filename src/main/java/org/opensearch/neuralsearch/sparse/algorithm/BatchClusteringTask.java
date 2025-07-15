@@ -13,7 +13,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.codec.ClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
