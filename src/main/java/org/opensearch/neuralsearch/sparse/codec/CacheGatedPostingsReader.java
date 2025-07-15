@@ -40,7 +40,7 @@ public class CacheGatedPostingsReader implements ClusteredPostingReader {
             clusters = luceneReader.read(fieldName, term);
             if (clusters != null) {
                 ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(indexKey).getWriter();
-                writer.write(term, clusters.getClusters());
+                writer.insert(term, clusters.getClusters());
             }
         }
         return clusters;

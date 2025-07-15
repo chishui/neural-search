@@ -20,7 +20,8 @@ import java.io.IOException;
 public interface SparseVectorWriter {
 
     /**
-     * Writes a sparse vector object for the specified document ID.
+     * Inserts a sparse vector for the specified document ID.
+     * Skips inserting if the sparse vector exists.
      * This method stores the complete sparse vector representation including
      * indices and values in the underlying storage system.
      *
@@ -29,10 +30,11 @@ public interface SparseVectorWriter {
      * @throws IOException If an error occurs during the writing operation, such as
      *                     when accessing the underlying storage medium
      */
-    void write(int docId, SparseVector vector) throws IOException;
+    void insert(int docId, SparseVector vector) throws IOException;
 
     /**
      * Writes raw binary data representing a sparse vector for the specified document ID.
+     * Skips inserting if the sparse vector exists.
      * This method allows for storing pre-serialized sparse vector data, which can be
      * more efficient when the vector is already in binary format.
      *
@@ -41,5 +43,5 @@ public interface SparseVectorWriter {
      * @throws IOException If an error occurs during the writing operation, such as
      *                     when accessing the underlying storage medium
      */
-    void write(int docId, BytesRef data) throws IOException;
+    void insert(int docId, BytesRef data) throws IOException;
 }

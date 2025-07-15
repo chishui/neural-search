@@ -15,6 +15,7 @@ import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,7 +88,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
         public Set<BytesRef> getTerms() {
             // Note: We're returning the keySet directly instead of using Collections.unmodifiableSet()
             // for performance reasons. Callers should treat this as a read-only view.
-            return clusteredPostings.keySet();
+            return Collections.unmodifiableSet(clusteredPostings.keySet());
         }
 
         @Override
@@ -97,31 +98,21 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
     }
 
     private class InMemoryClusteredPostingWriter implements ClusteredPostingWriter {
-        public synchronized void write(BytesRef term, List<DocumentCluster> clusters) {
-            if (clusters == null || clusters.isEmpty()) {
+        public void insert(BytesRef term, List<DocumentCluster> clusters) {
+            if (clusters == null || clusters.isEmpty() || clusteredPostings.containsKey(term)) {
                 return;
             }
 
             BytesRef clonedTerm = term.clone();
-
-            PostingClusters oldClusters = clusteredPostings.get(clonedTerm);
-            long oldClustersSize = (oldClusters != null) ? oldClusters.ramBytesUsed() : 0;
-
             PostingClusters postingClusters = new PostingClusters(clusters);
-            long newClustersSize = postingClusters.ramBytesUsed();
+            long clustersSize = postingClusters.ramBytesUsed();
             long termSize = RamUsageEstimator.shallowSizeOf(clonedTerm) + (clonedTerm.bytes != null ? clonedTerm.bytes.length : 0);
 
             // Update the clusters
             clusteredPostings.put(clonedTerm, postingClusters);
 
-            // Update memory usage tracking
-            if (oldClusters == null) {
-                // If adding new term, account for term size + clusters size
-                usedRamBytes.addAndGet(termSize + newClustersSize);
-            } else {
-                // If updating existing term, just account for difference in clusters size
-                usedRamBytes.addAndGet(newClustersSize - oldClustersSize);
-            }
+            // If adding new term, account for term size + clusters size
+            usedRamBytes.addAndGet(clustersSize + termSize);
         }
     }
 }

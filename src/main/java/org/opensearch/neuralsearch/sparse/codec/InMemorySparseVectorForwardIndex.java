@@ -91,26 +91,19 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
     private class InMemorySparseVectorWriter implements SparseVectorWriter {
 
         @Override
-        public synchronized void write(int docId, SparseVector vector) {
-            if (vector == null || docId >= sparseVectors.length) {
+        public synchronized void insert(int docId, SparseVector vector) {
+            if (vector == null || docId >= sparseVectors.length || sparseVectors[docId] != null) {
                 return;
             }
 
-            // Calculate memory impact of this operation
-            SparseVector oldVector = sparseVectors[docId];
-            long oldVectorSize = (oldVector != null) ? oldVector.ramBytesUsed() : 0;
-            long newVectorSize = vector.ramBytesUsed();
-
-            // Update the vector
+            long vectorSize = vector.ramBytesUsed();
             sparseVectors[docId] = vector;
-
-            // Update memory usage tracking (subtract old size, add new size)
-            usedRamBytes.addAndGet(newVectorSize - oldVectorSize);
+            usedRamBytes.addAndGet(vectorSize);
         }
 
         @Override
-        public void write(int docId, BytesRef doc) throws IOException {
-            write(docId, new SparseVector(doc));
+        public void insert(int docId, BytesRef doc) throws IOException {
+            insert(docId, new SparseVector(doc));
         }
     }
 }

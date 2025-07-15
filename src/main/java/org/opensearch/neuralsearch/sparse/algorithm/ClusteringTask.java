@@ -40,7 +40,7 @@ public class ClusteringTask implements Supplier<PostingClusters> {
             throw new RuntimeException(e);
         }
         ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(key).getWriter();
-        writer.write(term, clusters);
+        writer.insert(term, clusters);
         return new PostingClusters(clusters);
     }
 }

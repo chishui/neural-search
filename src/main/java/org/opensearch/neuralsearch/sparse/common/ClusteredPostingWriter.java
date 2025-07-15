@@ -18,11 +18,12 @@ import java.util.List;
 public interface ClusteredPostingWriter {
 
     /**
-     * Writes a term and its associated document clusters to the posting list.
+     * Inserts a term and its associated document clusters to the posting list.
+     * Skip inserting document clusters if the term.
      *
      * @param term The term for which document clusters are being written, represented as a BytesRef
      * @param clusters A list of DocumentCluster objects containing the documents and their associated
      *                data that are relevant for this term
      */
-    void write(BytesRef term, List<DocumentCluster> clusters);
+    void insert(BytesRef term, List<DocumentCluster> clusters);
 }

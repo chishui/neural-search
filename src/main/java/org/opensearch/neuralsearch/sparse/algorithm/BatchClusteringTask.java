@@ -99,7 +99,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                 List<DocumentCluster> clusters = postingClustering.cluster(docFreqs);
                 postingClusters.add(Pair.of(term, new PostingClusters(clusters)));
                 ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(key).getWriter();
-                writer.write(term, clusters);
+                writer.insert(term, clusters);
             }
         } catch (IOException e) {
             log.error("cluster failed", e);

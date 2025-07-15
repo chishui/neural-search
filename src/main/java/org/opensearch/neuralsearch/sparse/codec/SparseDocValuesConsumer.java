@@ -71,13 +71,13 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
                 SparseBinaryDocValues sparseBinaryDocValues = (SparseBinaryDocValues) binaryDocValues;
                 SparseVector vector = sparseBinaryDocValues.cachedSparseVector();
                 if (vector != null) {
-                    writer.write(docId, vector);
+                    writer.insert(docId, vector);
                     written = true;
                 }
             }
             if (!written) {
                 BytesRef bytesRef = binaryDocValues.binaryValue();
-                writer.write(docId, bytesRef);
+                writer.insert(docId, bytesRef);
             }
             docId = binaryDocValues.nextDoc();
         }

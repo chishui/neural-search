@@ -33,7 +33,7 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
             return vector;
         }
         vector = sparseBinaryDocValuesPassThrough.read(docId);
-        inMemoryWriter.write(docId, vector);
+        inMemoryWriter.insert(docId, vector);
         return vector;
     }
 }
