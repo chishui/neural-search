@@ -485,7 +485,7 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
         SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, 10);
         SparseVector vector = mock(SparseVector.class);
         when(vector.dotProduct(queryDenseVector)).thenReturn(5);
-        index.getWriter().write(1, vector);
+        index.getWriter().insert(1, vector);
 
         OrderedPostingWithClustersScorer scorer = new OrderedPostingWithClustersScorer(
             FIELD_NAME,
@@ -523,7 +523,7 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
         SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, 10);
         SparseVector vector = mock(SparseVector.class);
         when(vector.dotProduct(queryDenseVector)).thenReturn(5);
-        index.getWriter().write(1, vector);
+        index.getWriter().insert(1, vector);
 
         BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
         when(leafReader.getBinaryDocValues(anyString())).thenReturn(binaryDocValues);
