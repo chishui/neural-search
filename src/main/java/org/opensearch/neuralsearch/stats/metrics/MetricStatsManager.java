@@ -25,7 +25,7 @@ public class MetricStatsManager {
      *
      * @return The singleton instance of EventStatsManager
      */
-    public static MetricStatsManager instance() {
+    public synchronized static MetricStatsManager instance() {
         if (INSTANCE == null) {
             INSTANCE = new MetricStatsManager();
         }
