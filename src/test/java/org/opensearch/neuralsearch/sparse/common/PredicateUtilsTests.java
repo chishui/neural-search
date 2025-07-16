@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.common;
 
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
+import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
@@ -13,10 +14,19 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRI
 
 public class PredicateUtilsTests extends AbstractSparseTestBase {
 
+    private static SegmentInfo segmentInfo;
+    private static FieldInfo fieldInfo;
+
+    @Before
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+        segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
+        fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
+
+    }
+
     public void testShouldRunSeisPredicate_withDocCountAboveThreshold_returnsTrue() {
-        // Setup
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
-        FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
 
         fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "5");
 
@@ -28,10 +38,6 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
     }
 
     public void testShouldRunSeisPredicate_withDocCountEqualToThreshold_returnsTrue() {
-        // Setup
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
-        FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-
         fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "10");
 
         // Execute
@@ -42,9 +48,6 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
     }
 
     public void testShouldRunSeisPredicate_withDocCountBelowThreshold_returnsFalse() {
-        // Setup
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
-        FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
 
         fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "15");
 
@@ -56,9 +59,6 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
     }
 
     public void testShouldRunSeisPredicate_withInvalidThreshold_throwsException() {
-        // Setup
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
-        FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
 
         fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "invalid_number");
 
@@ -71,9 +71,6 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
     }
 
     public void testShouldRunSeisPredicate_withMissingAttribute_throwsException() {
-        // Setup
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
-        FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
 
         // No ALGO_TRIGGER_DOC_COUNT_FIELD
 
@@ -86,9 +83,6 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
     }
 
     public void testShouldRunSeisPredicate_withNullAttribute_throwsException() {
-        // Setup
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
-        FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
 
         fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, null);
 
