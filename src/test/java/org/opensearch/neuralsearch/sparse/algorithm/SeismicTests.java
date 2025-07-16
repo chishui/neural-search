@@ -35,6 +35,182 @@ public class SeismicTests extends AbstractSparseTestBase {
         assertTrue(result.validationErrors().contains("algo trigger doc count should be a non-negative integer"));
     }
 
+    public void testValidateMethod_validAlgoTriggerStringNumberDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, "12");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNull(result);
+    }
+
+    public void testValidateMethod_invalidAlgoTriggerStringTextDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, "invalid number");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("algo trigger doc count should be a valid integer"));
+    }
+
+    public void testValidateMethod_invalidAlgoTriggerBooleanDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, false);
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("algo trigger doc count should be a valid integer"));
+    }
+
+    public void testValidateMethod_validSummaryPruneRatioStringNumberDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(SUMMARY_PRUNE_RATIO_FIELD, "0.5");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNull(result);
+    }
+
+    public void testValidateMethod_invalidSummaryPruneRatioStringTextDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(SUMMARY_PRUNE_RATIO_FIELD, "invalid number");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("summary prune ratio should be a valid number"));
+    }
+
+    public void testValidateMethod_invalidSummaryPruneRatioBooleanDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(SUMMARY_PRUNE_RATIO_FIELD, false);
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("summary prune ratio should be a valid number"));
+    }
+
+    public void testValidateMethod_validPostingFieldStringNumberDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(N_POSTINGS_FIELD, "4000");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNull(result);
+    }
+
+    public void testValidateMethod_invalidPostingFieldStringTextDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(N_POSTINGS_FIELD, "invalid number");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("n_postings should be a valid integer"));
+    }
+
+    public void testValidateMethod_invalidPostingFieldBooleanDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(N_POSTINGS_FIELD, false);
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("n_postings should be a valid integer"));
+    }
+
+    public void testValidateMethod_validClusterRatioStringNumberDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(CLUSTER_RATIO_FIELD, "0.5");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNull(result);
+    }
+
+    public void testValidateMethod_invalidClusterRatioStringTextDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(CLUSTER_RATIO_FIELD, "invalid number");
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("cluster ratio should be a valid number"));
+    }
+
+    public void testValidateMethod_invalidClusterRatioBooleanDocCount() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(CLUSTER_RATIO_FIELD, false);
+
+        Map<String, Object> methodMap = new HashMap<>();
+        methodMap.put(NAME_FIELD, "testMethod");
+        methodMap.put(PARAMETERS_FIELD, parameters);
+        SparseMethodContext context = SparseMethodContext.parse(methodMap);
+
+        ValidationException result = Seismic.INSTANCE.validateMethod(context);
+
+        assertNotNull(result);
+        assertTrue(result.validationErrors().contains("cluster ratio should be a valid number"));
+    }
+
     public void testValidateMethod_invalidClusterRatio() {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put(CLUSTER_RATIO_FIELD, 1.0f);
@@ -83,7 +259,7 @@ public class SeismicTests extends AbstractSparseTestBase {
     public void testValidateMethod_multipleInvalidParameters() {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put(N_POSTINGS_FIELD, 0);
-        parameters.put(CLUSTER_RATIO_FIELD, 1.5f);
+        parameters.put(CLUSTER_RATIO_FIELD, -1.5f);
         parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, -1);
 
         Map<String, Object> methodMap = new HashMap<>();
