@@ -20,7 +20,7 @@ public final class NeuralSearchSettings {
                                                            // thread
                                                            // quantity
     public static int INDEX_THREAD_QTY_MAX = 1024; // Initial max value, will be updated based on actual CPU cores
-    public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "sparse.algo_param.index_thread_qty";
+    public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "neural.sparse.algo_param.index_thread_qty";
     public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = INITIAL_INDEX_THREAD_QTY;
     /**
      * Gates the functionality of hybrid search

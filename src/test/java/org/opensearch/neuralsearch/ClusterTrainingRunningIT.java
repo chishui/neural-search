@@ -13,7 +13,7 @@ public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
     private static final int TEST_THREAD_COUNT = 8;
     private static final int MAX_REASONABLE_THREADS = 10;
     private static final int INVALID_THREAD_COUNT = -5;
-    private static final String THREAD_QTY_SETTING_KEY = "sparse.algo_param.index_thread_qty";
+    private static final String THREAD_QTY_SETTING_KEY = "neural.sparse.algo_param.index_thread_qty";
     private static final String BAD_REQUEST_ERROR = "400";
     private static final String BAD_REQUEST_TEXT = "Bad Request";
     private static final String CLUSTER_SETTINGS_ENDPOINT = "/_cluster/settings";
