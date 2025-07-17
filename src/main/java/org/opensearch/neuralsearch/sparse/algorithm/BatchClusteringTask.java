@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.BinaryDocValues;
@@ -26,6 +27,7 @@ import java.util.function.Supplier;
 
 @Log4j2
 public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, PostingClusters>>> {
+    @Getter
     private final List<BytesRef> terms;
     private final InMemoryKey.IndexKey key;
     private final float summaryPruneRatio;
