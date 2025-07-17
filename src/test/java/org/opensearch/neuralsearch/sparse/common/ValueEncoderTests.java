@@ -123,18 +123,4 @@ public class ValueEncoderTests extends AbstractSparseTestBase {
         float decodedInf = ValueEncoder.decodeFeatureValue(Float.POSITIVE_INFINITY);
         assertEquals("Positive infinity should return Float.MAX_VALUE", Float.MAX_VALUE, decodedInf, 0.0f);
     }
-
-    public void testDecodeFeatureValue_withNonPositiveInput_handlesGracefully() {
-        float negativeInput = -100.0f;
-        AssertionError error1 = expectThrows(
-            AssertionError.class,
-            () -> { float negativeDecoded = ValueEncoder.decodeFeatureValue(negativeInput); }
-        );
-        assertTrue(error1.getMessage().contains("featureValue must be a positive normal float"));
-
-        float zeroInput = 0.0f;
-        AssertionError error2 = expectThrows(AssertionError.class, () -> { float decoded = ValueEncoder.decodeFeatureValue(zeroInput); });
-        assertTrue(error2.getMessage().contains("featureValue must be a positive normal float"));
-
-    }
 }

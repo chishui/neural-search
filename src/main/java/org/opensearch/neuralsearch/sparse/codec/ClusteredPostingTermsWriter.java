@@ -141,6 +141,15 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         if (docID == -1) {
             throw new IllegalStateException("docId must be set before startDoc");
         }
+        if (freq < Float.MIN_NORMAL) {
+            throw new IllegalArgumentException(
+                "featureValue must be a positive normal float, got: "
+                    + freq
+                    + " for feature,"
+                    + " which is less than the minimum positive normal float: "
+                    + Float.MIN_NORMAL
+            );
+        }
         docFreqs.add(new DocFreq(docID, ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq))));
     }
 

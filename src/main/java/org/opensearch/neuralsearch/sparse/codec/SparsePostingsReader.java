@@ -216,6 +216,15 @@ public class SparsePostingsReader {
                     freqByte = (byte) freq;
                 } else {
                     // decode to float first
+                    if (freq < Float.MIN_NORMAL) {
+                        throw new IllegalArgumentException(
+                            "featureValue must be a positive normal float, got: "
+                                + freq
+                                + " for feature,"
+                                + " which is less than the minimum positive normal float: "
+                                + Float.MIN_NORMAL
+                        );
+                    }
                     freqByte = ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq));
                 }
                 docFreqs.add(new DocFreq(newDocId, freqByte));

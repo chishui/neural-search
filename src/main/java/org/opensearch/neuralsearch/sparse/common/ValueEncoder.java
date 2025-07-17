@@ -19,10 +19,6 @@ public class ValueEncoder {
             // so we need to be consistent.
             return Float.MAX_VALUE;
         }
-        assert freq >= Float.MIN_NORMAL : "featureValue must be a positive normal float, got: "
-            + freq
-            + " for feature, which is less than the minimum positive normal float: "
-            + Float.MIN_NORMAL;
         int tf = (int) freq; // lossless
         int featureBits = tf << 15;
         return Float.intBitsToFloat(featureBits);
