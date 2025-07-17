@@ -67,7 +67,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
             PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo);
         });
 
-        assertNotNull("Should throw NumberFormatException for invalid threshold", exception);
+        assertEquals("For input string: \"invalid_number\"", exception.getMessage());
     }
 
     public void testShouldRunSeisPredicate_withMissingAttribute_throwsException() {
@@ -79,7 +79,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
             PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo);
         });
 
-        assertNotNull("Should throw NumberFormatException when attribute is missing", exception);
+        assertEquals("Cannot parse null string", exception.getMessage());
     }
 
     public void testShouldRunSeisPredicate_withNullAttribute_throwsException() {
@@ -91,7 +91,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
             PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo);
         });
 
-        assertNotNull("Should throw NumberFormatException when attribute is null", exception);
+        assertEquals("Cannot parse null string", exception.getMessage());
     }
 
     public void testShouldRunSeisPredicate_isNotNull() {
