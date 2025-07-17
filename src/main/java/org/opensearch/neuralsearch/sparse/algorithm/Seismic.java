@@ -39,7 +39,7 @@ public class Seismic implements SparseAlgorithm {
             try {
                 String fieldValueString = parameters.get(SUMMARY_PRUNE_RATIO_FIELD).toString();
                 float summaryPruneRatio = NumberUtils.createFloat(fieldValueString);
-                if (summaryPruneRatio <= 0 || summaryPruneRatio >= 1) {
+                if (summaryPruneRatio <= 0 || summaryPruneRatio > 1) {
                     errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD));
                 }
             } catch (Exception e) {
