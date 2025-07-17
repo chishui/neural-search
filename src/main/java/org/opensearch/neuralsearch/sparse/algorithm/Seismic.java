@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.opensearch.common.ValidationException;
 import org.opensearch.neuralsearch.sparse.mapper.SparseMethodContext;
 
@@ -36,77 +37,59 @@ public class Seismic implements SparseAlgorithm {
         Map<String, Object> parameters = new HashMap<>(sparseMethodContext.getMethodComponentContext().getParameters());
         if (parameters.containsKey(SUMMARY_PRUNE_RATIO_FIELD)) {
             try {
-                Object value = parameters.get(SUMMARY_PRUNE_RATIO_FIELD);
-                float summaryPruneRatio;
-                if (value instanceof Float) {
-                    summaryPruneRatio = ((Number) value).floatValue();
-                } else if (value instanceof String) {
-                    summaryPruneRatio = Float.parseFloat((String) value);
-                } else {
-                    throw new ClassCastException();
+                String fieldValueString = parameters.get(SUMMARY_PRUNE_RATIO_FIELD).toString();
+                float summaryPruneRatio = NumberUtils.createFloat(fieldValueString);
+                if (summaryPruneRatio <= 0 || summaryPruneRatio >= 1) {
+                    errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD));
                 }
-                if (summaryPruneRatio <= 0 || summaryPruneRatio > 1) {
-                    errorMessages.add("summary prune ratio should be in (0, 1]");
-                }
-            } catch (ClassCastException | NumberFormatException | NullPointerException e) {
-                errorMessages.add("summary prune ratio should be a valid number");
+            } catch (Exception e) {
+                errorMessages.add(
+                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", SUMMARY_PRUNE_RATIO_FIELD, Float.class.getName())
+                );
             }
             parameters.remove(SUMMARY_PRUNE_RATIO_FIELD);
         }
         if (parameters.containsKey(N_POSTINGS_FIELD)) {
             try {
-                Object value = parameters.get(N_POSTINGS_FIELD);
-                Integer nPostings;
-                if (value instanceof Integer) {
-                    nPostings = (Integer) value;
-                } else if (value instanceof String) {
-                    nPostings = Integer.parseInt((String) value);
-                } else {
-                    throw new ClassCastException();
-                }
+                String fieldValueString = parameters.get(N_POSTINGS_FIELD).toString();
+                int nPostings = NumberUtils.createInteger(fieldValueString);
                 if (nPostings <= 0) {
-                    errorMessages.add("n_postings should be a positive integer");
+                    errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD));
                 }
-            } catch (ClassCastException | NumberFormatException | NullPointerException e) {
-                errorMessages.add("n_postings should be a valid integer");
+            } catch (Exception e) {
+                errorMessages.add(
+                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", N_POSTINGS_FIELD, Integer.class.getName())
+                );
             }
             parameters.remove(N_POSTINGS_FIELD);
         }
         if (parameters.containsKey(CLUSTER_RATIO_FIELD)) {
             try {
-                Object value = parameters.get(CLUSTER_RATIO_FIELD);
-                float clusterRatio;
-                if (value instanceof Float) {
-                    clusterRatio = ((Number) value).floatValue();
-                } else if (value instanceof String) {
-                    clusterRatio = Float.parseFloat((String) value);
-                } else {
-                    throw new ClassCastException();
-                }
+                String fieldValueString = parameters.get(CLUSTER_RATIO_FIELD).toString();
+                float clusterRatio = NumberUtils.createFloat(fieldValueString);
                 if (clusterRatio <= 0 || clusterRatio >= 1) {
-                    errorMessages.add("cluster ratio should be in (0, 1)");
+                    errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD));
                 }
-            } catch (ClassCastException | NumberFormatException | NullPointerException e) {
-                errorMessages.add("cluster ratio should be a valid number");
+            } catch (Exception e) {
+                errorMessages.add(
+                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", CLUSTER_RATIO_FIELD, Float.class.getName())
+                );
             }
             parameters.remove(CLUSTER_RATIO_FIELD);
         }
         if (parameters.containsKey(ALGO_TRIGGER_DOC_COUNT_FIELD)) {
             try {
-                Object value = parameters.get(ALGO_TRIGGER_DOC_COUNT_FIELD);
-                Integer algoTriggerThreshold;
-                if (value instanceof Integer) {
-                    algoTriggerThreshold = (Integer) value;
-                } else if (value instanceof String) {
-                    algoTriggerThreshold = Integer.parseInt((String) value);
-                } else {
-                    throw new ClassCastException();
-                }
+                String fieldValueString = parameters.get(ALGO_TRIGGER_DOC_COUNT_FIELD).toString();
+                int algoTriggerThreshold = NumberUtils.createInteger(fieldValueString);
                 if (algoTriggerThreshold < 0) {
-                    errorMessages.add("algo trigger doc count should be a non-negative integer");
+                    errorMessages.add(
+                        String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD)
+                    );
                 }
-            } catch (ClassCastException | NumberFormatException | NullPointerException e) {
-                errorMessages.add("algo trigger doc count should be a valid integer");
+            } catch (Exception e) {
+                errorMessages.add(
+                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", ALGO_TRIGGER_DOC_COUNT_FIELD, Integer.class.getName())
+                );
             }
             parameters.remove(ALGO_TRIGGER_DOC_COUNT_FIELD);
         }

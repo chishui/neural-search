@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.algorithm;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import org.opensearch.common.ValidationException;
@@ -32,7 +33,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("algo trigger doc count should be a non-negative integer"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD);
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_validAlgoTriggerStringNumberDocCount() {
@@ -61,7 +63,13 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("algo trigger doc count should be a valid integer"));
+        String expectedError = String.format(
+            Locale.ROOT,
+            "Parameter [%s] must be of %s type",
+            ALGO_TRIGGER_DOC_COUNT_FIELD,
+            Integer.class.getName()
+        );
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidAlgoTriggerBooleanDocCount() {
@@ -76,7 +84,13 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("algo trigger doc count should be a valid integer"));
+        String expectedError = String.format(
+            Locale.ROOT,
+            "Parameter [%s] must be of %s type",
+            ALGO_TRIGGER_DOC_COUNT_FIELD,
+            Integer.class.getName()
+        );
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_validSummaryPruneRatioStringNumberDocCount() {
@@ -105,7 +119,13 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("summary prune ratio should be a valid number"));
+        String expectedError = String.format(
+            Locale.ROOT,
+            "Parameter [%s] must be of %s type",
+            SUMMARY_PRUNE_RATIO_FIELD,
+            Float.class.getName()
+        );
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidSummaryPruneRatioBooleanDocCount() {
@@ -120,7 +140,13 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("summary prune ratio should be a valid number"));
+        String expectedError = String.format(
+            Locale.ROOT,
+            "Parameter [%s] must be of %s type",
+            SUMMARY_PRUNE_RATIO_FIELD,
+            Float.class.getName()
+        );
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_validPostingFieldStringNumberDocCount() {
@@ -149,7 +175,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("n_postings should be a valid integer"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be of %s type", N_POSTINGS_FIELD, Integer.class.getName());
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidPostingFieldBooleanDocCount() {
@@ -164,7 +191,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("n_postings should be a valid integer"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be of %s type", N_POSTINGS_FIELD, Integer.class.getName());
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_validClusterRatioStringNumberDocCount() {
@@ -193,7 +221,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("cluster ratio should be a valid number"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be of %s type", CLUSTER_RATIO_FIELD, Float.class.getName());
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidClusterRatioBooleanDocCount() {
@@ -208,7 +237,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("cluster ratio should be a valid number"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be of %s type", CLUSTER_RATIO_FIELD, Float.class.getName());
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidClusterRatio() {
@@ -223,7 +253,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("cluster ratio should be in (0, 1)"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD);
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidNPostings() {
@@ -238,7 +269,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("n_postings should be a positive integer"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD);
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_invalidSummaryPruneRatio() {
@@ -253,7 +285,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("summary prune ratio should be in (0, 1]"));
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD);
+        assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_multipleInvalidParameters() {
@@ -270,9 +303,12 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException validationException = Seismic.INSTANCE.validateMethod(sparseMethodContext);
 
         assertNotNull(validationException);
-        assertTrue(validationException.validationErrors().contains("n_postings should be a positive integer"));
-        assertTrue(validationException.validationErrors().contains("cluster ratio should be in (0, 1)"));
-        assertTrue(validationException.validationErrors().contains("algo trigger doc count should be a non-negative integer"));
+        String expectedError1 = String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD);
+        String expectedError2 = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD);
+        String expectedError3 = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD);
+        assertTrue(validationException.validationErrors().contains(expectedError1));
+        assertTrue(validationException.validationErrors().contains(expectedError2));
+        assertTrue(validationException.validationErrors().contains(expectedError3));
     }
 
     public void testValidateMethod_unknownParameter() {
@@ -323,10 +359,14 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(sparseMethodContext);
 
         assertNotNull(result);
-        assertTrue(result.validationErrors().contains("summary prune ratio should be in (0, 1]"));
-        assertTrue(result.validationErrors().contains("n_postings should be a positive integer"));
-        assertTrue(result.validationErrors().contains("cluster ratio should be in (0, 1)"));
-        assertTrue(result.validationErrors().contains("algo trigger doc count should be a non-negative integer"));
+        String expectedError1 = String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD);
+        String expectedError2 = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD);
+        String expectedError3 = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD);
+        String expectedError4 = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD);
+        assertTrue(result.validationErrors().contains(expectedError1));
+        assertTrue(result.validationErrors().contains(expectedError2));
+        assertTrue(result.validationErrors().contains(expectedError3));
+        assertTrue(result.validationErrors().contains(expectedError4));
         assertTrue(result.validationErrors().contains("Unknown parameter 'unknown_param' found"));
     }
 }
