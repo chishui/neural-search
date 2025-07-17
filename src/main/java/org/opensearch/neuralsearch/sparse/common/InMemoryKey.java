@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.common;
 
 import lombok.EqualsAndHashCode;
+import lombok.NonNull;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
 
@@ -18,12 +19,12 @@ public class InMemoryKey {
         private final SegmentInfo segmentInfo;
         private final String field;
 
-        public IndexKey(SegmentInfo segmentInfo, FieldInfo fieldInfo) {
+        public IndexKey(@NonNull SegmentInfo segmentInfo, @NonNull FieldInfo fieldInfo) {
             this.segmentInfo = segmentInfo;
             this.field = fieldInfo.name;
         }
 
-        public IndexKey(SegmentInfo segmentInfo, String fieldName) {
+        public IndexKey(@NonNull SegmentInfo segmentInfo, @NonNull String fieldName) {
             this.segmentInfo = segmentInfo;
             this.field = fieldName;
         }
