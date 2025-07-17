@@ -23,7 +23,7 @@ import org.apache.lucene.search.Query;
 import org.opensearch.Version;
 import org.opensearch.ml.common.input.parameter.textembedding.AsymmetricTextEmbeddingParameters;
 import org.opensearch.ml.common.input.parameter.textembedding.SparseEmbeddingFormat;
-import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.opensearch.transport.client.Client;
 import org.opensearch.common.SetOnce;
@@ -507,6 +507,6 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     }
 
     private boolean isSeismicFieldType(MappedFieldType fieldType) {
-        return isSeismicSupported() && Objects.nonNull(fieldType) && SparseTokensFieldMapper.CONTENT_TYPE.equals(fieldType.typeName());
+        return isSeismicSupported() && Objects.nonNull(fieldType) && SparseTokensFieldType.isSparseTokensType(fieldType.typeName());;
     }
 }

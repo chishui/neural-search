@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.opensearch.common.Nullable;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.ml.client.MachineLearningNodeClient;
@@ -105,7 +106,7 @@ public class MLCommonsClientAccessor {
 
     public void inferenceSentencesWithMapResult(
         @NonNull final TextInferenceRequest inferenceRequest,
-        final MLAlgoParams additionalParameters,
+        @Nullable final MLAlgoParams additionalParameters,
         @NonNull final ActionListener<List<Map<String, ?>>> listener
     ) {
         retryableInferenceSentencesWithMapResult(inferenceRequest, additionalParameters, 0, listener);

@@ -30,12 +30,13 @@ import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.env.Environment;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.IngestDocumentWrapper;
+import org.opensearch.ml.common.input.parameter.MLAlgoParams;
 import org.opensearch.ml.common.input.parameter.textembedding.AsymmetricTextEmbeddingParameters;
 import org.opensearch.ml.common.input.parameter.textembedding.SparseEmbeddingFormat;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
 import org.opensearch.neuralsearch.processor.optimization.TextEmbeddingInferenceFilter;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
-import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.TokenWeightUtil;
 
@@ -55,6 +56,9 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
     private final OpenSearchClient openSearchClient;
     private final boolean skipExisting;
     private final TextEmbeddingInferenceFilter textEmbeddingInferenceFilter;
+    private static final AsymmetricTextEmbeddingParameters tokenIdParameter = AsymmetricTextEmbeddingParameters.builder()
+        .sparseEmbeddingFormat(SparseEmbeddingFormat.TOKEN_ID)
+        .build();
 
     @Getter
     private final PruneType pruneType;
@@ -196,9 +200,7 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
         Tuple<List<String>, Map<Integer, Integer>> sortedResult = sortByLengthAndReturnOriginalOrder(inferenceList);
         inferenceList = sortedResult.v1();
         Map<Integer, Integer> originalOrder = sortedResult.v2();
-        final AsymmetricTextEmbeddingParameters parameters = format == SparseEmbeddingFormat.TOKEN_ID
-            ? AsymmetricTextEmbeddingParameters.builder().sparseEmbeddingFormat(SparseEmbeddingFormat.TOKEN_ID).build()
-            : null;
+        final AsymmetricTextEmbeddingParameters parameters = format == SparseEmbeddingFormat.TOKEN_ID ? tokenIdParameter : null;
         mlCommonsClientAccessor.inferenceSentencesWithMapResult(
             TextInferenceRequest.builder().modelId(this.modelId).inputTexts(inferenceList).build(),
             parameters,
@@ -324,7 +326,8 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
         Map<String, Object> fields = (Map<String, Object>) properties;
         for (Map.Entry<String, Object> field : fields.entrySet()) {
             Map<String, Object> fieldMap = (Map<String, Object>) field.getValue();
-            if (SparseTokensFieldMapper.CONTENT_TYPE.equals(fieldMap.get("type"))) {
+            Object type = fieldMap.get("type");
+            if (Objects.nonNull(type) && SparseTokensFieldType.isSparseTokensType(type.toString())) {
                 sparseAnnFields.add(field.getKey());
             }
         }
@@ -353,15 +356,7 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
         }
         AtomicInteger counter = new AtomicInteger(0);
         if (sparseAnnProcessMap.isEmpty()) {
-            generateAndSetMapInference(
-                ingestDocument,
-                processMap,
-                inferenceList,
-                pruneType,
-                pruneRatio,
-                SparseEmbeddingFormat.WORD,
-                handler
-            );
+            generateAndSetMapInference(ingestDocument, processMap, inferenceList, pruneType, pruneRatio, null, handler);
             return;
         } else {
             counter.incrementAndGet();
@@ -382,7 +377,7 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
                 updatedInferenceList,
                 pruneType,
                 pruneRatio,
-                SparseEmbeddingFormat.TOKEN_ID,
+                tokenIdParameter,
                 getCountDownHandler(counter, exceptions, handler)
             );
         }
@@ -394,7 +389,7 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
                 updatedInferenceList,
                 pruneType,
                 pruneRatio,
-                SparseEmbeddingFormat.WORD,
+                null,
                 getCountDownHandler(counter, exceptions, handler)
             );
         }

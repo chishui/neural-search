@@ -190,12 +190,12 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                     try {
                         int tokenIndex = Integer.parseInt(feature);
                         if (tokenIndex < 0) {
-                            throw new NumberFormatException();
+                            throw new IllegalArgumentException("[" + CONTENT_TYPE + "]" + " fields should be text of non-negative integer");
                         }
                         dos.writeInt(tokenIndex);
                         dos.writeFloat(value);
                     } catch (NumberFormatException e) {
-                        throw new IllegalArgumentException("[" + CONTENT_TYPE + "]" + " fields should be text of non-negative integer");
+                        throw new IllegalArgumentException("[" + CONTENT_TYPE + "]" + " fields should be valid integer");
                     }
                 } else {
                     throw new IllegalArgumentException(

@@ -40,8 +40,7 @@ import org.opensearch.index.mapper.IndexFieldMapper;
 import org.opensearch.ingest.AbstractBatchingProcessor;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.IngestDocumentWrapper;
-import org.opensearch.ml.common.input.parameter.textembedding.AsymmetricTextEmbeddingParameters;
-import org.opensearch.ml.common.input.parameter.textembedding.SparseEmbeddingFormat;
+import org.opensearch.ml.common.input.parameter.MLAlgoParams;
 import org.opensearch.neuralsearch.ml.MLCommonsClientAccessor;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -807,15 +806,13 @@ public abstract class InferenceProcessor extends AbstractBatchingProcessor {
         List<String> inferenceList,
         PruneType pruneType,
         float pruneRatio,
-        SparseEmbeddingFormat format,
+        MLAlgoParams mlAlgoParams,
         BiConsumer<IngestDocument, Exception> handler
     ) {
-        final AsymmetricTextEmbeddingParameters parameters = format == SparseEmbeddingFormat.TOKEN_ID
-            ? AsymmetricTextEmbeddingParameters.builder().sparseEmbeddingFormat(SparseEmbeddingFormat.TOKEN_ID).build()
-            : null;
+
         mlCommonsClientAccessor.inferenceSentencesWithMapResult(
             TextInferenceRequest.builder().modelId(this.modelId).inputTexts(inferenceList).build(),
-            parameters,
+            mlAlgoParams,
             ActionListener.wrap(resultMaps -> {
                 List<Map<String, Float>> sparseVectors = TokenWeightUtil.fetchListOfTokenWeightMap(resultMaps)
                     .stream()
