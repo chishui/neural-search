@@ -15,16 +15,16 @@ import java.io.IOException;
 public class CacheGatedForwardIndexReader implements SparseVectorReader {
     private final SparseVectorReader inMemoryReader;
     private final SparseVectorWriter inMemoryWriter;
-    // SparseTermsLuceneReader to read sparse terms from disk
-    private final SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough;
+    // SparseBinaryDocValuesPassThrough to read forward index from lucene
+    private final SparseBinaryDocValuesPassThrough luceneReader;
 
     public CacheGatedForwardIndexReader(
         @NonNull SparseVectorForwardIndex sparseVectorForwardIndex,
-        SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough
+        @NonNull SparseBinaryDocValuesPassThrough luceneReader
     ) {
         this.inMemoryReader = sparseVectorForwardIndex.getReader();
         this.inMemoryWriter = sparseVectorForwardIndex.getWriter();
-        this.sparseBinaryDocValuesPassThrough = sparseBinaryDocValuesPassThrough;
+        this.luceneReader = luceneReader;
     }
 
     public SparseVector read(int docId) throws IOException {
@@ -32,8 +32,11 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
         if (vector != null) {
             return vector;
         }
-        vector = sparseBinaryDocValuesPassThrough.read(docId);
-        inMemoryWriter.insert(docId, vector);
+        // if vector does not exist in cache, read from lucene and populate it to cache
+        vector = luceneReader.read(docId);
+        if (vector != null) {
+            inMemoryWriter.insert(docId, vector);
+        }
         return vector;
     }
 }

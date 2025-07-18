@@ -4,11 +4,11 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.NonNull;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
 import java.util.Set;
@@ -16,32 +16,31 @@ import java.util.Set;
 public class CacheGatedPostingsReader implements ClusteredPostingReader {
     private final String fieldName;
     private final ClusteredPostingReader inMemoryReader;
-    private final InMemoryKey.IndexKey indexKey;
+    private final ClusteredPostingWriter inMemoryWriter;
     // SparseTermsLuceneReader to read sparse terms from disk
     private final SparseTermsLuceneReader luceneReader;
 
     public CacheGatedPostingsReader(
-        String fieldName,
-        ClusteredPostingReader reader,
-        SparseTermsLuceneReader luceneReader,
-        InMemoryKey.IndexKey indexKey
+        @NonNull String fieldName,
+        @NonNull InMemoryClusteredPosting inMemoryClusteredPosting,
+        @NonNull SparseTermsLuceneReader luceneReader
     ) {
         this.fieldName = fieldName;
-        this.inMemoryReader = reader;
+        this.inMemoryReader = inMemoryClusteredPosting.getReader();
+        this.inMemoryWriter = inMemoryClusteredPosting.getWriter();
         this.luceneReader = luceneReader;
-        this.indexKey = indexKey;
     }
 
     @Override
     public PostingClusters read(BytesRef term) throws IOException {
         PostingClusters clusters = inMemoryReader.read(term);
+        if (clusters != null) {
+            return clusters;
+        }
         // if cluster does not exist in cache, read from lucene and populate it to cache
-        if (clusters == null) {
-            clusters = luceneReader.read(fieldName, term);
-            if (clusters != null) {
-                ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(indexKey).getWriter();
-                writer.insert(term, clusters.getClusters());
-            }
+        clusters = luceneReader.read(fieldName, term);
+        if (clusters != null) {
+            inMemoryWriter.insert(term, clusters.getClusters());
         }
         return clusters;
     }

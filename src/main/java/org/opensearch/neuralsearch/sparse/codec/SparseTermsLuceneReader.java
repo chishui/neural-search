@@ -8,7 +8,6 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.store.IndexInput;
@@ -36,11 +35,8 @@ public class SparseTermsLuceneReader extends FieldsProducer {
     private final Map<String, Map<BytesRef, Long>> fieldToTerms = new HashMap<>();
     private IndexInput termsIn;
     private IndexInput postingIn;
-    private final SegmentInfo segmentInfo;
 
     public SparseTermsLuceneReader(SegmentReadState state) {
-        this.segmentInfo = state.segmentInfo;
-
         final String termsFileName = IndexFileNames.segmentFileName(
             state.segmentInfo.name,
             state.segmentSuffix,
@@ -163,7 +159,7 @@ public class SparseTermsLuceneReader extends FieldsProducer {
         }
         long offset = termsMapping.get(term);
         List<DocumentCluster> clusters = readClusters(offset);
-        if (clusters == null || clusters.isEmpty()) {
+        if (clusters.isEmpty()) {
             return null;
         }
         return new PostingClusters(clusters);
