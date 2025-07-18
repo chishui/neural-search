@@ -59,14 +59,13 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         assertNotEquals("Original term should now be different", "term1", originalTerms.get(0).utf8ToString());
     }
 
-    public void testGetWithNullMergeState() {
+    public void testGetWithNullMergeStateThenThrowException() {
         // Test behavior with null merge state - should throw NullPointerException within constructor
         NullPointerException nullPointerException = assertThrows(
             NullPointerException.class,
             () -> new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, null, null)
         );
 
-        // Assert that the exception is an instance of NullPointerException
         assertEquals("mergeState is marked non-null but is null", nullPointerException.getMessage());
     }
 

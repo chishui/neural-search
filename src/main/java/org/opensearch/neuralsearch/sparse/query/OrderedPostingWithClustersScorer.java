@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
+import lombok.NonNull;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.search.ConjunctionUtils;
@@ -28,7 +29,7 @@ public class OrderedPostingWithClustersScorer extends SeismicBaseScorer {
         SparseVector queryVector,
         LeafReader leafReader,
         Bits acceptedDocs,
-        SparseVectorReader reader,
+        @NonNull SparseVectorReader reader,
         Similarity.SimScorer simScorer,
         BitSetIterator filterBitSetIterator
     ) throws IOException {

@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.LeafReader;
@@ -49,7 +50,7 @@ public abstract class SeismicBaseScorer extends Scorer {
         SparseQueryContext sparseQueryContext,
         int maxDocCount,
         SparseVector queryVector,
-        SparseVectorReader reader,
+        @NonNull SparseVectorReader reader,
         Bits acceptedDocs
     ) throws IOException {
         visitedDocId = new LongBitSet(maxDocCount);
