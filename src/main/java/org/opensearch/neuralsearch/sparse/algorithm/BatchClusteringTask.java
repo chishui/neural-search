@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.BinaryDocValues;
@@ -44,7 +45,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         float summaryPruneRatio,
         float clusterRatio,
         int nPostings,
-        MergeState mergeState,
+        @NonNull MergeState mergeState,
         FieldInfo fieldInfo
     ) {
         this.terms = terms.stream().map(BytesRef::deepCopyOf).toList();
