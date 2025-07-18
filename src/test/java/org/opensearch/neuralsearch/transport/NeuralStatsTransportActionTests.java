@@ -20,6 +20,7 @@ import org.opensearch.neuralsearch.stats.events.TimestampedEventStatSnapshot;
 import org.opensearch.neuralsearch.stats.info.CountableInfoStatSnapshot;
 import org.opensearch.neuralsearch.stats.info.InfoStatName;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
+import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 import org.opensearch.neuralsearch.stats.metrics.MetricStatsManager;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ThreadPool;
@@ -99,8 +100,13 @@ public class NeuralStatsTransportActionTests extends OpenSearchTestCase {
         // Create inputs
         EnumSet<EventStatName> eventStats = EnumSet.of(EventStatName.TEXT_EMBEDDING_PROCESSOR_EXECUTIONS);
         EnumSet<InfoStatName> infoStats = EnumSet.of(InfoStatName.TEXT_EMBEDDING_PROCESSORS);
+        EnumSet<MetricStatName> metricStatNames = EnumSet.noneOf(MetricStatName.class);
 
-        NeuralStatsInput input = NeuralStatsInput.builder().eventStatNames(eventStats).infoStatNames(infoStats).build();
+        NeuralStatsInput input = NeuralStatsInput.builder()
+            .eventStatNames(eventStats)
+            .infoStatNames(infoStats)
+            .metricStatNames(metricStatNames)
+            .build();
         NeuralStatsRequest request = new NeuralStatsRequest(new String[] {}, input);
 
         // Create multiple nodes
