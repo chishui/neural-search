@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
@@ -105,12 +106,14 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         return postingClusters;
     }
 
-    private SparseVector readFromCacheOfMergedSegment(int newDocId) throws IOException {
+    @VisibleForTesting
+    SparseVector readFromCacheOfMergedSegment(int newDocId) throws IOException {
         InMemorySparseVectorForwardIndex newIndex = InMemorySparseVectorForwardIndex.get(this.key);
         return newIndex != null ? newIndex.getReader().read(newDocId) : null;
     }
 
-    private SparseVector readFromCacheOfOldSegment(SegmentInfo oldSegment, int oldId) throws IOException {
+    @VisibleForTesting
+    SparseVector readFromCacheOfOldSegment(SegmentInfo oldSegment, int oldId) throws IOException {
         InMemoryKey.IndexKey oldKey = new InMemoryKey.IndexKey(oldSegment, fieldInfo);
         InMemorySparseVectorForwardIndex oldIndex = InMemorySparseVectorForwardIndex.get(oldKey);
         if (oldIndex != null) {
