@@ -30,7 +30,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         MockitoAnnotations.openMocks(this);
 
         terms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
-        key = new InMemoryKey.IndexKey(null, "test_field");
+        key = new InMemoryKey.IndexKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field");
     }
 
     public void testConstructorDeepCopiesTerms() throws Exception {
