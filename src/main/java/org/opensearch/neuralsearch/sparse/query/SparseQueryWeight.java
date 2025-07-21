@@ -60,6 +60,8 @@ public class SparseQueryWeight extends Weight {
                 leafReader = ((FilterLeafReader) leafReader).getDelegate();
             } else if (leafReader instanceof FilterCodecReader) {
                 leafReader = ((FilterCodecReader) leafReader).getDelegate();
+            } else {
+                break;
             }
         }
         if (!(leafReader instanceof SegmentReader)) {
