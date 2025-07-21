@@ -5,7 +5,6 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import org.apache.lucene.util.BytesRef;
-import org.junit.Test;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
@@ -36,7 +35,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the constructor of CacheGatedPostingsReader when null is passed for fieldName.
      * This should throw a NullPointerException as specified in the method's documentation.
      */
-    @Test
     public void testConstructorWithNullFieldName() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
             new CacheGatedPostingsReader(null, inMemoryReader, inMemoryWriter, luceneReader);
@@ -48,7 +46,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the constructor of CacheGatedPostingsReader when null is passed for inMemoryReader.
      * This should throw a NullPointerException as specified in the method's documentation.
      */
-    @Test
     public void testConstructorWithNullInMemoryReader() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
             new CacheGatedPostingsReader(testFieldName, null, inMemoryWriter, luceneReader);
@@ -60,7 +57,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the constructor of CacheGatedPostingsReader when null is passed for inMemoryWriter.
      * This should throw a NullPointerException as specified in the method's documentation.
      */
-    @Test
     public void testConstructorWithNullInMemoryWriter() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
             new CacheGatedPostingsReader(testFieldName, inMemoryReader, null, luceneReader);
@@ -72,7 +68,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the constructor of CacheGatedPostingsReader when null is passed for luceneReader.
      * This should throw a NullPointerException as specified in the method's documentation.
      */
-    @Test
     public void testConstructorWithNullLuceneReader() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
             new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, null);
@@ -85,7 +80,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Verifies that the constructor successfully creates an instance
      * when provided with valid non-null parameters.
      */
-    @Test
     public void testConstructorWithValidParameters() {
         CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
         assertNotNull("CacheGatedPostingsReader should be created successfully", reader);
@@ -95,7 +89,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Test case for the read method when the posting clusters are found in the in-memory cache.
      * This test verifies that the method returns the clusters from the cache without accessing Lucene storage.
      */
-    @Test
     public void testReadFromCache() throws IOException {
         when(inMemoryReader.read(any(BytesRef.class))).thenReturn(testPostingClusters);
 
@@ -113,7 +106,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * This scenario verifies that the method correctly handles the case where the
      * requested posting clusters do not exist in either storage.
      */
-    @Test
     public void testReadWhenPostingClustersDoNotExist() throws IOException {
         when(inMemoryReader.read(any(BytesRef.class))).thenReturn(null);
         when(luceneReader.read(anyString(), any(BytesRef.class))).thenReturn(null);
@@ -135,7 +127,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * 3. The retrieved posting clusters are inserted into the in-memory cache
      * 4. The method returns the posting clusters retrieved from Lucene storage
      */
-    @Test
     public void testReadWhenNotInCacheButInLucene() throws IOException {
         when(inMemoryReader.read(any(BytesRef.class))).thenReturn(null);
         when(luceneReader.read(anyString(), any(BytesRef.class))).thenReturn(testPostingClusters);
@@ -154,7 +145,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * This test ensures that the method correctly delegates to the Lucene reader
      * rather than using the in-memory cache, which may be incomplete.
      */
-    @Test
     public void testGetTerms() {
         Set<BytesRef> expectedTerms = new HashSet<>();
         expectedTerms.add(new BytesRef("term1"));
@@ -174,7 +164,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * This test ensures that the method correctly calculates the size based on
      * the number of terms in the Lucene reader.
      */
-    @Test
     public void testSize() {
         Set<BytesRef> terms = new HashSet<>();
         terms.add(new BytesRef("term1"));
@@ -194,7 +183,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the read method with an empty term.
      * This test verifies that the method handles empty terms correctly.
      */
-    @Test
     public void testReadWithEmptyTerm() throws IOException {
         BytesRef emptyTerm = new BytesRef("");
         when(inMemoryReader.read(emptyTerm)).thenReturn(null);
@@ -213,7 +201,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the getTerms method when the Lucene reader returns an empty set.
      * This test ensures that the method correctly handles the case where there are no terms.
      */
-    @Test
     public void testGetTermsWithEmptySet() {
         Set<BytesRef> emptyTerms = new HashSet<>();
         when(luceneReader.getTerms(anyString())).thenReturn(emptyTerms);
@@ -229,7 +216,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the size method when there are no terms.
      * This test ensures that the method correctly returns zero when there are no terms.
      */
-    @Test
     public void testSizeWithNoTerms() {
         Set<BytesRef> emptyTerms = new HashSet<>();
         when(luceneReader.getTerms(anyString())).thenReturn(emptyTerms);
@@ -245,7 +231,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the read method with a term that has special characters.
      * This test verifies that the method handles terms with special characters correctly.
      */
-    @Test
     public void testReadWithSpecialCharacterTerm() throws IOException {
         BytesRef specialTerm = new BytesRef("special!@#$%^&*()_+");
         when(inMemoryReader.read(specialTerm)).thenReturn(null);
@@ -264,7 +249,6 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * Tests the read method when an IOException occurs while reading from Lucene.
      * This test verifies that the method properly propagates the exception.
      */
-    @Test
     public void testReadWithIOException() throws IOException {
         when(inMemoryReader.read(any(BytesRef.class))).thenReturn(null);
         when(luceneReader.read(anyString(), any(BytesRef.class))).thenThrow(new IOException("Test IO Exception"));

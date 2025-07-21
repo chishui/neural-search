@@ -6,7 +6,6 @@ package org.opensearch.neuralsearch.sparse.codec;
 
 import java.io.IOException;
 
-import org.junit.Test;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -65,7 +64,6 @@ public class CacheGatedForwardIndexReaderTests extends AbstractSparseTestBase {
      * Verifies that the constructor successfully creates an instance
      * when provided with valid non-null parameters.
      */
-    @Test
     public void test_CacheGatedForwardIndexReader_ConstructorWithValidParameters() {
         CacheGatedForwardIndexReader reader = new CacheGatedForwardIndexReader(inMemoryReader, inMemoryWriter, luceneReader);
         assertNotNull("CacheGatedForwardIndexReader should be created successfully", reader);
@@ -96,7 +94,6 @@ public class CacheGatedForwardIndexReaderTests extends AbstractSparseTestBase {
      * This scenario verifies that the method correctly handles the case where the
      * requested vector does not exist in either storage.
      */
-    @Test
     public void testReadWhenVectorDoesNotExist() throws IOException {
         when(inMemoryReader.read(anyInt())).thenReturn(null);
         when(luceneReader.read(anyInt())).thenReturn(null);
