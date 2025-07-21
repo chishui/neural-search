@@ -28,7 +28,13 @@ public class SparseTerms extends Terms {
 
     public SparseTerms(InMemoryKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
         this.indexKey = indexKey;
-        this.reader = new CacheGatedPostingsReader(field, InMemoryClusteredPosting.getOrCreate(indexKey), sparseTermsLuceneReader);
+        InMemoryClusteredPosting inMemoryClusteredPosting = InMemoryClusteredPosting.getOrCreate(indexKey);
+        this.reader = new CacheGatedPostingsReader(
+            field,
+            inMemoryClusteredPosting.getReader(),
+            inMemoryClusteredPosting.getWriter(),
+            sparseTermsLuceneReader
+        );
     }
 
     @Override

@@ -22,12 +22,13 @@ public class CacheGatedPostingsReader implements ClusteredPostingReader {
 
     public CacheGatedPostingsReader(
         @NonNull String fieldName,
-        @NonNull InMemoryClusteredPosting inMemoryClusteredPosting,
+        @NonNull ClusteredPostingReader inMemoryReader,
+        @NonNull ClusteredPostingWriter inMemoryWriter,
         @NonNull SparseTermsLuceneReader luceneReader
     ) {
         this.fieldName = fieldName;
-        this.inMemoryReader = inMemoryClusteredPosting.getReader();
-        this.inMemoryWriter = inMemoryClusteredPosting.getWriter();
+        this.inMemoryReader = inMemoryReader;
+        this.inMemoryWriter = inMemoryWriter;
         this.luceneReader = luceneReader;
     }
 

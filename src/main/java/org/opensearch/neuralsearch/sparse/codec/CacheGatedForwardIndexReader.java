@@ -17,8 +17,6 @@ import java.io.IOException;
  * This reader acts as a caching layer between clients and the underlying Lucene storage,
  * providing improved read performance through in-memory caching. It follows a read-through
  * cache pattern where cache misses are automatically populated from the underlying storage.
- *
- *
  */
 public class CacheGatedForwardIndexReader implements SparseVectorReader {
 

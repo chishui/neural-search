@@ -11,6 +11,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.common.DocFreq;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
@@ -153,5 +154,22 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         // Mock DocFreqIterator with two docs - one with vector and one without
         DocFreqIterator docIterator = constructDocFreqIterator(docs, docs);
         when(cluster.getDisi()).thenReturn(docIterator);
+    }
+
+    protected PostingClusters createTestPostingClusters() {
+        List<DocumentCluster> clusters = new ArrayList<>();
+        SparseVector documentSummary1 = createVector(1, 10, 2, 20);
+        SparseVector documentSummary2 = createVector(1, 1, 2, 2);
+
+        List<DocFreq> docFreqs1 = new ArrayList<>();
+        docFreqs1.add(new DocFreq(0, (byte) 1));
+
+        List<DocFreq> docFreqs2 = new ArrayList<>();
+        docFreqs1.add(new DocFreq(1, (byte) 2));
+
+        clusters.add(new DocumentCluster(documentSummary1, docFreqs1, false));
+        clusters.add(new DocumentCluster(documentSummary2, docFreqs2, false));
+
+        return new PostingClusters(clusters);
     }
 }
