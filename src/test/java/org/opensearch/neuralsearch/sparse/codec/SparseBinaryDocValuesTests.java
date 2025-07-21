@@ -92,12 +92,13 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
         SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
         when(docIDMerger.next()).thenReturn(binaryDocValuesSub);
-        when(binaryDocValuesSub.getKey()).thenReturn(new InMemoryKey.IndexKey(segmentInfo, fieldInfo));
-
+        InMemoryKey.IndexKey testKey = new InMemoryKey.IndexKey(segmentInfo, fieldInfo);
+        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(testKey, 10);
+        when(binaryDocValuesSub.getKey()).thenReturn(testKey);
         sparseBinaryDocValues.nextDoc();
         SparseVector result = sparseBinaryDocValues.cachedSparseVector();
 
-        assertNull(result); // index retrieved by this key is also null, so it should return null
+        assertNull(result); // index retrieved by this key is null, so it should return null
     }
 
     public void testSetTotalLiveDocs() {
