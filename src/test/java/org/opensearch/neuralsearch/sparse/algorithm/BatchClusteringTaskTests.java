@@ -138,24 +138,11 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
 
         BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeState, keyFieldInfo);
 
-        java.lang.reflect.Method readFromCacheOfMergedSegment = BatchClusteringTask.class.getDeclaredMethod(
-            "readFromCacheOfMergedSegment",
-            int.class
-        );
-        readFromCacheOfMergedSegment.setAccessible(true);
-
-        java.lang.reflect.Method readFromCacheOfOldSegment = BatchClusteringTask.class.getDeclaredMethod(
-            "readFromCacheOfOldSegment",
-            SegmentInfo.class,
-            int.class
-        );
-        readFromCacheOfOldSegment.setAccessible(true);
-
-        SparseVector result1 = (SparseVector) readFromCacheOfMergedSegment.invoke(task, 0);
+        SparseVector result1 = task.readFromCacheOfMergedSegment(0);
         assertNull("Should return null when no cache is set", result1);
 
         SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
-        SparseVector result2 = (SparseVector) readFromCacheOfOldSegment.invoke(task, segmentInfo, 0);
+        SparseVector result2 = task.readFromCacheOfOldSegment(segmentInfo, 0);
         assertNull("Should return null when no cache is set", result2);
     }
 }
