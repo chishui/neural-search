@@ -5,7 +5,6 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
@@ -14,11 +13,6 @@ import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.nio.charset.StandardCharsets;
-
-import java.util.Map;
 
 public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBase {
 
@@ -41,13 +35,6 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         // Clean up any existing indices with this key
         InMemorySparseVectorForwardIndex.removeIndex(indexKey);
     }
-
-    // @Override
-    // public void tearDown() throws Exception {
-    // // Clean up after tests
-    // InMemorySparseVectorForwardIndex.removeIndex(indexKey);
-    // super.tearDown();
-    // }
 
     public void testGetOrCreate() {
         // Test creating a new index
@@ -122,21 +109,6 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         // Read the vector back
         SparseVector readVector1 = reader.read(0);
         assertEquals("Read vector should match written vector", vector1, readVector1);
-        //
-        // // Write another vector using BytesRef
-        // Map<String, Float> vectorMap = new HashMap<>();
-        // vectorMap.put("5", 6.0f);
-        // vectorMap.put("7", 8.0f);
-        // SparseVector vector2 = new SparseVector(vectorMap);
-        //
-        // // Convert to BytesRef (this is a simplified version, not actual conversion)
-        // BytesRef bytesRef = serializeMap(vectorMap);
-        // writer.write(1, bytesRef);
-        //
-        // // Read the second vector
-        // SparseVector readVector2 = reader.read(1);
-        // assertNotNull("Read vector should not be null", readVector2);
-        // assertEquals("Read vector should match written vector", vector2, readVector2);
 
         // Test writing to an out-of-bounds docId
         writer.write(DOC_COUNT + 1, vector1); // Should be ignored, no exception
@@ -183,21 +155,5 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
 
         // Clean up
         InMemorySparseVectorForwardIndex.removeIndex(indexKey2);
-    }
-
-    private BytesRef serializeMap(Map<String, Float> map) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(baos);
-
-        for (Map.Entry<String, Float> entry : map.entrySet()) {
-            byte[] keyBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
-            dos.writeFloat(keyBytes.length);
-            dos.write(keyBytes);
-            dos.writeFloat(entry.getValue());
-        }
-
-        dos.flush();
-        byte[] bytes = baos.toByteArray();
-        return new BytesRef(bytes);
     }
 }
