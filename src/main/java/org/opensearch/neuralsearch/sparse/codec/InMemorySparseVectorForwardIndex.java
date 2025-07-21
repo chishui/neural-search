@@ -36,7 +36,7 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
         return mem;
     }
 
-    public static synchronized InMemorySparseVectorForwardIndex getOrCreate(InMemoryKey.IndexKey key, int docCount) {
+    public static InMemorySparseVectorForwardIndex getOrCreate(InMemoryKey.IndexKey key, int docCount) {
         if (key == null) {
             throw new IllegalArgumentException("Index key cannot be null");
         }

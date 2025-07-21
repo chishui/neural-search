@@ -163,7 +163,7 @@ public class SparseQueryWeight extends Weight {
             if (index == null) {
                 return sparseBinaryDocValuesPassThrough;
             }
-            return new CacheGatedForwardIndexReader(index, sparseBinaryDocValuesPassThrough);
+            return new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), sparseBinaryDocValuesPassThrough);
         }
         return (docId) -> null;
     }

@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
-import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -15,7 +14,6 @@ import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * This class manages the in-memory postings for sparse vectors. It provides methods to write and read postings from memory.
  * It is used by the SparsePostingsConsumer and SparsePostingsReader classes.
  */
-@Log4j2
 public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
 
     private static final Map<InMemoryKey.IndexKey, InMemoryClusteredPosting> postingsMap = new ConcurrentHashMap<>();
@@ -88,7 +85,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
         public Set<BytesRef> getTerms() {
             // Note: We're returning the keySet directly instead of using Collections.unmodifiableSet()
             // for performance reasons. Callers should treat this as a read-only view.
-            return Collections.unmodifiableSet(clusteredPostings.keySet());
+            return clusteredPostings.keySet();
         }
 
         @Override
@@ -99,7 +96,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
 
     private class InMemoryClusteredPostingWriter implements ClusteredPostingWriter {
         public void insert(BytesRef term, List<DocumentCluster> clusters) {
-            if (clusters == null || clusters.isEmpty() || clusteredPostings.containsKey(term)) {
+            if (clusters == null || clusters.isEmpty() || term == null || clusteredPostings.containsKey(term)) {
                 return;
             }
 
