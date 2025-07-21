@@ -21,8 +21,8 @@ import java.util.List;
 
 public class BatchClusteringTaskTests extends AbstractSparseTestBase {
     private List<BytesRef> terms;
-    private InMemoryKey.IndexKey key;
     private MergeState mergeState;
+    private InMemoryKey.IndexKey key;
 
     @Before
     @Override
@@ -30,10 +30,12 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 
-        terms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
+        boolean isEmptyMaxDocs = true;
         SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
+        terms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
+        mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
         key = new InMemoryKey.IndexKey(segmentInfo, "test_field");
-        mergeState = TestsPrepareUtils.prepareMergeState(true);
     }
 
     public void testConstructorDeepCopiesTerms() throws Exception {
