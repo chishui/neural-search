@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * InMemorySparseVectorForwardIndex is used to store/read sparse vector in memory
@@ -54,13 +55,13 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
         forwardIndexMap.remove(key);
     }
 
-    private final SparseVector[] sparseVectors;
+    private final AtomicReferenceArray<SparseVector> sparseVectors;
     private final AtomicLong usedRamBytes = new AtomicLong(0);
     private final SparseVectorReader reader = new InMemorySparseVectorReader();
     private final SparseVectorWriter writer = new InMemorySparseVectorWriter();
 
     public InMemorySparseVectorForwardIndex(int docCount) {
-        sparseVectors = new SparseVector[docCount];
+        sparseVectors = new AtomicReferenceArray<>(docCount);
         // Account for the array itself in memory usage
         usedRamBytes.set(RamUsageEstimator.shallowSizeOf(sparseVectors));
     }
@@ -83,22 +84,22 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
     private class InMemorySparseVectorReader implements SparseVectorReader {
         @Override
         public SparseVector read(int docId) throws IOException {
-            assert docId < sparseVectors.length : "docId " + docId + " is out of bounds";
-            return sparseVectors[docId];
+            assert docId < sparseVectors.length() : "docId " + docId + " is out of bounds";
+            return sparseVectors.get(docId);
         }
     }
 
     private class InMemorySparseVectorWriter implements SparseVectorWriter {
 
         @Override
-        public synchronized void insert(int docId, SparseVector vector) {
-            if (vector == null || docId >= sparseVectors.length || sparseVectors[docId] != null) {
+        public void insert(int docId, SparseVector vector) {
+            if (vector == null || docId >= sparseVectors.length()) {
                 return;
             }
 
-            long vectorSize = vector.ramBytesUsed();
-            sparseVectors[docId] = vector;
-            usedRamBytes.addAndGet(vectorSize);
+            if (sparseVectors.compareAndSet(docId, null, vector)) {
+                usedRamBytes.addAndGet(vector.ramBytesUsed());
+            }
         }
 
         @Override
