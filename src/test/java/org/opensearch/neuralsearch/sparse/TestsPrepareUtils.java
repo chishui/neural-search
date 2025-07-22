@@ -24,13 +24,16 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.IndexableFieldType;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.Version;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.ContentPath;
+import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,6 +41,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TestsPrepareUtils {
 
@@ -95,54 +101,26 @@ public class TestsPrepareUtils {
         return segmentInfo;
     }
 
-    public static BinaryDocValues prepareBinaryDocValues() {
-        final BytesRef value = new BytesRef(new byte[] { 1, 2, 3, 4 });
-        BinaryDocValues binaryDocValues = new BinaryDocValues() {
-            private int docID = -1;
+    public static BinaryDocValues prepareBinaryDocValues() throws IOException {
+        BinaryDocValues mockBinaryDocValues = mock(BinaryDocValues.class);
 
-            @Override
-            public int docID() {
-                return docID;
-            }
+        when(mockBinaryDocValues.docID()).thenReturn(-1);
 
-            @Override
-            public int nextDoc() {
-                if (docID < 9) {
-                    docID++;
-                    return docID;
-                }
-                return NO_MORE_DOCS;
-            }
+        when(mockBinaryDocValues.nextDoc()).thenReturn(0)
+            .thenReturn(1)
+            .thenReturn(2)
+            .thenReturn(3)
+            .thenReturn(4)
+            .thenReturn(5)
+            .thenReturn(6)
+            .thenReturn(7)
+            .thenReturn(8)
+            .thenReturn(9)
+            .thenReturn(DocIdSetIterator.NO_MORE_DOCS);
+        when(mockBinaryDocValues.cost()).thenReturn(10L);
 
-            @Override
-            public int advance(int target) {
-                if (docID < target && target <= 9) {
-                    docID = target;
-                    return docID;
-                }
-                return NO_MORE_DOCS;
-            }
-
-            @Override
-            public long cost() {
-                return 10;
-            }
-
-            @Override
-            public BytesRef binaryValue() {
-                return value;
-            }
-
-            @Override
-            public boolean advanceExact(int target) throws IOException {
-                if (target <= 9) {
-                    docID = target;
-                    return true;
-                }
-                return false;
-            }
-        };
-        return binaryDocValues;
+        when(mockBinaryDocValues.binaryValue()).thenReturn(new BytesRef(new byte[] { 1, 2, 3, 4 }));
+        return mockBinaryDocValues;
     }
 
     public static DocValuesProducer prepareDocValuesProducer(BinaryDocValues binaryDocValues) {
@@ -215,7 +193,7 @@ public class TestsPrepareUtils {
         return fieldsProducer;
     }
 
-    public static MergeState prepareMergeState(boolean isEmptyMaxDocs) {
+    public static MergeState prepareMergeState(boolean isEmptyMaxDocs) throws IOException {
         MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
         docMaps[0] = docID -> docID;
         SegmentInfo segmentInfo = prepareSegmentInfo();
@@ -268,6 +246,185 @@ public class TestsPrepareUtils {
             false                      // needsIndexSort
         );
         return mergeState;
+    }
+
+    /**
+     * Creates a MergeState with mocked BinaryDocValues
+     */
+    public static MergeState prepareMergeStateWithMockedBinaryDocValues(boolean withLiveDocs) throws IOException {
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
+        // Create a DocValuesProducer that returns mocked BinaryDocValues
+        DocValuesProducer docValuesProducer = prepareDocValuesProducer(prepareBinaryDocValues());
+
+        DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
+        docValuesProducers[0] = docValuesProducer;
+
+        // Create FieldInfos
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        FieldInfos[] fieldInfosArray = new FieldInfos[1];
+        fieldInfosArray[0] = fieldInfos;
+
+        // Create FieldsProducer
+        FieldsProducer fieldsProducer = TestsPrepareUtils.prepareFieldsProducer();
+        FieldsProducer[] fieldsProducers = new FieldsProducer[1];
+        fieldsProducers[0] = fieldsProducer;
+
+        // Create live docs if needed
+        Bits[] liveDocs = new Bits[1];
+        if (withLiveDocs) {
+            liveDocs[0] = new Bits() {
+                @Override
+                public boolean get(int index) {
+                    return index % 2 == 0; // Only even document IDs are live
+                }
+
+                @Override
+                public int length() {
+                    return 10;
+                }
+            };
+        } else {
+            liveDocs[0] = null;
+        }
+
+        // Create MergeState
+        return new MergeState(
+            docMaps,
+            segmentInfo,
+            fieldInfos,                // mergeFieldInfos
+            null,                      // storedFieldsReaders
+            null,                      // termVectorsReaders
+            null,                      // normsProducers
+            docValuesProducers,        // docValuesProducers
+            fieldInfosArray,           // fieldInfos
+            liveDocs,                  // liveDocs
+            fieldsProducers,           // fieldsProducers
+            null,                      // pointsReaders
+            null,                      // knnVectorsReaders
+            new int[] { 10 },          // maxDocs
+            null,                      // infoStream
+            null,                      // executor
+            false                      // needsIndexSort
+        );
+    }
+
+    /**
+     * Creates a MergeState with SparseBinaryDocValuesPassThrough
+     */
+    public static MergeState prepareMergeStateWithPassThroughValues(boolean withLiveDocs) throws IOException {
+        FieldInfo fieldInfo = prepareKeyFieldInfo();
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
+        // Create a mocked BinaryDocValues
+        BinaryDocValues mockBinaryDocValues = TestsPrepareUtils.prepareBinaryDocValues();
+
+        // Create a SparseBinaryDocValuesPassThrough
+        SparseBinaryDocValuesPassThrough passThrough = new SparseBinaryDocValuesPassThrough(mockBinaryDocValues, segmentInfo);
+
+        // Create a DocValuesProducer that returns the passThrough
+        DocValuesProducer mockProducer = mock(DocValuesProducer.class);
+        when(mockProducer.getBinary(fieldInfo)).thenReturn(passThrough);
+
+        DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
+        docValuesProducers[0] = mockProducer;
+
+        // Create FieldInfos
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { fieldInfo });
+        FieldInfos[] fieldInfosArray = new FieldInfos[1];
+        fieldInfosArray[0] = fieldInfos;
+
+        // Create FieldsProducer
+        FieldsProducer fieldsProducer = TestsPrepareUtils.prepareFieldsProducer();
+        FieldsProducer[] fieldsProducers = new FieldsProducer[1];
+        fieldsProducers[0] = fieldsProducer;
+
+        // Create live docs if needed
+        Bits[] liveDocs = new Bits[1];
+        if (withLiveDocs) {
+            liveDocs[0] = new Bits() {
+                @Override
+                public boolean get(int index) {
+                    return index % 2 == 0; // Only even document IDs are live
+                }
+
+                @Override
+                public int length() {
+                    return 10;
+                }
+            };
+        } else {
+            liveDocs[0] = null;
+        }
+
+        // Create MergeState
+        return new MergeState(
+            docMaps,
+            segmentInfo,
+            fieldInfos,                // mergeFieldInfos
+            null,                      // storedFieldsReaders
+            null,                      // termVectorsReaders
+            null,                      // normsProducers
+            docValuesProducers,        // docValuesProducers
+            fieldInfosArray,           // fieldInfos
+            liveDocs,                  // liveDocs
+            fieldsProducers,           // fieldsProducers
+            null,                      // pointsReaders
+            null,                      // knnVectorsReaders
+            new int[] { 10 },          // maxDocs
+            null,                      // infoStream
+            null,                      // executor
+            false                      // needsIndexSort
+        );
+    }
+
+    /**
+     * Creates a MergeState with mocked BinaryDocValues
+     */
+    public static MergeState prepareMergeStateWithoutLiveDocs() throws IOException {
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
+        // Create a DocValuesProducer that returns mocked BinaryDocValues
+        DocValuesProducer docValuesProducer = prepareDocValuesProducer(prepareBinaryDocValues());
+
+        DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
+        docValuesProducers[0] = docValuesProducer;
+
+        // Create FieldInfos
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        FieldInfos[] fieldInfosArray = new FieldInfos[1];
+        fieldInfosArray[0] = fieldInfos;
+
+        // Create FieldsProducer
+        FieldsProducer fieldsProducer = TestsPrepareUtils.prepareFieldsProducer();
+        FieldsProducer[] fieldsProducers = new FieldsProducer[1];
+        fieldsProducers[0] = fieldsProducer;
+
+        // Create MergeState
+        return new MergeState(
+            docMaps,
+            segmentInfo,
+            fieldInfos,                // mergeFieldInfos
+            null,                      // storedFieldsReaders
+            null,                      // termVectorsReaders
+            null,                      // normsProducers
+            docValuesProducers,        // docValuesProducers
+            fieldInfosArray,           // fieldInfos
+            null,                      // liveDocs
+            fieldsProducers,           // fieldsProducers
+            null,                      // pointsReaders
+            null,                      // knnVectorsReaders
+            new int[] { 10 },          // maxDocs
+            null,                      // infoStream
+            null,                      // executor
+            false                      // needsIndexSort
+        );
     }
 
     public static IndexableFieldType prepareIndexableFieldType() {
