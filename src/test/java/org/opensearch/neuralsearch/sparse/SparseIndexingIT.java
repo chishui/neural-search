@@ -247,7 +247,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
-        Thread.sleep(5000);
+        waitForSegmentMerge(TEST_INDEX_NAME);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -287,7 +287,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
-        Thread.sleep(5000);
+        waitForSegmentMerge(TEST_INDEX_NAME);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -327,6 +327,28 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
             actualIds.add(id);
         }
         return actualIds;
+    }
+
+    private void waitForSegmentMerge(String index) throws InterruptedException {
+        int maxRetry = 5;
+        for (int i = 0; i < maxRetry; ++i) {
+            if (1 == getSegmentCount(index)) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
+    }
+
+    private int getSegmentCount(String index) {
+        Request request = new Request("GET", "/_cat/segments/" + index);
+        try {
+            Response response = client().performRequest(request);
+            String str = EntityUtils.toString(response.getEntity());
+            String[] lines = str.split("\n");
+            return lines.length;
+        } catch (IOException | ParseException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
