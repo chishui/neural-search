@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
-import lombok.NonNull;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
@@ -19,6 +18,20 @@ import java.io.IOException;
  * cache pattern where cache misses are automatically populated from the underlying storage.
  */
 public class CacheGatedForwardIndexReader implements SparseVectorReader {
+
+    /**
+     * A no-op implementation of SparseVectorReader that always returns null.
+     * Used as a fallback when a null reader is provided to the constructor.
+     * This follows the Null Object pattern to avoid null checks in the code.
+     */
+    private static final SparseVectorReader emptySparseVectorReader = docId -> null;
+
+    /**
+     * A no-op implementation of SparseVectorWriter that ignores all write operations.
+     * Used as a fallback when a null writer is provided to the constructor.
+     * This follows the Null Object pattern to avoid null checks in the code.
+     */
+    private static final SparseVectorWriter emptySparseVectorWriter = (docId, vector) -> {};
 
     /** In-memory reader for fast cache lookups */
     private final SparseVectorReader inMemoryReader;
@@ -38,13 +51,13 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      * @throws NullPointerException if any parameter is null
      */
     public CacheGatedForwardIndexReader(
-        @NonNull SparseVectorReader inMemoryReader,
-        @NonNull SparseVectorWriter inMemoryWriter,
-        @NonNull SparseVectorReader luceneReader
+        SparseVectorReader inMemoryReader,
+        SparseVectorWriter inMemoryWriter,
+        SparseVectorReader luceneReader
     ) {
-        this.inMemoryReader = inMemoryReader;
-        this.inMemoryWriter = inMemoryWriter;
-        this.luceneReader = luceneReader;
+        this.inMemoryReader = inMemoryReader == null ? emptySparseVectorReader : inMemoryReader;
+        this.inMemoryWriter = inMemoryWriter == null ? emptySparseVectorWriter : inMemoryWriter;
+        this.luceneReader = luceneReader == null ? emptySparseVectorReader : luceneReader;
     }
 
     /**

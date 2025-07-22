@@ -77,13 +77,12 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
             }
             if (!written) {
                 BytesRef bytesRef = binaryDocValues.binaryValue();
-                writer.insert(docId, bytesRef);
+                writer.insert(docId, new SparseVector(bytesRef));
             }
             docId = binaryDocValues.nextDoc();
         }
         if (isMerge) {
-            if (valuesProducer instanceof SparseDocValuesReader) {
-                SparseDocValuesReader reader = (SparseDocValuesReader) valuesProducer;
+            if (valuesProducer instanceof SparseDocValuesReader reader) {
                 MergeHelper.clearInMemoryData(reader.getMergeState(), field, SparseVectorForwardIndex::removeIndex);
             }
         }

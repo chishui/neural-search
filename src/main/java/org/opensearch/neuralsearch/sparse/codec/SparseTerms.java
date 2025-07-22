@@ -39,8 +39,7 @@ public class SparseTerms extends Terms {
 
     @Override
     public TermsEnum iterator() throws IOException {
-        SparseTermsEnum sparseTermsEnum = new SparseTermsEnum();
-        return sparseTermsEnum;
+        return new SparseTermsEnum();
     }
 
     @Override

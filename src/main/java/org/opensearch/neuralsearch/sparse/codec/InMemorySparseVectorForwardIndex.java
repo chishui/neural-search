@@ -6,7 +6,6 @@ package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
-import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
@@ -100,11 +99,6 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
             if (sparseVectors.compareAndSet(docId, null, vector)) {
                 usedRamBytes.addAndGet(vector.ramBytesUsed());
             }
-        }
-
-        @Override
-        public void insert(int docId, BytesRef doc) throws IOException {
-            insert(docId, new SparseVector(doc));
         }
     }
 }
