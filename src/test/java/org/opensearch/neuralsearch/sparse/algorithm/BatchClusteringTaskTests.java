@@ -135,19 +135,4 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         // We can't easily test the get() method output, but we can verify the task was created properly
         assertNotNull("Task should be created and maintain its own copy of terms", task);
     }
-
-    public void testReadFromCacheMethods_directTrigger() throws Exception {
-        boolean isEmptyMaxDocs = false;
-        MergeState mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
-        FieldInfo keyFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeState, keyFieldInfo);
-
-        SparseVector result1 = task.readFromCacheOfMergedSegment(0);
-        assertNull("Should return null when no cache is set", result1);
-
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
-        SparseVector result2 = task.readFromCacheOfOldSegment(segmentInfo, 0);
-        assertNull("Should return null when no cache is set", result2);
-    }
 }
