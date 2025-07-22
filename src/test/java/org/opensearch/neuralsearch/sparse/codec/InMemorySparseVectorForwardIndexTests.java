@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import org.apache.lucene.index.SegmentInfo;
+import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
@@ -31,9 +32,14 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
 
         // Create an IndexKey for testing
         indexKey = new InMemoryKey.IndexKey(segmentInfo, FIELD_NAME);
+    }
 
+    @Override
+    @After
+    public void tearDown() throws Exception {
         // Clean up any existing indices with this key
         InMemorySparseVectorForwardIndex.removeIndex(indexKey);
+        super.tearDown();
     }
 
     public void testGetOrCreate() {
@@ -48,32 +54,32 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
 
     public void testGetOrCreate_withNullKey() {
         // Test with null key
-        Exception exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> InMemorySparseVectorForwardIndex.getOrCreate(null, DOC_COUNT)
-        );
-
-        // Assert that the exception is an instance of IllegalArgumentException
-        assertTrue("Exception should be an instance of IllegalArgumentException", exception instanceof IllegalArgumentException);
+        IllegalArgumentException exception = expectThrows(IllegalArgumentException.class, () -> {
+            InMemorySparseVectorForwardIndex.getOrCreate(null, DOC_COUNT);
+        });
+        assertEquals("Index key cannot be null", exception.getMessage());
     }
 
-    public void testGet() {
-        // Test getting a non-existent index
-        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(indexKey);
-        assertNull("Index should be null for non-existent key", index);
-
+    public void testGet_withExistingKey() {
         // Create an index and then get it
         InMemorySparseVectorForwardIndex createdIndex = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
         InMemorySparseVectorForwardIndex retrievedIndex = InMemorySparseVectorForwardIndex.get(indexKey);
         assertSame("Should return the same index instance", createdIndex, retrievedIndex);
     }
 
+    public void testGet_withNonExistingKey() {
+        // Test getting a non-existent index
+        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(indexKey);
+        assertNull("Index should be null for non-existent key", index);
+    }
+
     public void testGet_withNullKey() {
         // Test with null key
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> InMemorySparseVectorForwardIndex.get(null));
-
-        // Assert that the exception is an instance of IllegalArgumentException
-        assertTrue("Exception should be an instance of IllegalArgumentException", exception instanceof IllegalArgumentException);
+        IllegalArgumentException exception = expectThrows(
+            IllegalArgumentException.class,
+            () -> { InMemorySparseVectorForwardIndex.get(null); }
+        );
+        assertEquals("Index key cannot be null", exception.getMessage());
     }
 
     public void testRemoveIndex() {
@@ -89,7 +95,7 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         InMemorySparseVectorForwardIndex.removeIndex(indexKey);
     }
 
-    public void testReadWrite() throws IOException {
+    public void testReadWrite_withValidVector() throws IOException {
         // Create an index
         InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
 
@@ -112,6 +118,20 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
 
         // Test writing to an out-of-bounds docId
         writer.write(DOC_COUNT + 1, vector1); // Should be ignored, no exception
+    }
+
+    public void testReadWrite_withNullVector() throws IOException {
+        // Create an index
+        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
+
+        // Get reader and writer
+        SparseVectorReader reader = index.getReader();
+        SparseVectorForwardIndex.SparseVectorWriter writer = index.getWriter();
+
+        // Test initial state - all vectors should be null
+        for (int i = 0; i < DOC_COUNT; i++) {
+            assertNull("Vector should be null initially", reader.read(i));
+        }
 
         // Test writing null vector
         writer.write(2, (SparseVector) null); // Should be ignored, no exception
@@ -136,10 +156,25 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         // RAM usage should increase
         long ramWithVectors = index.ramBytesUsed();
         assertTrue("RAM usage should increase after adding vectors", ramWithVectors > initialRam);
+    }
 
+    public void testTotalMemoryUsed() throws IOException {
+        // Create an empty index
+        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
+
+        // Initial Memory usage should be minimal (just the array overhead)
+        long initialMemUsage = InMemorySparseVectorForwardIndex.memUsage();
+        assertTrue("Initial memory usage should be positive", initialMemUsage > 0);
+
+        // Add some vectors
+        SparseVectorForwardIndex.SparseVectorWriter writer = index.getWriter();
+        SparseVector vector1 = createVector(1, 2, 3, 4);
+        SparseVector vector2 = createVector(5, 6, 7, 8, 9, 10);
+        writer.write(0, vector1);
+        writer.write(1, vector2);
         // Test memUsage static method
         long totalMemUsage = InMemorySparseVectorForwardIndex.memUsage();
-        assertTrue("Total memory usage should be positive", totalMemUsage > 0);
+        assertTrue("Total memory usage should be positive", totalMemUsage > initialMemUsage);
     }
 
     public void testMultipleIndices() {
