@@ -4,6 +4,8 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
@@ -13,12 +15,16 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
+import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static org.opensearch.neuralsearch.util.TestUtils.createRandomTokenWeightMap;
 
@@ -219,6 +225,66 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         expectThrows(IOException.class, () -> client().performRequest(request));
     }
 
+    public void testIngestDocumentsAllSeismic() throws Exception {
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 4, 0.4f, 0.5f, 8);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.1f, "2000", 0.1f), TEST_SPARSE_FIELD_NAME), "1");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.2f, "2000", 0.2f), TEST_SPARSE_FIELD_NAME), "2");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.3f, "2000", 0.3f), TEST_SPARSE_FIELD_NAME), "3");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.4f, "2000", 0.4f), TEST_SPARSE_FIELD_NAME), "4");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.5f, "2000", 0.5f), TEST_SPARSE_FIELD_NAME), "5");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.6f, "2000", 0.6f), TEST_SPARSE_FIELD_NAME), "6");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.7f, "2000", 0.7f), TEST_SPARSE_FIELD_NAME), "7");
+        ingestDocument(TEST_INDEX_NAME, makeDocument(Map.of("1000", 0.8f, "2000", 0.8f), TEST_SPARSE_FIELD_NAME), "8");
+
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        Thread.sleep(5000);
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f)
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(4, getHitCount(searchResults));
+        Map<String, Object> hits1map = (Map<String, Object>) searchResults.get("hits");
+        Set<String> actualIds = new HashSet<>();
+        List<Object> hits1List = (List<Object>) hits1map.get("hits");
+        for (Object hits1Object : hits1List) {
+            Map<String, Object> mapObject = (Map<String, Object>) hits1Object;
+            String id = mapObject.get("_id").toString();
+            actualIds.add(id);
+        }
+        assertEquals(Set.of("8", "7", "6", "5"), actualIds);
+    }
+
+    private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
+        SparseAnnQueryBuilder annQueryBuilder = new SparseAnnQueryBuilder().queryCut(cut)
+            .fieldName(field)
+            .heapFactor(hf)
+            .k(k)
+            .queryTokens(query);
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
+            .fieldName(field)
+            .queryTokensSupplier(() -> query);
+        return neuralSparseQueryBuilder;
+    }
+
+    private void forceMerge(String indexName) throws IOException, ParseException {
+        Request request = new Request("POST", "/" + indexName + "/_forcemerge?max_num_segments=1");
+        Response response = client().performRequest(request);
+        String str = EntityUtils.toString(response.getEntity());
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+    }
+
     private String prepareIndexSettings() throws IOException {
         XContentBuilder settingBuilder = XContentFactory.jsonBuilder()
             .startObject()
@@ -265,5 +331,23 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         );
         request.setJsonEntity(body);
         return request;
+    }
+
+    private String makeDocument(Map<String, Float> tokens, String fieldName) {
+        // convert tokens to text
+        StringBuilder builder = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, Float> entry : tokens.entrySet()) {
+            if (!first) {
+                builder.append(",");
+            }
+            builder.append("\"");
+            builder.append(entry.getKey());
+            builder.append("\": ");
+            builder.append(entry.getValue());
+            first = false;
+        }
+        String tokenText = builder.toString();
+        return String.format("{\n" + "\"passage_text\": \"apple tree\"," + "\"%s\": {%s}}", fieldName, tokenText);
     }
 }
