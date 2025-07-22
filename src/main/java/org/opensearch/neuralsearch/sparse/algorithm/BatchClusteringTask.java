@@ -116,6 +116,9 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
             SegmentInfo segmentInfo = sparseBinaryDocValues.getSegmentInfo();
             InMemoryKey.IndexKey indexKey = new InMemoryKey.IndexKey(segmentInfo, fieldInfo);
             InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(indexKey);
+            if (index == null) {
+                return new CacheGatedForwardIndexReader(null, null, sparseBinaryDocValues);
+            }
             return new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), sparseBinaryDocValues);
         } else {
             return new CacheGatedForwardIndexReader(null, null, null);
