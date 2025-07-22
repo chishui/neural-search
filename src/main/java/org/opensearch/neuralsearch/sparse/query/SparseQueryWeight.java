@@ -75,13 +75,12 @@ public class SparseQueryWeight extends Weight {
     public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
         final SparseVectorQuery query = (SparseVectorQuery) parentQuery;
         SegmentInfo info = getSegmentInfo(context.reader());
-        String fieldType = query.getFieldName();
-        FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(fieldType);
+        FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
         // fallback to plain neural sparse query
         if (!PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo)) {
             return booleanQueryWeight.scorerSupplier(context);
         }
-        final Scorer scorer = selectScorer(query, context, info, fieldType);
+        final Scorer scorer = selectScorer(query, context, info);
         return new ScorerSupplier() {
             @Override
             public Scorer get(long leadCost) throws IOException {
@@ -119,15 +118,12 @@ public class SparseQueryWeight extends Weight {
         };
     }
 
-    private Scorer selectScorer(SparseVectorQuery query, LeafReaderContext context, SegmentInfo segmentInfo, String fieldType)
+    private Scorer selectScorer(SparseVectorQuery query, LeafReaderContext context, SegmentInfo segmentInfo)
         throws IOException {
         SparseVectorReader sparseReader = null;
         if (segmentInfo != null) {
-            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldType);
-            SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
-            if (index == null) {
-                InMemorySparseVectorForwardIndex.getOrCreate(key, segmentInfo.maxDoc());
-            }
+            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, query.getFieldName());
+            InMemorySparseVectorForwardIndex.getOrCreate(key, segmentInfo.maxDoc());
             sparseReader = getSparseVectorReader(context.reader(), query.getFieldName());
         }
         Similarity.SimScorer simScorer = ByteQuantizer.getSimScorer(boost);

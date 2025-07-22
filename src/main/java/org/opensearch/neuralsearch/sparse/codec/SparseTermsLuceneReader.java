@@ -159,7 +159,7 @@ public class SparseTermsLuceneReader extends FieldsProducer {
         }
         long offset = termsMapping.get(term);
         List<DocumentCluster> clusters = readClusters(offset);
-        if (clusters.isEmpty()) {
+        if (clusters == null || clusters.isEmpty()) {
             return null;
         }
         return new PostingClusters(clusters);
