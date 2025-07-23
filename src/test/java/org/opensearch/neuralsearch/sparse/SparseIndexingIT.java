@@ -396,11 +396,11 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         List<Map<String, Float>> docs = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {
             Map<String, Float> tokens = new HashMap<>();
-            tokens.put("1000", (float) Math.random());
-            tokens.put("2000", (float) Math.random());
-            tokens.put("3000", (float) Math.random());
-            tokens.put("4000", (float) Math.random());
-            tokens.put("5000", (float) Math.random());
+            tokens.put("1000", randomFloat());
+            tokens.put("2000", randomFloat());
+            tokens.put("3000", randomFloat());
+            tokens.put("4000", randomFloat());
+            tokens.put("5000", randomFloat());
             docs.add(tokens);
         }
 
@@ -595,10 +595,12 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         StringBuilder payloadBuilder = new StringBuilder();
         for (int i = 0; i < docTokens.size(); i++) {
             Map<String, Float> docToken = docTokens.get(i);
-            payloadBuilder.append(String.format("{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i));
+            payloadBuilder.append(
+                String.format(Locale.ROOT, "{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i)
+            );
             payloadBuilder.append(System.lineSeparator());
             String strTokens = convertTokensToText(docToken);
-            payloadBuilder.append(String.format("{ \"%s\": {%s}}", field, strTokens));
+            payloadBuilder.append(String.format(Locale.ROOT, "{ \"%s\": {%s}}", field, strTokens));
             payloadBuilder.append(System.lineSeparator());
         }
         bulkIngest(payloadBuilder.toString(), null);
@@ -608,10 +610,14 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         StringBuilder payloadBuilder = new StringBuilder();
         for (int i = 0; i < docTokens.size(); i++) {
             Map<String, Float> docToken = docTokens.get(i);
-            payloadBuilder.append(String.format("{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i));
+            payloadBuilder.append(
+                String.format(Locale.ROOT, "{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i)
+            );
             payloadBuilder.append(System.lineSeparator());
             String strTokens = convertTokensToText(docToken);
-            payloadBuilder.append(String.format("{\"%s\": \"%s\", \"%s\": {%s}}", TEXT_FIELD, docTexts.get(i), field, strTokens));
+            payloadBuilder.append(
+                String.format(Locale.ROOT, "{\"%s\": \"%s\", \"%s\": {%s}}", TEXT_FIELD, docTexts.get(i), field, strTokens)
+            );
             payloadBuilder.append(System.lineSeparator());
         }
         bulkIngest(payloadBuilder.toString(), null);
@@ -733,7 +739,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
 
     private String makeDocument(Map<String, Float> tokens, String fieldName) {
         String tokenText = convertTokensToText(tokens);
-        return String.format("{\n" + "\"passage_text\": \"apple tree\"," + "\"%s\": {%s}}", fieldName, tokenText);
+        return String.format(Locale.ROOT, "{\n" + "\"passage_text\": \"apple tree\"," + "\"%s\": {%s}}", fieldName, tokenText);
     }
 
     private String convertTokensToText(Map<String, Float> tokens) {
