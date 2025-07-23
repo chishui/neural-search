@@ -25,11 +25,9 @@ import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import static org.opensearch.neuralsearch.util.TestUtils.createRandomTokenWeightMap;
 
@@ -266,8 +264,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(4, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("8", "7", "6", "5"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "7", "6", "5"), actualIds);
     }
 
     public void testIngestDocumentsMixSeismicWithRankFeatures() throws Exception {
@@ -305,8 +303,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(7, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("8", "7", "6", "5", "3", "2", "1"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "7", "6", "5", "3", "2", "1"), actualIds);
     }
 
     public void testIngestDocumentsWithAllRankFeatures() throws Exception {
@@ -345,8 +343,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(8, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("8", "7", "6", "5", "4", "3", "2", "1"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "7", "6", "5", "4", "3", "2", "1"), actualIds);
     }
 
     public void testIngestDocumentsAllSeismicWithCut() throws Exception {
@@ -385,8 +383,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(1, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("9"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("9"), actualIds);
     }
 
     public void testIngestDocumentsSeismicHeapFactor() throws Exception {
@@ -478,8 +476,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(4, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("1", "3", "5", "7"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("7", "5", "3", "1"), actualIds);
         // filter tree
         filter = new BoolQueryBuilder();
         filter.must(new MatchQueryBuilder(TEXT_FIELD, "tree"));
@@ -496,7 +494,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         assertNotNull(searchResults);
         assertEquals(4, getHitCount(searchResults));
         actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("2", "4", "6", "8"), actualIds);
+        assertEquals(List.of("8", "6", "4", "2"), actualIds);
     }
 
     public void testIngestDocumentsAllSeismicWithPostFiltering() throws Exception {
@@ -541,10 +539,10 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(3, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
+        List<String> actualIds = getDocIDs(searchResults);
         // results with k = 4 are 5, 6, 7, 8, filter results are 1, 2, 3, 4, 5, 6, 7
         // intersection of both are 5, 6, 7
-        assertEquals(Set.of("5", "6", "7"), actualIds);
+        assertEquals(List.of("7", "6", "5"), actualIds);
     }
 
     public void testIngestDocumentsRankFeaturesWithFiltering() throws Exception {
@@ -585,8 +583,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(4, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("1", "3", "5", "7"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("7", "5", "3", "1"), actualIds);
     }
 
     private void ingestDocuments(String index, String field, List<Map<String, Float>> docTokens) {
@@ -619,9 +617,9 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         bulkIngest(payloadBuilder.toString(), null);
     }
 
-    private Set<String> getDocIDs(Map<String, Object> searchResults) {
+    private List<String> getDocIDs(Map<String, Object> searchResults) {
         Map<String, Object> hits1map = (Map<String, Object>) searchResults.get("hits");
-        Set<String> actualIds = new HashSet<>();
+        List<String> actualIds = new ArrayList<>();
         List<Object> hits1List = (List<Object>) hits1map.get("hits");
         for (Object hits1Object : hits1List) {
             Map<String, Object> mapObject = (Map<String, Object>) hits1Object;
