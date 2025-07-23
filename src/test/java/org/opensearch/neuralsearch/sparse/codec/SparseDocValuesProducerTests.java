@@ -50,7 +50,7 @@ public class SparseDocValuesProducerTests extends AbstractSparseTestBase {
             mockDir,         // directory
             segmentInfo,     // segmentInfo
             mockFieldInfos,  // fieldInfos
-            ioContext      // context
+            ioContext        // context
         );
 
         producer = new SparseDocValuesProducer(segmentReadState, mockDelegate);
