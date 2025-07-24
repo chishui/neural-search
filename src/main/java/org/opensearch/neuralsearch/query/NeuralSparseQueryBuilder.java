@@ -203,6 +203,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (Objects.nonNull(queryTokensSupplier) && Objects.nonNull(queryTokensSupplier.get())) {
             xContentBuilder.field(QUERY_TOKENS_FIELD.getPreferredName(), queryTokensSupplier.get());
         }
+        if (Objects.nonNull(sparseAnnQueryBuilder)) {
+            xContentBuilder.field(METHOD_PARAMETERS_FIELD.getPreferredName(), sparseAnnQueryBuilder);
+        }
         printBoostAndQueryName(xContentBuilder);
         xContentBuilder.endObject();
         xContentBuilder.endObject();
@@ -392,7 +395,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
             builder.add(FeatureField.newLinearQuery(fieldName, entry.getKey(), entry.getValue()), BooleanClause.Occur.SHOULD);
         }
-        if (!isSeismic) {
+        if (!isSeismic || sparseAnnQueryBuilder == null) {
             return builder.build();
         } else {
             QueryBuilder filter = sparseAnnQueryBuilder.filter();

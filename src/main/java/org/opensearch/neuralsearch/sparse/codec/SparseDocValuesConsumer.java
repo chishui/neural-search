@@ -19,6 +19,8 @@ import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
 
 import java.io.IOException;
 
@@ -58,7 +60,7 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
         BinaryDocValues binaryDocValues = valuesProducer.getBinary(field);
         InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, field);
         int docCount = this.state.segmentInfo.maxDoc();
-        SparseVectorForwardIndex.SparseVectorWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount).getWriter();
+        SparseVectorWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount).getWriter();
         if (writer == null) {
             throw new IllegalStateException("Forward index writer is null");
         }
@@ -69,19 +71,18 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
                 SparseBinaryDocValues sparseBinaryDocValues = (SparseBinaryDocValues) binaryDocValues;
                 SparseVector vector = sparseBinaryDocValues.cachedSparseVector();
                 if (vector != null) {
-                    writer.write(docId, vector);
+                    writer.insert(docId, vector);
                     written = true;
                 }
             }
             if (!written) {
                 BytesRef bytesRef = binaryDocValues.binaryValue();
-                writer.write(docId, bytesRef);
+                writer.insert(docId, new SparseVector(bytesRef));
             }
             docId = binaryDocValues.nextDoc();
         }
         if (isMerge) {
-            if (valuesProducer instanceof SparseDocValuesReader) {
-                SparseDocValuesReader reader = (SparseDocValuesReader) valuesProducer;
+            if (valuesProducer instanceof SparseDocValuesReader reader) {
                 MergeHelper.clearInMemoryData(reader.getMergeState(), field, SparseVectorForwardIndex::removeIndex);
             }
         }

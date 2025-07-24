@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -137,7 +138,7 @@ public class SparseAnnQueryBuilderTests extends AbstractSparseTestBase {
 
     private XContentParser createParser(String json) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder()
-            .rawValue(new java.io.ByteArrayInputStream(json.getBytes()), XContentType.JSON);
+            .rawValue(new java.io.ByteArrayInputStream(json.getBytes(Charset.defaultCharset())), XContentType.JSON);
         return createParser(builder);
     }
 
