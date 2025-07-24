@@ -17,6 +17,7 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
+import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
@@ -83,7 +84,7 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
         }
         if (isMerge) {
             if (valuesProducer instanceof SparseDocValuesReader reader) {
-                MergeHelper.clearInMemoryData(reader.getMergeState(), field, SparseVectorForwardIndex::removeIndex);
+                MergeHelper.clearInMemoryData(new MergeStateFacade(reader.getMergeState()), field, SparseVectorForwardIndex::removeIndex);
             }
         }
     }

@@ -7,7 +7,6 @@ package org.opensearch.neuralsearch.sparse.common;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.MergeState;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 
@@ -15,10 +14,10 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 public class MergeHelper {
-    public static void clearInMemoryData(MergeState mergeState, FieldInfo fieldInfo, Consumer<InMemoryKey.IndexKey> consumer)
+    public static void clearInMemoryData(MergeStateFacade mergeState, FieldInfo fieldInfo, Consumer<InMemoryKey.IndexKey> consumer)
         throws IOException {
-        for (DocValuesProducer producer : mergeState.docValuesProducers) {
-            for (FieldInfo field : mergeState.mergeFieldInfos) {
+        for (DocValuesProducer producer : mergeState.getDocValuesProducers()) {
+            for (FieldInfo field : mergeState.getMergeFieldInfos()) {
                 if (!SparseTokensField.isSparseField(field) || (fieldInfo != null && field != fieldInfo)) {
                     continue;
                 }
