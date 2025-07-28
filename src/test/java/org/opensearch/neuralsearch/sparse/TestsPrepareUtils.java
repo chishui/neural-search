@@ -96,12 +96,6 @@ public class TestsPrepareUtils {
         return segmentInfo;
     }
 
-    public static SparseBinaryDocValuesPassThrough prepareSparseBinaryDocValuesPassThrough() {
-        BinaryDocValues delegate = prepareBinaryDocValues();
-        SegmentInfo segmentInfo = prepareSegmentInfo();
-        return new SparseBinaryDocValuesPassThrough(delegate, segmentInfo);
-    }
-
     public static BinaryDocValues prepareBinaryDocValues() {
         final BytesRef value = new BytesRef(new byte[] { 1, 2, 3, 4 });
         BinaryDocValues binaryDocValues = new BinaryDocValues() {
