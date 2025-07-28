@@ -8,7 +8,6 @@ import lombok.NonNull;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.MergeState;
 import org.opensearch.common.Nullable;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
@@ -18,12 +17,12 @@ import java.util.function.Consumer;
 
 public class MergeHelper {
     public static void clearInMemoryData(
-        @NonNull MergeState mergeState,
+        @NonNull MergeStateFacade mergeState,
         @Nullable FieldInfo fieldInfo,
         @NonNull Consumer<InMemoryKey.IndexKey> consumer
     ) throws IOException {
-        for (DocValuesProducer producer : mergeState.docValuesProducers) {
-            for (FieldInfo field : mergeState.mergeFieldInfos) {
+        for (DocValuesProducer producer : mergeState.getDocValuesProducers()) {
+            for (FieldInfo field : mergeState.getMergeFieldInfos()) {
                 boolean isNotSparse = !SparseTokensField.isSparseField(field);
                 boolean fieldInfoMatched = fieldInfo == null || field == fieldInfo;
                 if (isNotSparse || fieldInfoMatched) {
