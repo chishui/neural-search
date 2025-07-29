@@ -5,7 +5,6 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.SegmentInfo;
@@ -24,12 +23,9 @@ import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -428,120 +424,14 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
         verifyDocIDs(Arrays.asList(1, 11), scorer);
     }
 
-    public void testNullSparseVectorReaderWithoutInMemoryReader() throws IOException {
-        when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
-        InMemoryKey.IndexKey indexKey = mock(InMemoryKey.IndexKey.class);
-        when(postingsEnum1.getIndexKey()).thenReturn(indexKey);
-
-        // Mock document cluster
-        DocumentCluster cluster = prepareCluster(10, false, queryDenseVector);
-
-        // Mock cluster iterator
-        IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
-        when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
-
-        // mock vector & reader
-        SparseVector vector = mock(SparseVector.class);
-        when(sparseBinaryDocValues.read(1)).thenReturn(null);
-        when(sparseBinaryDocValues.read(2)).thenReturn(vector);
-
-        prepareClusterAndItsDocs(vectorReader, queryDenseVector, cluster, 1, 2, 2, 3);
-
-        // Create scorer
-        OrderedPostingWithClustersScorer scorer = new OrderedPostingWithClustersScorer(
-            FIELD_NAME,
-            sparseQueryContext,
-            queryVector,
-            leafReader,
-            null,
-            null,
-            simScorer,
-            null
+    public void testNullSparseVectorReaderThenThrowException() {
+        // Test behavior with null merge sparse vector reader - should throw NullPointerException within constructor
+        NullPointerException nullPointerException = assertThrows(
+            NullPointerException.class,
+            () -> new OrderedPostingWithClustersScorer(FIELD_NAME, sparseQueryContext, queryVector, leafReader, null, null, simScorer, null)
         );
 
-        // Test iterator - should skip doc 1 (no vector) and return doc 2
-        DocIdSetIterator iterator = scorer.iterator();
-        assertEquals(2, iterator.nextDoc());
-        assertEquals(NO_MORE_DOCS, iterator.nextDoc());
-    }
-
-    public void testNullSparseVectorReaderWithInMemoryReader() throws IOException {
-        when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
-        InMemoryKey.IndexKey indexKey = new InMemoryKey.IndexKey(segmentInfo, FIELD_NAME);
-
-        // Mock document cluster
-        DocumentCluster cluster = prepareCluster(10, false, queryDenseVector);
-
-        // Mock cluster iterator
-        IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
-        when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
-
-        prepareClusterAndItsDocs(vectorReader, queryDenseVector, cluster, 1, 2, 2, 3);
-
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, 10);
-        SparseVector vector = mock(SparseVector.class);
-        when(vector.dotProduct(queryDenseVector)).thenReturn(5);
-        index.getWriter().write(1, vector);
-
-        OrderedPostingWithClustersScorer scorer = new OrderedPostingWithClustersScorer(
-            FIELD_NAME,
-            sparseQueryContext,
-            queryVector,
-            leafReader,
-            null,
-            null,
-            simScorer,
-            null
-        );
-
-        // Test iterator - should skip doc 1 (no vector) and return doc 2
-        DocIdSetIterator iterator = scorer.iterator();
-        assertEquals(1, iterator.nextDoc());
-        assertEquals(NO_MORE_DOCS, iterator.nextDoc());
-    }
-
-    public void testNullSparseVectorReaderWithBinaryDocValuesTypeMismatch() throws IOException {
-        when(termsEnum.seekExact(new BytesRef("token1"))).thenReturn(true);
-        when(termsEnum.postings(null, PostingsEnum.FREQS)).thenReturn(postingsEnum1);
-        InMemoryKey.IndexKey indexKey = mock(InMemoryKey.IndexKey.class);
-        when(postingsEnum1.getIndexKey()).thenReturn(indexKey);
-
-        // Mock document cluster
-        DocumentCluster cluster = prepareCluster(10, false, queryDenseVector);
-
-        // Mock cluster iterator
-        IteratorWrapper<DocumentCluster> clusterIterator = mock(IteratorWrapper.class);
-        when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
-        when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
-
-        prepareClusterAndItsDocs(vectorReader, queryDenseVector, cluster, 1, 2, 2, 3);
-
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, 10);
-        SparseVector vector = mock(SparseVector.class);
-        when(vector.dotProduct(queryDenseVector)).thenReturn(5);
-        index.getWriter().write(1, vector);
-
-        BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
-        when(leafReader.getBinaryDocValues(anyString())).thenReturn(binaryDocValues);
-
-        OrderedPostingWithClustersScorer scorer = new OrderedPostingWithClustersScorer(
-            FIELD_NAME,
-            sparseQueryContext,
-            queryVector,
-            leafReader,
-            null,
-            null,
-            simScorer,
-            null
-        );
-
-        // Test iterator - should skip doc 1 (no vector) and return doc 2
-        DocIdSetIterator iterator = scorer.iterator();
-        assertEquals(NO_MORE_DOCS, iterator.nextDoc());
+        assertEquals("reader is marked non-null but is null", nullPointerException.getMessage());
     }
 
     public void testMissingVector() throws IOException {

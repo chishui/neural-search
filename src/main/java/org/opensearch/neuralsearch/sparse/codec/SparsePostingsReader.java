@@ -148,7 +148,7 @@ public class SparsePostingsReader {
             Terms terms = fieldsProducer.terms(fieldInfo.name);
             if (terms instanceof SparseTerms) {
                 SparseTerms sparseTerms = (SparseTerms) terms;
-                allTerms.addAll(sparseTerms.getReader().terms());
+                allTerms.addAll(sparseTerms.getReader().getTerms());
             } else {
                 // fieldsProducer could be a delegate one as we need to merge normal segments into seis segment
                 TermsEnum termsEnum = terms.iterator();

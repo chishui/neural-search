@@ -46,8 +46,7 @@ public class SparseDocValuesReader extends EmptyDocValuesProducer {
                     }
                     if (values != null) {
                         InMemoryKey.IndexKey key = null;
-                        if (values instanceof SparseBinaryDocValuesPassThrough) {
-                            SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough = (SparseBinaryDocValuesPassThrough) values;
+                        if (values instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
                             key = new InMemoryKey.IndexKey(sparseBinaryDocValuesPassThrough.getSegmentInfo(), field);
                         }
                         totalLiveDocs = totalLiveDocs + getLiveDocsCount(values, this.mergeState.liveDocs[i]);
