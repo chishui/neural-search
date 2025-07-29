@@ -14,14 +14,14 @@ import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.util.Arrays;
 import java.util.List;
 
 public class BatchClusteringTaskTests extends AbstractSparseTestBase {
-    private static List<BytesRef> terms;
-    private static InMemoryKey.IndexKey key;
+    private List<BytesRef> terms;
+    private MergeState mergeState;
+    private InMemoryKey.IndexKey key;
 
     @Before
     @Override
@@ -29,8 +29,12 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 
+        boolean isEmptyMaxDocs = true;
+        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+
         terms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
-        key = new InMemoryKey.IndexKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field");
+        mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
+        key = new InMemoryKey.IndexKey(segmentInfo, "test_field");
     }
 
     public void testConstructorDeepCopiesTerms() throws Exception {
@@ -38,7 +42,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         List<BytesRef> originalTerms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
 
         // Execute - create task with null mergeState to test constructor
-        BatchClusteringTask task = new BatchClusteringTask(originalTerms, key, 0.5f, 0.3f, 10, null, null);
+        BatchClusteringTask task = new BatchClusteringTask(originalTerms, key, 0.5f, 0.3f, 10, mergeState, null);
 
         // Verify task is created
         assertNotNull("Task should be created successfully", task);
@@ -56,17 +60,17 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         assertNotEquals("Original term should now be different", "term1", originalTerms.get(0).utf8ToString());
     }
 
-    public void testGetWithNullMergeState() throws Exception {
-        // Test behavior with null merge state - should throw NullPointerException when accessing maxDocs
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, null, null);
+    public void testGetWithNullMergeStateThenThrowException() {
+        // Test behavior with null merge state - should throw NullPointerException within constructor
+        NullPointerException nullPointerException = assertThrows(
+            NullPointerException.class,
+            () -> new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, null, null)
+        );
 
-        Exception exception = assertThrows(NullPointerException.class, () -> task.get());
-
-        // Assert that the exception is an instance of NullPointerException
-        assertTrue("Exception should be an instance of NullPointerException", exception instanceof NullPointerException);
+        assertEquals("mergeState is marked non-null but is null", nullPointerException.getMessage());
     }
 
-    public void testGetWithNonNullMergeState() throws Exception {
+    public void testGetWithNonNullMergeState() {
         // Test behavior with a not null merge state
         boolean isEmptyMaxDocs = false;
         MergeState mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
@@ -99,7 +103,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         }
     }
 
-    public void testGetWithNonNullMergeStateZeroMaxDocs() throws Exception {
+    public void testGetWithNonNullMergeStateZeroMaxDocs() {
         // Test behavior with a not null merge state
         boolean isEmptyMaxDocs = true;
         MergeState mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
@@ -117,11 +121,11 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         assertEquals("Should return an empty list", 0, result.size());
     }
 
-    public void testTermsDeepCopyInGet() throws Exception {
+    public void testTermsDeepCopyInGet() {
         // Test that the terms are properly deep copied and used in get() method
         List<BytesRef> originalTerms = Arrays.asList(new BytesRef("original1"), new BytesRef("original2"));
 
-        BatchClusteringTask task = new BatchClusteringTask(originalTerms, key, 0.5f, 0.3f, 10, null, null);
+        BatchClusteringTask task = new BatchClusteringTask(originalTerms, key, 0.5f, 0.3f, 10, mergeState, null);
 
         // Modify original terms
         originalTerms.get(0).bytes[0] = (byte) 'M';
@@ -129,20 +133,5 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         // The task should still have the original values due to deep copy
         // We can't easily test the get() method output, but we can verify the task was created properly
         assertNotNull("Task should be created and maintain its own copy of terms", task);
-    }
-
-    public void testReadFromCacheMethods_directTrigger() throws Exception {
-        boolean isEmptyMaxDocs = false;
-        MergeState mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
-        FieldInfo keyFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeState, keyFieldInfo);
-
-        SparseVector result1 = task.readFromCacheOfMergedSegment(0);
-        assertNull("Should return null when no cache is set", result1);
-
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
-        SparseVector result2 = task.readFromCacheOfOldSegment(segmentInfo, 0);
-        assertNull("Should return null when no cache is set", result2);
     }
 }

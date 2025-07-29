@@ -143,7 +143,6 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
         if (Objects.nonNull(heapFactor)) {
             xContentBuilder.field(HEAP_FACTOR_FIELD.getPreferredName(), heapFactor);
         }
-        printBoostAndQueryName(xContentBuilder);
     }
 
     @Override

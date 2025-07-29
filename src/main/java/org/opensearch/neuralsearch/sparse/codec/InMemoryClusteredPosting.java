@@ -4,79 +4,114 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
-import lombok.AllArgsConstructor;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPosting;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class manages the in-memory postings for sparse vectors. It provides methods to write and read postings from memory.
  * It is used by the SparsePostingsConsumer and SparsePostingsReader classes.
  */
-public class InMemoryClusteredPosting implements Accountable {
-    public static final Map<InMemoryKey.IndexKey, Map<BytesRef, PostingClusters>> inMemoryPostings = new ConcurrentHashMap<>();
+public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
+
+    private static final Map<InMemoryKey.IndexKey, InMemoryClusteredPosting> postingsMap = new ConcurrentHashMap<>();
+
+    public static long memUsage() {
+        long mem = RamUsageEstimator.shallowSizeOf(postingsMap);
+        for (Map.Entry<InMemoryKey.IndexKey, InMemoryClusteredPosting> entry : postingsMap.entrySet()) {
+            mem += RamUsageEstimator.shallowSizeOf(entry.getKey());
+            mem += entry.getValue().ramBytesUsed();
+        }
+        return mem;
+    }
+
+    public static InMemoryClusteredPosting getOrCreate(InMemoryKey.IndexKey key) {
+        if (key == null) {
+            throw new IllegalArgumentException("Index key cannot be null");
+        }
+        return postingsMap.computeIfAbsent(key, k -> new InMemoryClusteredPosting());
+    }
+
+    public static InMemoryClusteredPosting get(InMemoryKey.IndexKey key) {
+        if (key == null) {
+            throw new IllegalArgumentException("Index key cannot be null");
+        }
+        return postingsMap.get(key);
+    }
 
     public static void clearIndex(InMemoryKey.IndexKey key) {
-        inMemoryPostings.remove(key);
+        postingsMap.remove(key);
     }
+
+    private final Map<BytesRef, PostingClusters> clusteredPostings = new ConcurrentHashMap<>();
+    private final AtomicLong usedRamBytes = new AtomicLong(RamUsageEstimator.shallowSizeOf(clusteredPostings));
+    private final ClusteredPostingReader reader = new InMemoryClusteredPostingReader();
+    private final ClusteredPostingWriter writer = new InMemoryClusteredPostingWriter();
 
     @Override
     public long ramBytesUsed() {
-        long ramUsed = 0;
-        for (Map.Entry<InMemoryKey.IndexKey, Map<BytesRef, PostingClusters>> entry : inMemoryPostings.entrySet()) {
-            ramUsed += RamUsageEstimator.shallowSizeOfInstance(InMemoryKey.IndexKey.class);
-            for (Map.Entry<BytesRef, PostingClusters> entry2 : entry.getValue().entrySet()) {
-                ramUsed += entry2.getKey().length;
-                ramUsed += entry2.getValue().ramBytesUsed();
-            }
-        }
-        return ramUsed;
+        return usedRamBytes.get();
     }
 
-    @AllArgsConstructor
-    public static class InMemoryClusteredPostingReader {
-        private final InMemoryKey.IndexKey key;
+    @Override
+    public ClusteredPostingReader getReader() {
+        return reader;
+    }
 
+    @Override
+    public ClusteredPostingWriter getWriter() {
+        return writer;
+    }
+
+    private class InMemoryClusteredPostingReader implements ClusteredPostingReader {
+        @Override
         public PostingClusters read(BytesRef term) {
-            return inMemoryPostings.getOrDefault(key, Collections.emptyMap()).get(term);
+            return clusteredPostings.get(term);
         }
 
-        // once we enable cache eviction, this method will get partial data and should be removed.
+        @Override
         public Set<BytesRef> getTerms() {
-            Map<BytesRef, PostingClusters> innerMap = inMemoryPostings.get(key);
-            return innerMap != null ? innerMap.keySet() : Collections.emptySet();
+            // Note: We're returning the keySet directly instead of using Collections.unmodifiableSet()
+            // for performance reasons. Callers should treat this as a read-only view.
+            return clusteredPostings.keySet();
         }
 
+        @Override
         public long size() {
-            return inMemoryPostings.get(key).size();
+            return clusteredPostings.size();
         }
     }
 
-    public static class InMemoryClusteredPostingWriter {
-        public static Map<BytesRef, PostingClusters> writePostingClusters(
-            InMemoryKey.IndexKey key,
-            BytesRef term,
-            List<DocumentCluster> clusters
-        ) {
-            if (clusters == null || clusters.isEmpty()) {
-                return null;
+    private class InMemoryClusteredPostingWriter implements ClusteredPostingWriter {
+        public void insert(BytesRef term, List<DocumentCluster> clusters) {
+            if (clusters == null || clusters.isEmpty() || term == null) {
+                return;
             }
-            return inMemoryPostings.compute(key, (k, existingMap) -> {
-                if (existingMap == null) {
-                    existingMap = new ConcurrentHashMap<>();
-                }
-                existingMap.put(term.clone(), new PostingClusters(clusters));
-                return existingMap;
-            });
+
+            BytesRef clonedTerm = term.clone();
+            PostingClusters postingClusters = new PostingClusters(clusters);
+            long clustersSize = postingClusters.ramBytesUsed();
+            long termSize = RamUsageEstimator.shallowSizeOf(clonedTerm) + (clonedTerm.bytes != null ? clonedTerm.bytes.length : 0);
+
+            // Update the clusters with putIfAbsent for thread safety
+            PostingClusters existingClusters = clusteredPostings.putIfAbsent(clonedTerm, postingClusters);
+
+            // Only update memory usage if we actually inserted a new entry
+            if (existingClusters == null) {
+                usedRamBytes.addAndGet(clustersSize + termSize);
+            }
         }
     }
 }
