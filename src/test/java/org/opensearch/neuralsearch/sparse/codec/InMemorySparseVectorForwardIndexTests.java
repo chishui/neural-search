@@ -8,12 +8,14 @@ import org.apache.lucene.index.SegmentInfo;
 import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
 
 import java.io.IOException;
+
+import static org.mockito.Mockito.mock;
 
 public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBase {
 
@@ -28,7 +30,7 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
     public void setUp() throws Exception {
         super.setUp();
 
-        segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+        segmentInfo = mock(SegmentInfo.class);
 
         // Create an IndexKey for testing
         indexKey = new InMemoryKey.IndexKey(segmentInfo, FIELD_NAME);
@@ -42,14 +44,11 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         super.tearDown();
     }
 
-    public void testGetOrCreate() {
-        // Test creating a new index
-        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
-        assertNotNull("Index should not be null", index);
-
-        // Test getting the same index
-        InMemorySparseVectorForwardIndex sameIndex = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
-        assertSame("Should return the same index instance", index, sameIndex);
+    public void testGetOrCreate_withExistingKey() {
+        // Create an index and then get it
+        InMemorySparseVectorForwardIndex createdIndex = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
+        InMemorySparseVectorForwardIndex retrievedIndex = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
+        assertSame("Should return the same index instance", createdIndex, retrievedIndex);
     }
 
     public void testGetOrCreate_withNullKey() {
@@ -95,63 +94,82 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         InMemorySparseVectorForwardIndex.removeIndex(indexKey);
     }
 
-    public void testReadWrite_withValidVector() throws IOException {
+    public void testReadInsert_withValidVector() throws IOException {
         // Create an index
         InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
 
         // Get reader and writer
         SparseVectorReader reader = index.getReader();
-        SparseVectorForwardIndex.SparseVectorWriter writer = index.getWriter();
+        SparseVectorWriter writer = index.getWriter();
 
         // Test initial state - all vectors should be null
         for (int i = 0; i < DOC_COUNT; i++) {
             assertNull("Vector should be null initially", reader.read(i));
         }
 
-        // Write a vector
+        // Insert a vector
         SparseVector vector1 = createVector(1, 2, 3, 4);
-        writer.write(0, vector1);
+        writer.insert(0, vector1);
 
         // Read the vector back
         SparseVector readVector1 = reader.read(0);
-        assertEquals("Read vector should match written vector", vector1, readVector1);
+        assertEquals("Read vector should match inserted vector", vector1, readVector1);
 
-        // Test writing to an out-of-bounds docId
-        writer.write(DOC_COUNT + 1, vector1); // Should be ignored, no exception
+        // Test inserting to an out-of-bounds docId
+        writer.insert(DOC_COUNT + 1, vector1); // Should be ignored, no exception
     }
 
-    public void testReadWrite_withNullVector() throws IOException {
+    public void testReadInsert_withNullVector() throws IOException {
         // Create an index
         InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
 
         // Get reader and writer
         SparseVectorReader reader = index.getReader();
-        SparseVectorForwardIndex.SparseVectorWriter writer = index.getWriter();
+        SparseVectorWriter writer = index.getWriter();
 
         // Test initial state - all vectors should be null
         for (int i = 0; i < DOC_COUNT; i++) {
             assertNull("Vector should be null initially", reader.read(i));
         }
 
-        // Test writing null vector
-        writer.write(2, (SparseVector) null); // Should be ignored, no exception
+        // Test inserting null vector
+        writer.insert(2, null); // Should be ignored, no exception
         assertNull("Vector should still be null", reader.read(2));
+    }
+
+    public void testInsert_skipsDuplicates() throws IOException {
+        // Create an index
+        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
+
+        // Get reader and writer
+        SparseVectorReader reader = index.getReader();
+        SparseVectorWriter writer = index.getWriter();
+
+        // Insert first vector
+        SparseVector vector1 = createVector(1, 2, 3, 4);
+        writer.insert(0, vector1);
+        assertEquals("First vector should be inserted", vector1, reader.read(0));
+
+        // Try to insert different vector at same position
+        SparseVector vector2 = createVector(5, 6, 7, 8);
+        writer.insert(0, vector2);
+        assertEquals("Original vector should remain unchanged", vector1, reader.read(0));
     }
 
     public void testRamBytesUsed() throws IOException {
         // Create an empty index
         InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
 
-        // Initial RAM usage should be minimal (just the array overhead)
+        // Initial RAM usage should be positive (array overhead)
         long initialRam = index.ramBytesUsed();
-        assertEquals("Empty index should use minimal RAM", 0, initialRam);
+        assertTrue("Empty index should use some RAM for array", initialRam > 0);
 
         // Add some vectors
-        SparseVectorForwardIndex.SparseVectorWriter writer = index.getWriter();
+        SparseVectorWriter writer = index.getWriter();
         SparseVector vector1 = createVector(1, 2, 3, 4);
         SparseVector vector2 = createVector(5, 6, 7, 8, 9, 10);
-        writer.write(0, vector1);
-        writer.write(1, vector2);
+        writer.insert(0, vector1);
+        writer.insert(1, vector2);
 
         // RAM usage should increase
         long ramWithVectors = index.ramBytesUsed();
@@ -162,19 +180,20 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         // Create an empty index
         InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
 
-        // Initial Memory usage should be minimal (just the array overhead)
+        // Initial Memory usage should be positive
         long initialMemUsage = InMemorySparseVectorForwardIndex.memUsage();
         assertTrue("Initial memory usage should be positive", initialMemUsage > 0);
 
         // Add some vectors
-        SparseVectorForwardIndex.SparseVectorWriter writer = index.getWriter();
+        SparseVectorWriter writer = index.getWriter();
         SparseVector vector1 = createVector(1, 2, 3, 4);
         SparseVector vector2 = createVector(5, 6, 7, 8, 9, 10);
-        writer.write(0, vector1);
-        writer.write(1, vector2);
+        writer.insert(0, vector1);
+        writer.insert(1, vector2);
+
         // Test memUsage static method
         long totalMemUsage = InMemorySparseVectorForwardIndex.memUsage();
-        assertTrue("Total memory usage should be positive", totalMemUsage > initialMemUsage);
+        assertTrue("Total memory usage should increase", totalMemUsage > initialMemUsage);
     }
 
     public void testMultipleIndices() {
@@ -187,8 +206,5 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
 
         // Verify they are different instances
         assertNotSame("Should be different index instances", index1, index2);
-
-        // Clean up
-        InMemorySparseVectorForwardIndex.removeIndex(indexKey2);
     }
 }
