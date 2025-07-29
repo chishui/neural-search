@@ -5,12 +5,11 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.PostingsEnum;
-import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
@@ -19,18 +18,15 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LongBitSet;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
-import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -54,43 +50,17 @@ public abstract class SeismicBaseScorer extends Scorer {
         SparseQueryContext sparseQueryContext,
         int maxDocCount,
         SparseVector queryVector,
-        SparseVectorReader reader,
+        @NonNull SparseVectorReader reader,
         Bits acceptedDocs
     ) throws IOException {
         visitedDocId = new LongBitSet(maxDocCount);
         this.fieldName = fieldName;
         this.sparseQueryContext = sparseQueryContext;
         this.queryDenseVector = queryVector.toDenseVector();
-        this.reader = getSparseVectorReader(leafReader, reader);
+        this.reader = reader;
         this.acceptedDocs = acceptedDocs;
         scoreHeap = new HeapWrapper(SEISMIC_HEAP_SIZE);
         initialize(leafReader);
-    }
-
-    private SparseVectorReader getSparseVectorReader(LeafReader leafReader, SparseVectorReader reader) throws IOException {
-        if (reader != null) {
-            return reader;
-        }
-        BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
-        if (docValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
-            SegmentInfo segmentInfo = sparseBinaryDocValuesPassThrough.getSegmentInfo();
-            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
-            SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
-            if (index != null) {
-                SparseVectorReader inMemoryReader = index.getReader();
-                reader = (docId) -> {
-                    SparseVector vector = inMemoryReader.read(docId);
-                    if (vector != null) {
-                        return vector;
-                    }
-                    return sparseBinaryDocValuesPassThrough.read(docId);
-                };
-            } else {
-                reader = sparseBinaryDocValuesPassThrough;
-            }
-            return reader;
-        }
-        return (docId) -> { return null; };
     }
 
     protected void initialize(LeafReader leafReader) throws IOException {
@@ -141,7 +111,7 @@ public abstract class SeismicBaseScorer extends Scorer {
     }
 
     protected static PriorityQueue<Pair<Integer, Integer>> makeHeap() {
-        return new PriorityQueue<>((a, b) -> Integer.compare(a.getRight(), b.getRight()));
+        return new PriorityQueue<>(Comparator.comparingInt(Pair::getRight));
     }
 
     protected static class HeapWrapper {
@@ -318,7 +288,7 @@ public abstract class SeismicBaseScorer extends Scorer {
             return NO_MORE_DOCS;
         }
 
-        // we use cost() to return prestored score
+        // we use cost() to return pre-stored score
         @Override
         public long cost() {
             if (resultsIterator.getCurrent() == null || docId == NO_MORE_DOCS) {
