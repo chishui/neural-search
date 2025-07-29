@@ -37,7 +37,7 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         sparseBinaryDocValues = new SparseBinaryDocValues(docIDMerger);
     }
 
-    public void testDocID() {
+    public void testInitialDocID() {
         assertEquals(-1, sparseBinaryDocValues.docID());
     }
 
@@ -93,12 +93,55 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
         when(docIDMerger.next()).thenReturn(binaryDocValuesSub);
         InMemoryKey.IndexKey testKey = new InMemoryKey.IndexKey(segmentInfo, fieldInfo);
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(testKey, 10);
         when(binaryDocValuesSub.getKey()).thenReturn(testKey);
         sparseBinaryDocValues.nextDoc();
         SparseVector result = sparseBinaryDocValues.cachedSparseVector();
 
         assertNull(result); // index retrieved by this key is null, so it should return null
+    }
+
+    public void testCachedSparseVector_WithExistingIndex() throws IOException {
+        SegmentInfo segmentInfo = mock(SegmentInfo.class);
+        FieldInfo fieldInfo = mock(FieldInfo.class);
+        InMemoryKey.IndexKey testKey = new InMemoryKey.IndexKey(segmentInfo, fieldInfo);
+
+        // Create an actual index with some data
+        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(testKey, 10);
+        SparseVector testVector = createVector(1, 2, 3, 4);
+        index.getWriter().insert(5, testVector);
+
+        when(docIDMerger.next()).thenReturn(binaryDocValuesSub);
+        when(binaryDocValuesSub.getKey()).thenReturn(testKey);
+        when(binaryDocValuesSub.getDocId()).thenReturn(5);
+
+        sparseBinaryDocValues.nextDoc();
+        SparseVector result = sparseBinaryDocValues.cachedSparseVector();
+
+        assertEquals(testVector, result);
+
+        // Clean up
+        InMemorySparseVectorForwardIndex.removeIndex(testKey);
+    }
+
+    public void testCachedSparseVector_WithExistingIndexButNoVector() throws IOException {
+        SegmentInfo segmentInfo = mock(SegmentInfo.class);
+        FieldInfo fieldInfo = mock(FieldInfo.class);
+        InMemoryKey.IndexKey testKey = new InMemoryKey.IndexKey(segmentInfo, fieldInfo);
+
+        // Create an index but don't insert any data
+        InMemorySparseVectorForwardIndex.getOrCreate(testKey, 10);
+
+        when(docIDMerger.next()).thenReturn(binaryDocValuesSub);
+        when(binaryDocValuesSub.getKey()).thenReturn(testKey);
+        when(binaryDocValuesSub.getDocId()).thenReturn(3);
+
+        sparseBinaryDocValues.nextDoc();
+        SparseVector result = sparseBinaryDocValues.cachedSparseVector();
+
+        assertNull(result); // No vector at docId 3
+
+        // Clean up
+        InMemorySparseVectorForwardIndex.removeIndex(testKey);
     }
 
     public void testSetTotalLiveDocs() {
