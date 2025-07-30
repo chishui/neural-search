@@ -98,6 +98,32 @@ public class TestsPrepareUtils {
         return segmentInfo;
     }
 
+    public static SegmentInfo prepareSegmentInfo(int maxDoc) {
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        Directory dir = new ByteBuffersDirectory();
+        byte[] id = new byte[16];
+        for (int i = 0; i < id.length; i++) {
+            id[i] = (byte) i;
+        }
+
+        SegmentInfo segmentInfo = new SegmentInfo(
+            dir,                           // directory
+            Version.LATEST,                // version
+            Version.LATEST,                // minVersion
+            "_test_segment",               // name
+            maxDoc,                            // maxDoc
+            false,                         // isCompoundFile
+            false,                         // hasBlocks
+            Codec.getDefault(),            // codec
+            Collections.emptyMap(),        // diagnostics
+            id,                            // id
+            Collections.emptyMap(),        // attributes
+            null                           // indexSort
+        );
+        return segmentInfo;
+    }
+
     public static BinaryDocValues prepareBinaryDocValues() {
         final BytesRef value = new BytesRef(new byte[] { 1, 2, 3, 4 });
         BinaryDocValues binaryDocValues = new BinaryDocValues() {
@@ -373,6 +399,14 @@ public class TestsPrepareUtils {
     public static SegmentWriteState prepareSegmentWriteState() {
         Directory directory = new ByteBuffersDirectory();
         SegmentInfo segmentInfo = prepareSegmentInfo();
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        IOContext ioContext = IOContext.DEFAULT;
+
+        return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
+    }
+
+    public static SegmentWriteState prepareSegmentWriteState(SegmentInfo segmentInfo) {
+        Directory directory = new ByteBuffersDirectory();
         FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
         IOContext ioContext = IOContext.DEFAULT;
 

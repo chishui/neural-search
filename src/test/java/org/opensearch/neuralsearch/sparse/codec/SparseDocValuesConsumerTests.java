@@ -97,31 +97,11 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
     public void testAddBinaryField_SparseFieldBelowThreshold() throws IOException {
         // Create new segmentInfo with lower maxDoc
-        segmentInfo = new SegmentInfo(
-            segmentInfo.dir,
-            segmentInfo.getVersion(),
-            segmentInfo.getMinVersion(),
-            segmentInfo.name,
-            30,  // maxDoc below threshold
-            segmentInfo.getUseCompoundFile(),
-            segmentInfo.getHasBlocks(),
-            segmentInfo.getCodec(),
-            segmentInfo.getDiagnostics(),
-            segmentInfo.getId(),
-            segmentInfo.getAttributes(),
-            segmentInfo.getIndexSort()
-        );
+        segmentInfo = TestsPrepareUtils.prepareSegmentInfo(30);
         indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
-        segmentWriteState = new SegmentWriteState(
-            segmentWriteState.infoStream,
-            segmentWriteState.directory,
-            segmentInfo,  // Use the new segmentInfo
-            segmentWriteState.fieldInfos,
-            null,
-            segmentWriteState.context
-        );
+        segmentWriteState = TestsPrepareUtils.prepareSegmentWriteState(segmentInfo);
         sparseDocValuesConsumer = new SparseDocValuesConsumer(segmentWriteState, delegate);
 
         sparseDocValuesConsumer.addBinaryField(sparseFieldInfo, docValuesProducer);
@@ -133,31 +113,11 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
     public void testAddBinaryField_SparseFieldAboveThreshold() throws IOException {
         // Create new segmentInfo with higher maxDoc
-        segmentInfo = new SegmentInfo(
-            segmentInfo.dir,
-            segmentInfo.getVersion(),
-            segmentInfo.getMinVersion(),
-            segmentInfo.name,
-            100,  // maxDoc above threshold
-            segmentInfo.getUseCompoundFile(),
-            segmentInfo.getHasBlocks(),
-            segmentInfo.getCodec(),
-            segmentInfo.getDiagnostics(),
-            segmentInfo.getId(),
-            segmentInfo.getAttributes(),
-            segmentInfo.getIndexSort()
-        );
+        segmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
         indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
-        segmentWriteState = new SegmentWriteState(
-            segmentWriteState.infoStream,
-            segmentWriteState.directory,
-            segmentInfo,  // Use the new segmentInfo
-            segmentWriteState.fieldInfos,
-            null,
-            segmentWriteState.context
-        );
+        segmentWriteState = TestsPrepareUtils.prepareSegmentWriteState(segmentInfo);
         sparseDocValuesConsumer = new SparseDocValuesConsumer(segmentWriteState, delegate);
 
         BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
@@ -270,14 +230,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
-        segmentWriteState = new SegmentWriteState(
-            segmentWriteState.infoStream,
-            segmentWriteState.directory,
-            segmentInfo,  // Use the new segmentInfo
-            segmentWriteState.fieldInfos,
-            null,
-            segmentWriteState.context
-        );
+        segmentWriteState = TestsPrepareUtils.prepareSegmentWriteState(segmentInfo);
         sparseDocValuesConsumer = new SparseDocValuesConsumer(segmentWriteState, delegate);
 
         // Create SparseBinaryDocValues for merge scenario
@@ -350,14 +303,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
             segmentInfo.getAttributes(),
             segmentInfo.getIndexSort()
         );
-        SegmentWriteState newState = new SegmentWriteState(
-            segmentWriteState.infoStream,
-            segmentWriteState.directory,
-            newSegmentInfo,
-            segmentWriteState.fieldInfos,
-            null,
-            segmentWriteState.context
-        );
+        SegmentWriteState newState = TestsPrepareUtils.prepareSegmentWriteState(newSegmentInfo);
         SparseDocValuesConsumer newConsumer = new SparseDocValuesConsumer(newState, delegate);
 
         // Create MergeState with sparse field
@@ -372,7 +318,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).merge(mergeState);
 
         // Clean up
-        InMemorySparseVectorForwardIndex.removeIndex(new InMemoryKey.IndexKey(newSegmentInfo, sparseFieldInfo));
+        // InMemorySparseVectorForwardIndex.removeIndex(new InMemoryKey.IndexKey(newSegmentInfo, sparseFieldInfo));
     }
 
     private BytesRef createValidSparseVectorBytes() {
