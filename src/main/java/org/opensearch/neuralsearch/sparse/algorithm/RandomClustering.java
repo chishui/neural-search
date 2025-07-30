@@ -6,7 +6,7 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
@@ -28,30 +28,30 @@ public class RandomClustering implements Clustering {
     private final SparseVectorReader reader;
 
     @Override
-    public List<DocumentCluster> cluster(List<DocFreq> docFreqs) throws IOException {
-        if (docFreqs.isEmpty()) {
+    public List<DocumentCluster> cluster(List<DocWeight> docWeights) throws IOException {
+        if (docWeights.isEmpty()) {
             return List.of();
         }
         if (clusterRatio == 0) {
-            DocumentCluster cluster = new DocumentCluster(null, docFreqs, true);
+            DocumentCluster cluster = new DocumentCluster(null, docWeights, true);
             return List.of(cluster);
         }
-        int size = docFreqs.size();
+        int size = docWeights.size();
         // generate beta unique random centers
         int num_cluster = Math.min(size, Math.max(1, (int) Math.ceil(size * clusterRatio)));
         int[] centers = Randomness.get().ints(0, size).distinct().limit(num_cluster).toArray();
-        List<List<DocFreq>> docAssignments = new ArrayList<>(num_cluster);
+        List<List<DocWeight>> docAssignments = new ArrayList<>(num_cluster);
         List<SparseVector> sparseVectors = new ArrayList<>();
         for (int i = 0; i < num_cluster; i++) {
             docAssignments.add(new ArrayList<>());
-            SparseVector center = reader.read(docFreqs.get(centers[i]).getDocID());
+            SparseVector center = reader.read(docWeights.get(centers[i]).getDocID());
             sparseVectors.add(center);
         }
 
-        for (DocFreq docFreq : docFreqs) {
+        for (DocWeight docWeight : docWeights) {
             int centerIdx = 0;
             float maxScore = Float.MIN_VALUE;
-            SparseVector docVector = reader.read(docFreq.getDocID());
+            SparseVector docVector = reader.read(docWeight.getDocID());
             if (docVector == null) {
                 continue;
             }
@@ -67,7 +67,7 @@ public class RandomClustering implements Clustering {
                     centerIdx = i;
                 }
             }
-            docAssignments.get(centerIdx).add(docFreq);
+            docAssignments.get(centerIdx).add(docWeight);
         }
         List<DocumentCluster> clusters = new ArrayList<>();
         for (int i = 0; i < num_cluster; ++i) {

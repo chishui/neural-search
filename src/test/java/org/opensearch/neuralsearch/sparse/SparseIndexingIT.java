@@ -210,7 +210,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
             .field("n_postings", 100) // Integer: length of posting list
             .field("summary_prune_ratio", 0.1f) // Float
             .field("cluster_ratio", 0.1f) // Float: cluster ratio
-            .field("algo_trigger_doc_count", 8)
+            .field("approximate_threshold", 8)
             .field("additional_parameter", 8)
             .endObject()
             .endObject()
@@ -758,7 +758,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         return settingBuilder.toString();
     }
 
-    private String prepareIndexMapping(int nPostings, float alpha, float clusterRatio, int docTriggerPoint) throws IOException {
+    private String prepareIndexMapping(int nPostings, float alpha, float clusterRatio, int approximateThreshold) throws IOException {
         XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("properties")
@@ -770,7 +770,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
             .field("n_postings", nPostings) // Integer: length of posting list
             .field("summary_prune_ratio", alpha) // Float
             .field("cluster_ratio", clusterRatio) // Float: cluster ratio
-            .field("algo_trigger_doc_count", docTriggerPoint)
+            .field("approximate_threshold", approximateThreshold)
             .endObject()
             .endObject()
             .endObject()
@@ -779,9 +779,9 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         return mappingBuilder.toString();
     }
 
-    private Request configureSparseIndex(String indexName, int nPostings, float alpha, float clusterRatio, int docTriggerPoint)
+    private Request configureSparseIndex(String indexName, int nPostings, float alpha, float clusterRatio, int approximateThreshold)
         throws IOException {
-        return configureSparseIndex(indexName, nPostings, alpha, clusterRatio, docTriggerPoint, 1, 0);
+        return configureSparseIndex(indexName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
     }
 
     private Request configureSparseIndex(
@@ -789,12 +789,12 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         int nPostings,
         float alpha,
         float clusterRatio,
-        int docTriggerPoint,
+        int approximateThreshold,
         int shards,
         int replicas
     ) throws IOException {
         String indexSettings = prepareIndexSettings(shards, replicas);
-        String indexMappings = prepareIndexMapping(nPostings, alpha, clusterRatio, docTriggerPoint);
+        String indexMappings = prepareIndexMapping(nPostings, alpha, clusterRatio, approximateThreshold);
         Request request = new Request("PUT", "/" + indexName);
         String body = String.format(
             Locale.ROOT,

@@ -19,7 +19,7 @@ import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsReader;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
@@ -68,7 +68,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
             for (BytesRef term : this.terms) {
                 int[] newIdToFieldProducerIndex = new int[maxDocs];
                 int[] newIdToOldId = new int[maxDocs];
-                List<DocFreq> docFreqs = SparsePostingsReader.getMergedPostingForATerm(
+                List<DocWeight> docWeights = SparsePostingsReader.getMergedPostingForATerm(
                     this.mergeState,
                     term,
                     this.fieldInfo,
@@ -85,7 +85,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                         return reader.read(oldId);
                     })
                 );
-                List<DocumentCluster> clusters = postingClustering.cluster(docFreqs);
+                List<DocumentCluster> clusters = postingClustering.cluster(docWeights);
                 postingClusters.add(Pair.of(term, new PostingClusters(clusters)));
                 ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(key).getWriter();
                 writer.insert(term, clusters);

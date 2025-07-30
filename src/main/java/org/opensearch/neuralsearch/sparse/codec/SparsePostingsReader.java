@@ -20,7 +20,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.BatchClusteringTask;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
@@ -34,7 +34,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
@@ -76,7 +76,7 @@ public class SparsePostingsReader {
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
             int nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
             float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
-            int clusterUtilDocCountReach = Integer.parseInt(fieldInfo.attributes().get(ALGO_TRIGGER_DOC_COUNT_FIELD));
+            int clusterUtilDocCountReach = Integer.parseInt(fieldInfo.attributes().get(APPROXIMATE_THRESHOLD_FIELD));
 
             if (clusterUtilDocCountReach > 0 && docCount < clusterUtilDocCountReach) {
                 clusterRatio = 0;
@@ -164,14 +164,14 @@ public class SparsePostingsReader {
         return allTerms;
     }
 
-    public static List<DocFreq> getMergedPostingForATerm(
+    public static List<DocWeight> getMergedPostingForATerm(
         MergeState mergeState,
         BytesRef term,
         FieldInfo fieldInfo,
         int[] newIdToFieldProducerIndex,
         int[] newIdToOldId
     ) throws IOException {
-        List<DocFreq> docFreqs = new ArrayList<>();
+        List<DocWeight> docWeights = new ArrayList<>();
         for (int i = 0; i < mergeState.fieldsProducers.length; i++) {
             FieldsProducer fieldsProducer = mergeState.fieldsProducers[i];
             // we need this SparseBinaryDocValuesPassThrough to get segment info
@@ -218,10 +218,10 @@ public class SparsePostingsReader {
                     // decode to float first
                     freqByte = ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq));
                 }
-                docFreqs.add(new DocFreq(newDocId, freqByte));
+                docWeights.add(new DocWeight(newDocId, freqByte));
                 docId = postings.nextDoc();
             }
         }
-        return docFreqs;
+        return docWeights;
     }
 }
