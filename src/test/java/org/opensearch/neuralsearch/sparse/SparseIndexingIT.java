@@ -594,7 +594,8 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
     }
 
     public void testIngestDocumentsMultipleShards() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, 5, 0.4f, 0.5f, 20, 3, 3);
+        int shards = 3;
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 5, 0.4f, 0.5f, 20, shards, 3);
         Response response = client().performRequest(request);
         assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
         int docCount = 20;
@@ -620,7 +621,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        waitForSegmentMerge(TEST_INDEX_NAME, shards);
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();
@@ -684,9 +685,13 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
     }
 
     private void waitForSegmentMerge(String index) throws InterruptedException {
+        waitForSegmentMerge(index, 1);
+    }
+
+    private void waitForSegmentMerge(String index, int shards) throws InterruptedException {
         int maxRetry = 5;
         for (int i = 0; i < maxRetry; ++i) {
-            if (1 == getSegmentCount(index)) {
+            if (shards == getSegmentCount(index)) {
                 break;
             }
             Thread.sleep(1000);
