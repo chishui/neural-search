@@ -302,7 +302,7 @@ public final class SparseEncodingProcessor extends InferenceProcessor {
         if (index == null) {
             return Collections.EMPTY_SET;
         }
-        final IndexMetadata metadata = clusterService.state().metadata().index(index.toString());
+        final IndexMetadata metadata = clusterService.state().metadata().index(index);
         if (metadata == null || !SparseSettings.IS_SPARSE_INDEX_SETTING.get(metadata.getSettings())) {
             return Collections.EMPTY_SET;
         }
