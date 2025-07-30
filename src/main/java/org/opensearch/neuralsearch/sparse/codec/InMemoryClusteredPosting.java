@@ -78,7 +78,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
     private class InMemoryClusteredPostingReader implements ClusteredPostingReader {
         @Override
         public PostingClusters read(BytesRef term) {
-            return clusteredPostings.get(term);
+            return null;
         }
 
         @Override
@@ -96,22 +96,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
 
     private class InMemoryClusteredPostingWriter implements ClusteredPostingWriter {
         public void insert(BytesRef term, List<DocumentCluster> clusters) {
-            if (clusters == null || clusters.isEmpty() || term == null) {
-                return;
-            }
-
-            BytesRef clonedTerm = term.clone();
-            PostingClusters postingClusters = new PostingClusters(clusters);
-            long clustersSize = postingClusters.ramBytesUsed();
-            long termSize = RamUsageEstimator.shallowSizeOf(clonedTerm) + (clonedTerm.bytes != null ? clonedTerm.bytes.length : 0);
-
-            // Update the clusters with putIfAbsent for thread safety
-            PostingClusters existingClusters = clusteredPostings.putIfAbsent(clonedTerm, postingClusters);
-
-            // Only update memory usage if we actually inserted a new entry
-            if (existingClusters == null) {
-                usedRamBytes.addAndGet(clustersSize + termSize);
-            }
+            return;
         }
     }
 }

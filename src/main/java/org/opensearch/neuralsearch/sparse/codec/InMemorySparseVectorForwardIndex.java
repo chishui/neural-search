@@ -83,8 +83,7 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
     private class InMemorySparseVectorReader implements SparseVectorReader {
         @Override
         public SparseVector read(int docId) throws IOException {
-            assert docId < sparseVectors.length() : "docId " + docId + " is out of bounds";
-            return sparseVectors.get(docId);
+            return null;
         }
     }
 
@@ -92,13 +91,7 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
 
         @Override
         public void insert(int docId, SparseVector vector) {
-            if (vector == null || docId >= sparseVectors.length()) {
-                return;
-            }
-
-            if (sparseVectors.compareAndSet(docId, null, vector)) {
-                usedRamBytes.addAndGet(vector.ramBytesUsed());
-            }
+            return;
         }
     }
 }
