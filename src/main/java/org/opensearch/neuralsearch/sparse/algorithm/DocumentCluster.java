@@ -56,7 +56,11 @@ public class DocumentCluster implements Accountable {
     }
 
     public Iterator<DocWeight> iterator() {
-        return new CombinedIterator<>(new ArrayIterator.IntArrayIterator(docIds), new ArrayIterator.ByteArrayIterator(weights), DocWeight::new);
+        return new CombinedIterator<>(
+            new ArrayIterator.IntArrayIterator(docIds),
+            new ArrayIterator.ByteArrayIterator(weights),
+            DocWeight::new
+        );
     }
 
     public DocWeightIterator getDisi() {

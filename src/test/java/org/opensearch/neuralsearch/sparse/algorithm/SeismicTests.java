@@ -65,7 +65,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         assertNotNull(result);
         String expectedError = String.format(
             Locale.ROOT,
-            "Parameter [%s] must be of %s type", APPROXIMATE_THRESHOLD_FIELD,
+            "Parameter [%s] must be of %s type",
+            APPROXIMATE_THRESHOLD_FIELD,
             Integer.class.getName()
         );
         assertTrue(result.validationErrors().contains(expectedError));
@@ -85,7 +86,8 @@ public class SeismicTests extends AbstractSparseTestBase {
         assertNotNull(result);
         String expectedError = String.format(
             Locale.ROOT,
-            "Parameter [%s] must be of %s type", APPROXIMATE_THRESHOLD_FIELD,
+            "Parameter [%s] must be of %s type",
+            APPROXIMATE_THRESHOLD_FIELD,
             Integer.class.getName()
         );
         assertTrue(result.validationErrors().contains(expectedError));
