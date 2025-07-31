@@ -13,15 +13,15 @@ import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 
 /**
  * Class defines settings specific to neural-search plugin
+ * DEFAULT_INDEX_THREAD_QTY: -1 represents that user did not give a specific thread quantity
+ * MAX_INDEX_THREAD_QTY: Initial max value, will be updated based on actual CPU cores
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
-    public static final int INITIAL_INDEX_THREAD_QTY = -1; // -1 represents that user did not give a specific
-                                                           // thread
-                                                           // quantity
-    public static int INDEX_THREAD_QTY_MAX = 1024; // Initial max value, will be updated based on actual CPU cores
+    public static final int DEFAULT_INDEX_THREAD_QTY = -1;
+    public static int MAX_INDEX_THREAD_QTY = 1024;
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "neural.sparse.algo_param.index_thread_qty";
-    public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = INITIAL_INDEX_THREAD_QTY;
+    public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = DEFAULT_INDEX_THREAD_QTY;
     /**
      * Gates the functionality of hybrid search
      * Currently query phase searcher added with hybrid search will conflict with concurrent search in core.
@@ -58,7 +58,7 @@ public final class NeuralSearchSettings {
         SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
         SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
         -1, // -1 means that user did not give specific thread quantity
-        INDEX_THREAD_QTY_MAX,
+        MAX_INDEX_THREAD_QTY,
         Setting.Property.NodeScope,
         Setting.Property.Dynamic
     );
@@ -66,16 +66,16 @@ public final class NeuralSearchSettings {
     public static int updateThreadQtySettings(Settings settings) {
         int maxThreadQty = OpenSearchExecutors.allocatedProcessors(settings);
         int threadQty = SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(settings);
-        if (threadQty == INITIAL_INDEX_THREAD_QTY) {
+        if (threadQty == DEFAULT_INDEX_THREAD_QTY) {
             threadQty = Math.max(maxThreadQty / 2, 1);
         }
-        INDEX_THREAD_QTY_MAX = maxThreadQty;
+        MAX_INDEX_THREAD_QTY = maxThreadQty;
         SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = threadQty;
         SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING = Setting.intSetting(
             SPARSE_ALGO_PARAM_INDEX_THREAD_QTY,
             SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY,
             1,
-            INDEX_THREAD_QTY_MAX,
+            MAX_INDEX_THREAD_QTY,
             Setting.Property.NodeScope,
             Setting.Property.Dynamic
         );

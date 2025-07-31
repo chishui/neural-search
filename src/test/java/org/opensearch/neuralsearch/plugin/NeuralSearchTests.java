@@ -251,7 +251,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         assertTrue("Setting should be dynamic", threadQtySetting.isDynamic());
         assertTrue("Setting should be node scope", threadQtySetting.hasNodeScope());
 
-        assertEquals(NeuralSearchSettings.INITIAL_INDEX_THREAD_QTY, (int) threadQtySetting.getDefault(Settings.EMPTY));
+        assertEquals(NeuralSearchSettings.DEFAULT_INDEX_THREAD_QTY, (int) threadQtySetting.getDefault(Settings.EMPTY));
     }
 
     public void testGetExecutorBuildersWithCustomThreadQty() {
