@@ -13,7 +13,7 @@ import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.doThrow;
 
 public class ClusteringTaskTests extends AbstractSparseTestBase {
     private BytesRef term;
-    private List<DocFreq> docs;
+    private List<DocWeight> docs;
     private InMemoryKey.IndexKey key;
     private PostingClustering postingClustering;
 
@@ -37,7 +37,7 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
 
         term = new BytesRef("test_term");
         key = mock(InMemoryKey.IndexKey.class);
-        docs = Arrays.asList(new DocFreq(1, (byte) 1), new DocFreq(2, (byte) 2));
+        docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2));
         postingClustering = mock(PostingClustering.class);
     }
 
@@ -99,7 +99,7 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
     }
 
     public void testGet_callsClusteringWithCorrectDocs() throws IOException {
-        docs = Arrays.asList(new DocFreq(1, (byte) 1), new DocFreq(2, (byte) 2), new DocFreq(3, (byte) 3));
+        docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2), new DocWeight(3, (byte) 3));
 
         List<DocumentCluster> expectedClusters = Arrays.asList(mock(DocumentCluster.class));
         when(postingClustering.cluster(any())).thenReturn(expectedClusters);
@@ -111,7 +111,7 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
     }
 
     public void testGet_withSingleDoc_returnsPostingClusters() throws IOException {
-        docs = Arrays.asList(new DocFreq(42, (byte) 5));
+        docs = Arrays.asList(new DocWeight(42, (byte) 5));
 
         List<DocumentCluster> expectedClusters = Arrays.asList(mock(DocumentCluster.class));
         when(postingClustering.cluster(any())).thenReturn(expectedClusters);

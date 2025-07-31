@@ -25,10 +25,11 @@ import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.algorithm.RandomClustering;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClustering;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
 
 import java.io.IOException;
@@ -41,6 +42,9 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
 
 /**
  * ClusteredPostingTermsWriter is used to write postings for each segment.
@@ -50,7 +54,7 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTIN
 public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     private FixedBitSet docsSeen;
     private IndexOutput postingOut;
-    private final List<DocFreq> docFreqs = new ArrayList<>();
+    private final List<DocWeight> docWeights = new ArrayList<>();
     private BytesRef currentTerm;
     private PostingClustering postingClustering;
     private InMemoryKey.IndexKey key;
@@ -80,13 +84,22 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         super.setField(fieldInfo);
         key = new InMemoryKey.IndexKey(this.segmentInfo, fieldInfo);
         SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
-        assert (index != null);
         float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-        int nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+        int nPostings;
+        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
+            nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
+        } else {
+            nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+        }
         float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
+        // TODO: attach a lucene reader in the following CacheGatedForwardIndexReader
         this.postingClustering = new PostingClustering(
             nPostings,
-            new RandomClustering(summaryPruneRatio, cluster_ratio, (docId) -> index.getReader().read(docId))
+            new RandomClustering(
+                summaryPruneRatio,
+                cluster_ratio,
+                new CacheGatedForwardIndexReader(index == null ? null : index.getReader(), null, null)
+            )
         );
     }
 
@@ -97,7 +110,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
 
     @Override
     public void startTerm(NumericDocValues norms) throws IOException {
-        docFreqs.clear();
+        docWeights.clear();
     }
 
     private void writePostingClusters(PostingClusters postingClusters, BlockTermState state) throws IOException {
@@ -107,11 +120,11 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         postingOut.writeVLong(clusters.size());
         for (DocumentCluster cluster : clusters) {
             postingOut.writeVLong(cluster.size());
-            Iterator<DocFreq> iterator = cluster.iterator();
+            Iterator<DocWeight> iterator = cluster.iterator();
             while (iterator.hasNext()) {
-                DocFreq docFreq = iterator.next();
-                postingOut.writeVInt(docFreq.getDocID());
-                postingOut.writeByte(docFreq.getFreq());
+                DocWeight docWeight = iterator.next();
+                postingOut.writeVInt(docWeight.getDocID());
+                postingOut.writeByte(docWeight.getWeight());
             }
             postingOut.writeByte((byte) (cluster.isShouldNotSkip() ? 1 : 0));
             if (cluster.getSummary() == null) {
@@ -130,9 +143,9 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
 
     @Override
     public void finishTerm(BlockTermState state) throws IOException {
-        PostingClusters postingClusters = new ClusteringTask(this.currentTerm, docFreqs, key, this.postingClustering).get();
+        PostingClusters postingClusters = new ClusteringTask(this.currentTerm, docWeights, key, this.postingClustering).get();
         writePostingClusters(postingClusters, state);
-        this.docFreqs.clear();
+        this.docWeights.clear();
         this.currentTerm = null;
     }
 
@@ -141,7 +154,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         if (docID == -1) {
             throw new IllegalStateException("docId must be set before startDoc");
         }
-        docFreqs.add(new DocFreq(docID, ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq))));
+        docWeights.add(new DocWeight(docID, ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq))));
     }
 
     @Override

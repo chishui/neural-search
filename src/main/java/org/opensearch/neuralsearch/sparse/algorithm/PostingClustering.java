@@ -4,7 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,13 +25,13 @@ public class PostingClustering {
         this.clustering = clustering;
     }
 
-    private List<DocFreq> preprocess(List<DocFreq> postings) {
+    private List<DocWeight> preprocess(List<DocWeight> postings) {
         return PostingsProcessor.getTopK(postings, nPostings);
     }
 
-    public List<DocumentCluster> cluster(List<DocFreq> postings) throws IOException {
-        List<DocFreq> postingsCopy = new ArrayList<>(postings);
-        List<DocFreq> preprocessed = preprocess(postingsCopy);
+    public List<DocumentCluster> cluster(List<DocWeight> postings) throws IOException {
+        List<DocWeight> postingsCopy = new ArrayList<>(postings);
+        List<DocWeight> preprocessed = preprocess(postingsCopy);
         if (preprocessed.isEmpty()) {
             return new ArrayList<>();
         }

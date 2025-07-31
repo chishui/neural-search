@@ -72,6 +72,7 @@ public class SparseBinaryDocValues extends BinaryDocValues {
         if (key == null) return null;
         InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
         if (index == null) return null;
+        // Simply read the in-memory data without CacheGatedForwardIndexReader
         SparseVectorReader reader = index.getReader();
         int oldDocId = this.current.getDocId();
         return reader.read(oldDocId);

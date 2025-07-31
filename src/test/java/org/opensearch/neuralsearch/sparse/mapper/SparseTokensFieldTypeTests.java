@@ -17,7 +17,7 @@ import static org.mockito.Mockito.mock;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
@@ -36,7 +36,7 @@ public class SparseTokensFieldTypeTests extends AbstractSparseTestBase {
         parameters.put(SUMMARY_PRUNE_RATIO_FIELD, 0.5f);
         parameters.put(N_POSTINGS_FIELD, 10);
         parameters.put(CLUSTER_RATIO_FIELD, 0.3f);
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, 100);
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, 100);
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, SEISMIC);

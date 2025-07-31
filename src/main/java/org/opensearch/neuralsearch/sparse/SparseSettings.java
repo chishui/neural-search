@@ -14,7 +14,6 @@ import static org.opensearch.common.settings.Setting.Property.IndexScope;
  */
 public class SparseSettings {
     public static final String SPARSE_INDEX = "index.sparse";
-    public static final String MEMORY_USAGE = "index.sparse.memory";
 
     private static SparseSettings INSTANCE;
 
@@ -29,13 +28,4 @@ public class SparseSettings {
      * This setting identifies sparse index.
      */
     public static final Setting<Boolean> IS_SPARSE_INDEX_SETTING = Setting.boolSetting(SPARSE_INDEX, false, IndexScope, Final);
-    /**
-     * This is just a fake setting for POC whenever it changes value, we output the memory usage of the in-memory data
-     */
-    public static final Setting<Boolean> SPARSE_MEMORY_SETTING = Setting.boolSetting(
-        MEMORY_USAGE,
-        false,
-        IndexScope,
-        Setting.Property.Dynamic
-    );
 }

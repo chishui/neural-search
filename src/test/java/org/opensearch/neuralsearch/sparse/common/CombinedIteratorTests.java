@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.sparse.common;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Locale;
 
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 
@@ -107,7 +108,7 @@ public class CombinedIteratorTests extends AbstractSparseTestBase {
         CombinedIterator<String, String, String> combinedIter = new CombinedIterator<>(
             firstIter,
             secondIter,
-            (s1, s2) -> s1.toUpperCase() + "_" + s2.toUpperCase()
+            (s1, s2) -> s1.toUpperCase(Locale.ROOT) + "_" + s2.toUpperCase(Locale.ROOT)
         );
 
         assertEquals("HELLO_FOO", combinedIter.next());

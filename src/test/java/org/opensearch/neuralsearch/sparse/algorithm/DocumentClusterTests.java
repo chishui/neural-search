@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 public class DocumentClusterTests extends AbstractSparseTestBase {
@@ -23,7 +23,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         summaryMap.put("1", 0.5f);
         summaryMap.put("2", 0.8f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(10, (byte) 2), new DocFreq(5, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(10, (byte) 2), new DocWeight(5, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(summary, docs, false);
 
@@ -33,7 +33,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
     }
 
     public void testConstructor_withValidInputsNullSummary_createsCluster() {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(10, (byte) 2), new DocFreq(5, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(10, (byte) 2), new DocWeight(5, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
 
@@ -46,18 +46,18 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         Map<String, Float> summaryMap = new HashMap<>();
         summaryMap.put("1", 1.0f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(10, (byte) 2), new DocFreq(5, (byte) 1), new DocFreq(15, (byte) 3));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(10, (byte) 2), new DocWeight(5, (byte) 1), new DocWeight(15, (byte) 3));
 
         DocumentCluster cluster = new DocumentCluster(summary, docs, true);
 
-        Iterator<DocFreq> iterator = cluster.iterator();
+        Iterator<DocWeight> iterator = cluster.iterator();
         assertEquals(5, iterator.next().getDocID());
         assertEquals(10, iterator.next().getDocID());
         assertEquals(15, iterator.next().getDocID());
     }
 
     public void testSize_withEmptyDocs_returnsZero() {
-        List<DocFreq> docs = new ArrayList<>();
+        List<DocWeight> docs = new ArrayList<>();
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
 
@@ -65,49 +65,49 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
     }
 
     public void testIterator_withMultipleDocs_iteratesInOrder() {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(20, (byte) 4), new DocFreq(10, (byte) 2), new DocFreq(30, (byte) 6));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(20, (byte) 4), new DocWeight(10, (byte) 2), new DocWeight(30, (byte) 6));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
-        Iterator<DocFreq> iterator = cluster.iterator();
+        Iterator<DocWeight> iterator = cluster.iterator();
 
-        DocFreq first = iterator.next();
+        DocWeight first = iterator.next();
         assertEquals(10, first.getDocID());
-        assertEquals(2, first.getFreq());
+        assertEquals(2, first.getWeight());
 
-        DocFreq second = iterator.next();
+        DocWeight second = iterator.next();
         assertEquals(20, second.getDocID());
-        assertEquals(4, second.getFreq());
+        assertEquals(4, second.getWeight());
 
-        DocFreq third = iterator.next();
+        DocWeight third = iterator.next();
         assertEquals(30, third.getDocID());
-        assertEquals(6, third.getFreq());
+        assertEquals(6, third.getWeight());
 
         assertFalse(iterator.hasNext());
     }
 
     public void testGetDisi_withValidDocs_returnsCorrectIterator() throws Exception {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(5, (byte) 1), new DocFreq(10, (byte) 2));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(5, (byte) 1), new DocWeight(10, (byte) 2));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
-        DocFreqIterator disi = cluster.getDisi();
+        DocWeightIterator disi = cluster.getDisi();
 
         assertEquals(-1, disi.docID());
         assertEquals(5, disi.nextDoc());
         assertEquals(5, disi.docID());
-        assertEquals(1, disi.freq());
+        assertEquals(1, disi.weight());
 
         assertEquals(10, disi.nextDoc());
         assertEquals(10, disi.docID());
-        assertEquals(2, disi.freq());
+        assertEquals(2, disi.weight());
 
-        assertEquals(DocFreqIterator.NO_MORE_DOCS, disi.nextDoc());
+        assertEquals(DocWeightIterator.NO_MORE_DOCS, disi.nextDoc());
     }
 
     public void testGetDisi_withValidDocs_returnsZeroAdvance() throws Exception {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(5, (byte) 1), new DocFreq(10, (byte) 2));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(5, (byte) 1), new DocWeight(10, (byte) 2));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
-        DocFreqIterator disi = cluster.getDisi();
+        DocWeightIterator disi = cluster.getDisi();
 
         assertEquals(-1, disi.docID());
         assertEquals(5, disi.nextDoc());
@@ -116,14 +116,14 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         assertEquals(10, disi.nextDoc());
         assertEquals(0, disi.advance(disi.docID()));
 
-        assertEquals(DocFreqIterator.NO_MORE_DOCS, disi.nextDoc());
+        assertEquals(DocWeightIterator.NO_MORE_DOCS, disi.nextDoc());
     }
 
     public void testGetDisi_withValidDocs_returnsZeroCost() throws Exception {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(5, (byte) 1), new DocFreq(10, (byte) 2));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(5, (byte) 1), new DocWeight(10, (byte) 2));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
-        DocFreqIterator disi = cluster.getDisi();
+        DocWeightIterator disi = cluster.getDisi();
 
         assertEquals(-1, disi.docID());
         assertEquals(5, disi.nextDoc());
@@ -132,11 +132,11 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         assertEquals(10, disi.nextDoc());
         assertEquals(0, disi.cost());
 
-        assertEquals(DocFreqIterator.NO_MORE_DOCS, disi.nextDoc());
+        assertEquals(DocWeightIterator.NO_MORE_DOCS, disi.nextDoc());
     }
 
     public void testRamBytesUsed_withNullSummary_returnsPositiveValue() {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
 
@@ -148,7 +148,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         summaryMap.put("1", 0.5f);
         summaryMap.put("2", 0.8f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(summary, docs, false);
 
@@ -156,7 +156,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
     }
 
     public void testGetChildResources_withNullSummary_returnsEmptyList() {
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(null, docs, false);
 
@@ -167,7 +167,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         Map<String, Float> summaryMap = new HashMap<>();
         summaryMap.put("1", 1.0f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(summary, docs, false);
 
@@ -179,7 +179,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         Map<String, Float> summaryMap = new HashMap<>();
         summaryMap.put("1", 1.0f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster1 = new DocumentCluster(summary, docs, false);
         DocumentCluster cluster2 = new DocumentCluster(summary, docs, false);
@@ -191,7 +191,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         Map<String, Float> summaryMap = new HashMap<>();
         summaryMap.put("1", 1.0f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster1 = new DocumentCluster(summary, docs, true);
         DocumentCluster cluster2 = new DocumentCluster(summary, docs, false);
@@ -203,7 +203,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         Map<String, Float> summaryMap = new HashMap<>();
         summaryMap.put("1", 1.0f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster1 = new DocumentCluster(summary, docs, false);
         DocumentCluster cluster2 = new DocumentCluster(summary, docs, false);
@@ -220,7 +220,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         newSummaryMap.put("2", 2.0f);
         SparseVector newSummary = new SparseVector(newSummaryMap);
 
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(originalSummary, docs, false);
         cluster.setSummary(newSummary);
@@ -232,7 +232,7 @@ public class DocumentClusterTests extends AbstractSparseTestBase {
         Map<String, Float> summaryMap = new HashMap<>();
         summaryMap.put("1", 1.0f);
         SparseVector summary = new SparseVector(summaryMap);
-        List<DocFreq> docs = Arrays.asList(new DocFreq(1, (byte) 1));
+        List<DocWeight> docs = Arrays.asList(new DocWeight(1, (byte) 1));
 
         DocumentCluster cluster = new DocumentCluster(summary, docs, false);
         cluster.setShouldNotSkip(true);
