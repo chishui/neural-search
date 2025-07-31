@@ -8,8 +8,10 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.BinaryDocValues;
+
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexOptions;
@@ -26,6 +28,7 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.IndexableFieldType;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.Version;
@@ -84,6 +87,32 @@ public class TestsPrepareUtils {
             Version.LATEST,                // minVersion
             "_test_segment",               // name
             10,                            // maxDoc
+            false,                         // isCompoundFile
+            false,                         // hasBlocks
+            Codec.getDefault(),            // codec
+            Collections.emptyMap(),        // diagnostics
+            id,                            // id
+            Collections.emptyMap(),        // attributes
+            null                           // indexSort
+        );
+        return segmentInfo;
+    }
+
+    public static SegmentInfo prepareSegmentInfo(int maxDoc) {
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        Directory dir = new ByteBuffersDirectory();
+        byte[] id = new byte[16];
+        for (int i = 0; i < id.length; i++) {
+            id[i] = (byte) i;
+        }
+
+        SegmentInfo segmentInfo = new SegmentInfo(
+            dir,                           // directory
+            Version.LATEST,                // version
+            Version.LATEST,                // minVersion
+            "_test_segment",               // name
+            maxDoc,                            // maxDoc
             false,                         // isCompoundFile
             false,                         // hasBlocks
             Codec.getDefault(),            // codec
@@ -365,5 +394,22 @@ public class TestsPrepareUtils {
 
     public static ContentPath prepareContentPath() {
         return new ContentPath();
+    }
+
+    public static SegmentWriteState prepareSegmentWriteState() {
+        Directory directory = new ByteBuffersDirectory();
+        SegmentInfo segmentInfo = prepareSegmentInfo();
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        IOContext ioContext = IOContext.DEFAULT;
+
+        return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
+    }
+
+    public static SegmentWriteState prepareSegmentWriteState(SegmentInfo segmentInfo) {
+        Directory directory = new ByteBuffersDirectory();
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        IOContext ioContext = IOContext.DEFAULT;
+
+        return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
     }
 }
