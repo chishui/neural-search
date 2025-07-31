@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
+import org.opensearch.common.settings.Settings;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.util.concurrent.Callable;
@@ -36,5 +37,12 @@ public class ClusterTrainingRunning {
 
     public <T> Future<T> submit(Callable<T> callable) {
         return ClusterTrainingRunning.threadpool.executor(THREAD_POOL_NAME).submit(callable);
+    }
+
+    public static void updateThreadPoolSize(Integer newThreadQty) {
+        Settings threadPoolSettings = Settings.builder()
+            .put(String.format("%s.size", ClusterTrainingRunning.THREAD_POOL_NAME), newThreadQty)
+            .build();
+        threadpool.setThreadPool(threadPoolSettings);
     }
 }
