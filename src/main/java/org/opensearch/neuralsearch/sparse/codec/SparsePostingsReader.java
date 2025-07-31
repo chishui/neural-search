@@ -206,7 +206,7 @@ public class SparsePostingsReader {
             PostingsEnum postings = termsEnum.postings(null);
             boolean isSparsePostings = postings instanceof SparsePostingsEnum;
             int docId = postings.nextDoc();
-            while (docId != PostingsEnum.NO_MORE_DOCS) {
+            for (; docId != PostingsEnum.NO_MORE_DOCS; docId = postings.nextDoc()) {
                 if (docId == -1) {
                     log.error("docId is -1");
                     continue;
@@ -214,6 +214,9 @@ public class SparsePostingsReader {
                 int newDocId = mergeState.docMaps[i].get(docId);
                 if (newDocId == -1) {
                     continue;
+                }
+                if (newDocId >= newIdToFieldProducerIndex.length) {
+                    throw new RuntimeException("newDocId is larger than array size!");
                 }
                 newIdToFieldProducerIndex[newDocId] = i;
                 newIdToOldId[newDocId] = docId;
@@ -227,7 +230,6 @@ public class SparsePostingsReader {
                     freqByte = ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq));
                 }
                 docWeights.add(new DocWeight(newDocId, freqByte));
-                docId = postings.nextDoc();
             }
         }
         return docWeights;
