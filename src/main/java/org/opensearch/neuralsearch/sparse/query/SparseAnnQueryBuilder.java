@@ -52,11 +52,11 @@ import lombok.experimental.Accessors;
 public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBuilder> {
     public static final String NAME = "sparse_ann";
     @VisibleForTesting
-    static final ParseField CUT_FIELD = new ParseField("cut");
+    public static final ParseField CUT_FIELD = new ParseField("cut");
     @VisibleForTesting
-    static final ParseField TOP_K_FIELD = new ParseField("k");
+    public static final ParseField TOP_K_FIELD = new ParseField("k");
     @VisibleForTesting
-    static final ParseField HEAP_FACTOR_FIELD = new ParseField("heap_factor");
+    public static final ParseField HEAP_FACTOR_FIELD = new ParseField("heap_factor");
     @VisibleForTesting
     public static final ParseField METHOD_PARAMETERS_FIELD = new ParseField("method_parameters");
     @VisibleForTesting
