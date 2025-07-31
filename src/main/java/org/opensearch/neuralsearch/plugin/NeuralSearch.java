@@ -17,9 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.opensearch.common.util.concurrent.OpenSearchExecutors;
-import org.apache.lucene.util.Accountables;
-import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
