@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.codecs.FieldsConsumer;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.codecs.PostingsFormat;
@@ -31,7 +32,7 @@ public class SparsePostingsFormatTests extends AbstractSparseTestBase {
         mockDelegate = mock(PostingsFormat.class);
         when(mockDelegate.getName()).thenReturn("TestPostingsFormat");
 
-        sparsePostingsFormat = new SparsePostingsFormat(mockDelegate);
+        this.sparsePostingsFormat = new SparsePostingsFormat(mockDelegate);
 
         // Use TestsPrepareUtils to create real objects since SegmentInfo.name is final
         mockWriteState = TestsPrepareUtils.prepareSegmentWriteState();
@@ -40,17 +41,19 @@ public class SparsePostingsFormatTests extends AbstractSparseTestBase {
     }
 
     public void testConstructor() {
+        SparsePostingsFormat sparsePostingsFormat = new SparsePostingsFormat(mockDelegate);
         // Verify that the format name is inherited from delegate
         assertEquals("TestPostingsFormat", sparsePostingsFormat.getName());
     }
 
-    public void testFieldsConsumer() throws IOException {
+    @SneakyThrows
+    public void testFieldsConsumer() {
         // Setup
         FieldsConsumer mockDelegateConsumer = mock(FieldsConsumer.class);
         when(mockDelegate.fieldsConsumer(mockWriteState)).thenReturn(mockDelegateConsumer);
 
         // Execute
-        FieldsConsumer result = sparsePostingsFormat.fieldsConsumer(mockWriteState);
+        FieldsConsumer result = this.sparsePostingsFormat.fieldsConsumer(mockWriteState);
 
         // Verify
         assertNotNull(result);
@@ -58,13 +61,14 @@ public class SparsePostingsFormatTests extends AbstractSparseTestBase {
         verify(mockDelegate).fieldsConsumer(mockWriteState);
     }
 
-    public void testFieldsProducer() throws IOException {
+    @SneakyThrows
+    public void testFieldsProducer() {
         // Setup
         FieldsProducer mockDelegateProducer = mock(FieldsProducer.class);
         when(mockDelegate.fieldsProducer(mockReadState)).thenReturn(mockDelegateProducer);
 
         // Execute
-        FieldsProducer result = sparsePostingsFormat.fieldsProducer(mockReadState);
+        FieldsProducer result = this.sparsePostingsFormat.fieldsProducer(mockReadState);
 
         // Verify
         assertNotNull(result);
@@ -72,23 +76,25 @@ public class SparsePostingsFormatTests extends AbstractSparseTestBase {
         verify(mockDelegate).fieldsProducer(mockReadState);
     }
 
-    public void testFieldsConsumerIOException() throws IOException {
+    @SneakyThrows
+    public void testFieldsConsumerIOException() {
         // Setup
         IOException expectedException = new IOException("Test exception");
         when(mockDelegate.fieldsConsumer(mockWriteState)).thenThrow(expectedException);
 
         // Execute & Verify
-        IOException exception = expectThrows(IOException.class, () -> { sparsePostingsFormat.fieldsConsumer(mockWriteState); });
+        IOException exception = expectThrows(IOException.class, () -> { this.sparsePostingsFormat.fieldsConsumer(mockWriteState); });
         assertEquals("Test exception", exception.getMessage());
     }
 
-    public void testFieldsProducerIOException() throws IOException {
+    @SneakyThrows
+    public void testFieldsProducerIOException() {
         // Setup
         IOException expectedException = new IOException("Test exception");
         when(mockDelegate.fieldsProducer(mockReadState)).thenThrow(expectedException);
 
         // Execute & Verify
-        IOException exception = expectThrows(IOException.class, () -> { sparsePostingsFormat.fieldsProducer(mockReadState); });
+        IOException exception = expectThrows(IOException.class, () -> { this.sparsePostingsFormat.fieldsProducer(mockReadState); });
         assertEquals("Test exception", exception.getMessage());
     }
 }
