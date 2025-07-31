@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import lombok.extern.log4j.Log4j2;
+import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FilterCodecReader;
 import org.apache.lucene.index.FilterLeafReader;
@@ -21,13 +22,17 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
+import org.opensearch.neuralsearch.sparse.codec.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
-import org.opensearch.neuralsearch.sparse.codec.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
 import java.io.IOException;
 
@@ -67,29 +72,14 @@ public class SparseQueryWeight extends Weight {
 
     @Override
     public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
-        final int maxDoc = context.reader().maxDoc();
         final SparseVectorQuery query = (SparseVectorQuery) parentQuery;
         SegmentInfo info = getSegmentInfo(context.reader());
-        String fieldType = query.getFieldName();
-        FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(fieldType);
+        FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
+        // fallback to plain neural sparse query
         if (!PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo)) {
             return booleanQueryWeight.scorerSupplier(context);
         }
-        SparseVectorReader sparseReader = null;
-        if (info != null) {
-            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(info, fieldType);
-            SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
-            sparseReader = index != null ? index.getReader() : (docId -> { return null; });
-        }
-        final Scorer scorer = new PostingWithClustersScorer(
-            query.getFieldName(),
-            query.getQueryContext(),
-            query.getQueryVector(),
-            context.reader(),
-            context.reader().getLiveDocs(),
-            sparseReader,
-            ByteQuantizer.getSimScorer(boost)
-        );
+        final Scorer scorer = selectScorer(query, context, info);
         return new ScorerSupplier() {
             @Override
             public Scorer get(long leadCost) throws IOException {
@@ -125,6 +115,51 @@ public class SparseQueryWeight extends Weight {
                 return 0;
             }
         };
+    }
+
+    private Scorer selectScorer(SparseVectorQuery query, LeafReaderContext context, SegmentInfo segmentInfo) throws IOException {
+        CacheGatedForwardIndexReader cacheGatedForwardIndexReader = new CacheGatedForwardIndexReader(null, null, null);
+        if (segmentInfo != null) {
+            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, query.getFieldName());
+            InMemorySparseVectorForwardIndex.getOrCreate(key, segmentInfo.maxDoc());
+            cacheGatedForwardIndexReader = getCacheGatedForwardIndexReader(context.reader(), query.getFieldName());
+        }
+        Similarity.SimScorer simScorer = ByteQuantizer.getSimScorer(boost);
+        BitSetIterator filterBitIterator = null;
+        if (query.getFilterResults() != null) {
+            BitSet filter = query.getFilterResults().get(context.id());
+            if (filter != null) {
+                int ord = filter.cardinality();
+                filterBitIterator = new BitSetIterator(filter, ord);
+                if (ord <= query.getQueryContext().getK()) {
+                    return new ExactMatchScorer(filterBitIterator, query.getQueryVector(), cacheGatedForwardIndexReader, simScorer);
+                }
+            }
+        }
+        return new OrderedPostingWithClustersScorer(
+            query.getFieldName(),
+            query.getQueryContext(),
+            query.getQueryVector(),
+            context.reader(),
+            context.reader().getLiveDocs(),
+            cacheGatedForwardIndexReader,
+            simScorer,
+            filterBitIterator
+        );
+    }
+
+    private CacheGatedForwardIndexReader getCacheGatedForwardIndexReader(LeafReader leafReader, String fieldName) throws IOException {
+        BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
+        if (docValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
+            SegmentInfo segmentInfo = sparseBinaryDocValuesPassThrough.getSegmentInfo();
+            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
+            SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
+            if (index == null) {
+                return new CacheGatedForwardIndexReader(null, null, sparseBinaryDocValuesPassThrough);
+            }
+            return new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), sparseBinaryDocValuesPassThrough);
+        }
+        return new CacheGatedForwardIndexReader(null, null, null);
     }
 
     @Override

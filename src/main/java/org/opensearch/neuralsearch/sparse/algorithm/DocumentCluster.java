@@ -11,8 +11,8 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.common.ArrayIterator;
 import org.opensearch.neuralsearch.sparse.common.CombinedIterator;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
@@ -31,23 +31,22 @@ import java.util.List;
 @EqualsAndHashCode
 public class DocumentCluster implements Accountable {
     private SparseVector summary;
-    // private final List<DocFreq> docs;
     private final int[] docIds;
-    private final byte[] freqs;
+    private final byte[] weights;
     // if true, docs in this cluster should always be examined
     private boolean shouldNotSkip;
 
-    public DocumentCluster(SparseVector summary, List<DocFreq> docs, boolean shouldNotSkip) {
+    public DocumentCluster(SparseVector summary, List<DocWeight> docs, boolean shouldNotSkip) {
         this.summary = summary;
-        List<DocFreq> docsCopy = new ArrayList<>(docs);
-        docsCopy.sort(Comparator.comparingInt(DocFreq::getDocID));
+        List<DocWeight> docsCopy = new ArrayList<>(docs);
+        docsCopy.sort(Comparator.comparingInt(DocWeight::getDocID));
         int size = docsCopy.size();
         this.docIds = new int[size];
-        this.freqs = new byte[size];
+        this.weights = new byte[size];
         for (int i = 0; i < size; i++) {
-            DocFreq docFreq = docsCopy.get(i);
-            this.docIds[i] = docFreq.getDocID();
-            this.freqs[i] = docFreq.getFreq();
+            DocWeight docWeight = docsCopy.get(i);
+            this.docIds[i] = docWeight.getDocID();
+            this.weights[i] = docWeight.getWeight();
         }
         this.shouldNotSkip = shouldNotSkip;
     }
@@ -56,17 +55,21 @@ public class DocumentCluster implements Accountable {
         return docIds == null ? 0 : docIds.length;
     }
 
-    public Iterator<DocFreq> iterator() {
-        return new CombinedIterator<>(new ArrayIterator.IntArrayIterator(docIds), new ArrayIterator.ByteArrayIterator(freqs), DocFreq::new);
+    public Iterator<DocWeight> iterator() {
+        return new CombinedIterator<>(
+            new ArrayIterator.IntArrayIterator(docIds),
+            new ArrayIterator.ByteArrayIterator(weights),
+            DocWeight::new
+        );
     }
 
-    public DocFreqIterator getDisi() {
-        return new DocFreqIterator() {
-            final IteratorWrapper<DocFreq> wrapper = new IteratorWrapper<>(iterator());
+    public DocWeightIterator getDisi() {
+        return new DocWeightIterator() {
+            final IteratorWrapper<DocWeight> wrapper = new IteratorWrapper<>(iterator());
 
             @Override
-            public byte freq() {
-                return wrapper.getCurrent().getFreq();
+            public byte weight() {
+                return wrapper.getCurrent().getWeight();
             }
 
             @Override
@@ -103,7 +106,7 @@ public class DocumentCluster implements Accountable {
         sizeInBytes += RamUsageEstimator.shallowSizeOfInstance(DocumentCluster.class);
         if (docIds != null) {
             sizeInBytes += RamUsageEstimator.sizeOf(docIds);
-            sizeInBytes += RamUsageEstimator.sizeOf(freqs);
+            sizeInBytes += RamUsageEstimator.sizeOf(weights);
         }
         if (summary != null) {
             sizeInBytes += summary.ramBytesUsed();

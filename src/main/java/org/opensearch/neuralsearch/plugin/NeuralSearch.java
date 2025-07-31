@@ -16,8 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.apache.lucene.util.Accountables;
-import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
@@ -33,12 +31,8 @@ import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
-import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
-import org.opensearch.neuralsearch.sparse.common.Profiling;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
-import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
 import org.opensearch.plugins.EnginePlugin;
@@ -182,8 +176,7 @@ public class NeuralSearch extends Plugin
         return Arrays.asList(
             new QuerySpec<>(NeuralQueryBuilder.NAME, NeuralQueryBuilder::new, NeuralQueryBuilder::fromXContent),
             new QuerySpec<>(HybridQueryBuilder.NAME, HybridQueryBuilder::new, HybridQueryBuilder::fromXContent),
-            new QuerySpec<>(NeuralSparseQueryBuilder.NAME, NeuralSparseQueryBuilder::new, NeuralSparseQueryBuilder::fromXContent),
-            new QuerySpec<>(SparseAnnQueryBuilder.NAME, SparseAnnQueryBuilder::new, SparseAnnQueryBuilder::fromXContent)
+            new QuerySpec<>(NeuralSparseQueryBuilder.NAME, NeuralSparseQueryBuilder::new, NeuralSparseQueryBuilder::fromXContent)
         );
     }
 
@@ -286,8 +279,7 @@ public class NeuralSearch extends Plugin
             NEURAL_SEARCH_HYBRID_SEARCH_DISABLED,
             RERANKER_MAX_DOC_FIELDS,
             NEURAL_STATS_ENABLED,
-            SparseSettings.IS_SPARSE_INDEX_SETTING,
-            SparseSettings.SPARSE_MEMORY_SETTING
+            SparseSettings.IS_SPARSE_INDEX_SETTING
         );
     }
 
@@ -351,21 +343,6 @@ public class NeuralSearch extends Plugin
     public void onIndexModule(IndexModule indexModule) {
         if (SparseSettings.IS_SPARSE_INDEX_SETTING.get(indexModule.getSettings())) {
             indexModule.addIndexEventListener(new SparseIndexEventListener());
-            indexModule.addSettingsUpdateConsumer(SparseSettings.SPARSE_MEMORY_SETTING, (v) -> {
-                // just to log in-memory data usage
-                InMemoryClusteredPosting inMemoryClusteredPosting = new InMemoryClusteredPosting();
-                log.info(
-                    "memory usage: forward index {}, posting: {}",
-                    RamUsageEstimator.humanReadableUnits(InMemorySparseVectorForwardIndex.memUsage()),
-                    Accountables.toString(inMemoryClusteredPosting)
-                );
-
-                if (v) {
-                    Profiling.INSTANCE.run();
-                } else {
-                    Profiling.INSTANCE.output();
-                }
-            });
         }
     }
 }

@@ -28,18 +28,18 @@ public class SparseTerms extends Terms {
 
     public SparseTerms(InMemoryKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
         this.indexKey = indexKey;
+        InMemoryClusteredPosting inMemoryClusteredPosting = InMemoryClusteredPosting.getOrCreate(indexKey);
         this.reader = new CacheGatedPostingsReader(
             field,
-            new InMemoryClusteredPosting.InMemoryClusteredPostingReader(indexKey),
-            sparseTermsLuceneReader,
-            indexKey
+            inMemoryClusteredPosting.getReader(),
+            inMemoryClusteredPosting.getWriter(),
+            sparseTermsLuceneReader
         );
     }
 
     @Override
     public TermsEnum iterator() throws IOException {
-        SparseTermsEnum sparseTermsEnum = new SparseTermsEnum();
-        return sparseTermsEnum;
+        return new SparseTermsEnum();
     }
 
     @Override
@@ -89,7 +89,7 @@ public class SparseTerms extends Terms {
         private Iterator<BytesRef> termIterator;
 
         SparseTermsEnum() throws IOException {
-            terms = reader.terms();
+            terms = reader.getTerms();
             if (terms != null) {
                 termIterator = terms.iterator();
             }

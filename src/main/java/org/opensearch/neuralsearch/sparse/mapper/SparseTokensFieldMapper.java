@@ -29,13 +29,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_SUMMARY_PRUNE_RATIO;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTER_RATIO;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_ALGO_TRIGGER_DOC_COUNT;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_APPROXIMATE_THRESHOLD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 
@@ -214,11 +214,11 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
             Float summaryPruneRatio = sparseMethodContext.getMethodComponentContext()
                 .getFloat(SUMMARY_PRUNE_RATIO_FIELD, DEFAULT_SUMMARY_PRUNE_RATIO);
             Integer algoTriggerThreshold = (Integer) sparseMethodContext.getMethodComponentContext()
-                .getParameter(ALGO_TRIGGER_DOC_COUNT_FIELD, DEFAULT_ALGO_TRIGGER_DOC_COUNT);
+                .getParameter(APPROXIMATE_THRESHOLD_FIELD, DEFAULT_APPROXIMATE_THRESHOLD);
             fieldType.putAttribute(N_POSTINGS_FIELD, String.valueOf(nPostings));
             fieldType.putAttribute(SUMMARY_PRUNE_RATIO_FIELD, String.valueOf(summaryPruneRatio));
             fieldType.putAttribute(CLUSTER_RATIO_FIELD, String.valueOf(clusterRatio));
-            fieldType.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, String.valueOf(algoTriggerThreshold));
+            fieldType.putAttribute(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(algoTriggerThreshold));
         }
     }
 

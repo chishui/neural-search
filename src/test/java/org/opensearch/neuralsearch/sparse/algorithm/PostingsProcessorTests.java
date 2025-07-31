@@ -6,13 +6,12 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import org.apache.lucene.search.DocIdSetIterator;
 import org.junit.Before;
-import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Mockito;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
@@ -31,7 +30,7 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
     @Mock
     private SparseVectorReader reader;
     @Mock
-    private DocFreqIterator iterator;
+    private DocWeightIterator iterator;
 
     @Before
     @Override
@@ -41,26 +40,24 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
         lenient().when(cluster.getDisi()).thenReturn(iterator);
     }
 
-    @Test
     public void testGetTopKWhenKLargerThanListSize() {
-        // Create a list of DocFreq objects
-        List<DocFreq> postings = preparePostings(1, 10, 2, 20, 3, 30);
+        // Create a list of DocWeight objects
+        List<DocWeight> postings = preparePostings(1, 10, 2, 20, 3, 30);
 
         // Call getTopK with K larger than list size
-        List<DocFreq> result = PostingsProcessor.getTopK(postings, 5);
+        List<DocWeight> result = PostingsProcessor.getTopK(postings, 5);
 
         // Verify that the original list is returned
         assertEquals(postings.size(), result.size());
         assertTrue(result.containsAll(postings));
     }
 
-    @Test
     public void testGetTopKWhenKSmallerThanListSize() {
-        // Create a list of DocFreq objects with different frequencies
-        List<DocFreq> postings = preparePostings(1, 10, 2, 50, 3, 30, 4, 40, 5, 20);
+        // Create a list of DocWeight objects with different frequencies
+        List<DocWeight> postings = preparePostings(1, 10, 2, 50, 3, 30, 4, 40, 5, 20);
         // Call getTopK with K smaller than list size
         int k = 3;
-        List<DocFreq> result = PostingsProcessor.getTopK(postings, k);
+        List<DocWeight> result = PostingsProcessor.getTopK(postings, k);
 
         // Verify that only K elements are returned
         assertEquals(k, result.size());
@@ -71,10 +68,10 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
         boolean containsDocId3 = false;
         boolean containsDocId4 = false;
 
-        for (DocFreq docFreq : result) {
-            if (docFreq.getDocID() == 2) containsDocId2 = true;
-            if (docFreq.getDocID() == 3) containsDocId3 = true;
-            if (docFreq.getDocID() == 4) containsDocId4 = true;
+        for (DocWeight docWeight : result) {
+            if (docWeight.getDocID() == 2) containsDocId2 = true;
+            if (docWeight.getDocID() == 3) containsDocId3 = true;
+            if (docWeight.getDocID() == 4) containsDocId4 = true;
         }
 
         assertTrue("Result should contain docId 2", containsDocId2);
@@ -82,16 +79,14 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
         assertTrue("Result should contain docId 4", containsDocId4);
     }
 
-    @Test
     public void testGetTopKWithEmptyList() {
         // Call getTopK with an empty list
-        List<DocFreq> result = PostingsProcessor.getTopK(Collections.emptyList(), 5);
+        List<DocWeight> result = PostingsProcessor.getTopK(Collections.emptyList(), 5);
 
         // Verify that an empty list is returned
         assertTrue(result.isEmpty());
     }
 
-    @Test
     public void testSummarize() throws IOException {
         // Set up the iterator to return two documents
         when(iterator.nextDoc()).thenReturn(0, 1, 2, DocIdSetIterator.NO_MORE_DOCS); // Return docIds 0, 1, then NO_MORE_DOCS (-1)
@@ -133,7 +128,6 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
         }));
     }
 
-    @Test
     public void testSummarizeWithAlphaLessThanOne() throws IOException {
         // Set up the iterator to return one document
         when(iterator.nextDoc()).thenReturn(0, DocIdSetIterator.NO_MORE_DOCS); // Return docId 0, then NO_MORE_DOCS (-1)
@@ -162,11 +156,10 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
         }));
     }
 
-    @Test
     public void testSummarizeWithNullVector() throws IOException {
         // Create a new mock cluster and iterator for this test
         DocumentCluster localCluster = Mockito.mock(DocumentCluster.class);
-        DocFreqIterator localIterator = Mockito.mock(DocFreqIterator.class);
+        DocWeightIterator localIterator = Mockito.mock(DocWeightIterator.class);
 
         // Set up the iterator to return one document
         when(localCluster.getDisi()).thenReturn(localIterator);

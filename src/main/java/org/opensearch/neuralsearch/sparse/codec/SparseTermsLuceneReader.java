@@ -8,7 +8,6 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.store.IndexInput;
@@ -16,7 +15,7 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.io.IOException;
@@ -36,11 +35,8 @@ public class SparseTermsLuceneReader extends FieldsProducer {
     private final Map<String, Map<BytesRef, Long>> fieldToTerms = new HashMap<>();
     private IndexInput termsIn;
     private IndexInput postingIn;
-    private final SegmentInfo segmentInfo;
 
     public SparseTermsLuceneReader(SegmentReadState state) {
-        this.segmentInfo = state.segmentInfo;
-
         final String termsFileName = IndexFileNames.segmentFileName(
             state.segmentInfo.name,
             state.segmentSuffix,
@@ -122,9 +118,9 @@ public class SparseTermsLuceneReader extends FieldsProducer {
         List<DocumentCluster> clusters = new ArrayList<>((int) clusterSize);
         for (int j = 0; j < clusterSize; j++) {
             long docSize = postingIn.readVLong();
-            List<DocFreq> docs = new ArrayList<>((int) docSize);
+            List<DocWeight> docs = new ArrayList<>((int) docSize);
             for (int k = 0; k < docSize; ++k) {
-                docs.add(new DocFreq(postingIn.readVInt(), postingIn.readByte()));
+                docs.add(new DocWeight(postingIn.readVInt(), postingIn.readByte()));
             }
             boolean shouldNotSkip = postingIn.readByte() == 1;
             // summary

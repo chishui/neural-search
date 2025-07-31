@@ -22,6 +22,6 @@ public class SparseTokensField extends Field {
         if (field == null) {
             return false;
         }
-        return field != null && field.attributes().containsKey(SPARSE_FIELD);
+        return field.attributes().containsKey(SPARSE_FIELD);
     }
 }
