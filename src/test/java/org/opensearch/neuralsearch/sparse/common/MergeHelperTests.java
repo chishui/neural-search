@@ -19,6 +19,7 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 
 import static org.mockito.Mockito.mock;
@@ -64,7 +65,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
 
     public void testClear() throws IOException {
         when(mergeStateFacade.getDocValuesProducers()).thenReturn(new DocValuesProducer[]{docValuesProducer1, docValuesProducer2});
-        MergeHelper.clearInMemoryData(mergeStateFacade, null, (t) -> {
+        MergeHelper.clearCacheData(mergeStateFacade, null, (t) -> {
 
         });
         assertTrue(true);
@@ -75,10 +76,10 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
 
-        MergeHelper.clearInMemoryData(mergeStateFacade, sparseFieldInfo, consumer);
+        MergeHelper.clearCacheData(mergeStateFacade, sparseFieldInfo, consumer);
 
         assertEquals("Consumer should NOT be called when fieldInfo matches", 0, capturedKeys.size());
     }
@@ -88,10 +89,10 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
 
-        MergeHelper.clearInMemoryData(mergeStateFacade, null, consumer);
+        MergeHelper.clearCacheData(mergeStateFacade, null, consumer);
 
         assertEquals("Consumer should NOT be called when fieldInfo is null", 0, capturedKeys.size());
     }
@@ -101,10 +102,10 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
 
-        MergeHelper.clearInMemoryData(mergeStateFacade, nonSparseFieldInfo, consumer);
+        MergeHelper.clearCacheData(mergeStateFacade, nonSparseFieldInfo, consumer);
 
         assertEquals("Consumer should be called for sparse field when fieldInfo doesn't match", 1, capturedKeys.size());
     }
@@ -113,10 +114,10 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         BinaryDocValues mockBinaryDocValues = mock(BinaryDocValues.class);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
 
-        MergeHelper.clearInMemoryData(mergeStateFacade, nonSparseFieldInfo, consumer);
+        MergeHelper.clearCacheData(mergeStateFacade, nonSparseFieldInfo, consumer);
 
         assertEquals("Consumer should NOT be called for non-SparseBinaryDocValuesPassThrough", 0, capturedKeys.size());
     }
@@ -124,10 +125,10 @@ public class MergeHelperTests extends AbstractSparseTestBase {
     public void testClearInMemoryData_withEmptyMergeState_doesNotCallConsumer() throws IOException {
         when(mergeStateFacade.getDocValuesProducers()).thenReturn(new DocValuesProducer[]{});
 
-        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
 
-        MergeHelper.clearInMemoryData(mergeStateFacade, sparseFieldInfo, consumer);
+        MergeHelper.clearCacheData(mergeStateFacade, sparseFieldInfo, consumer);
 
         assertEquals("Consumer should NOT be called with empty producers", 0, capturedKeys.size());
     }

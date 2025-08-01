@@ -18,6 +18,7 @@ import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
+import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
@@ -85,7 +86,7 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
         if (isMerge) {
             if (valuesProducer instanceof SparseDocValuesReader reader) {
                 MergeHelper.clearCacheData(
-                    reader.getMergeState(),
+                    new MergeStateFacade(reader.getMergeState()),
                     field,
                     registryKey -> CacheForwardIndexRegistry.getInstance().removeIndex(registryKey)
                 );

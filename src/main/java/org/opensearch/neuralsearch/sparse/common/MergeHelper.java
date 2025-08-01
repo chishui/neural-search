@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 public class MergeHelper {
-    public static void clearInMemoryData(
+    public static void clearCacheData(
         @NonNull MergeStateFacade mergeState,
         @Nullable FieldInfo fieldInfo,
         @NonNull Consumer<CacheKey.IndexKey> consumer
