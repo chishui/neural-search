@@ -87,7 +87,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
         NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
             indicesService.indexServiceSafe(shardRouting.shardId().getIndex()).getShard(shardRouting.shardId().id())
         );
-        neuralSparseIndexShard.warmup();
+        neuralSparseIndexShard.warmUp();
         return EmptyResult.INSTANCE;
     }
 

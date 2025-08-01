@@ -10,20 +10,22 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentReader;
-import org.apache.lucene.store.Directory;
+import org.apache.lucene.index.DocValuesType;
+import org.apache.lucene.index.SegmentInfo;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexShard;
+import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
+import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
+import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
-import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 
 /**
  * NeuralSparseIndexShard wraps IndexShard and adds methods to perform neural-sparse related operations against the shard
@@ -56,70 +58,89 @@ public class NeuralSparseIndexShard {
 
     /**
      * Load all the neural-sparse segments for this shard into the cache.
-     * First it tries to warm-up memory optimized fields, then load off-heap fields.
-     *
-     * @throws IOException Thrown when getting the SEISMIC Paths to be loaded in
+     * Preloads sparse field data to improve query performance.
      */
-    public void warmup() throws IOException {
+    public void warmUp() throws IOException {
         log.info("[Neural Sparse] Warming up index: [{}]", getIndexName());
 
         final MapperService mapperService = indexShard.mapperService();
-        final String indexName = indexShard.shardId().getIndexName();
-        final Directory directory = indexShard.store().directory();
 
-        try (Engine.Searcher searcher = indexShard.acquireSearcher("neural-sparse-warmup-mem")) {
+        try (Engine.Searcher searcher = indexShard.acquireSearcher("neural-sparse-warmup")) {
             for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
-                // Load memory optimized searcher in a single segment first.
-                final Set<String> loadedFieldNames = warmUpMemoryOptimizedSearcher(leafReaderContext.reader(), mapperService, indexName);
-                log.info("[KNN] Loaded memory optimized searchers for fields {}", loadedFieldNames);
+                final LeafReader leafReader = leafReaderContext.reader();
 
-                // Load off-heap index
-                final List<KNNIndexShard.EngineFileContext> engineFileContexts = getAllEngineFileContexts(loadedFieldNames, leafReaderContext);
-                warmUpOffHeapIndex(engineFileContexts, directory);
-                log.info("[KNN] Loaded off-heap indices for fields {}", engineFileContexts.stream().map(ctx -> ctx.fieldName));
+                // Find all sparse token fields in this segment
+                final Set<String> sparseFieldNames = StreamSupport.stream(leafReader.getFieldInfos().spliterator(), false)
+                    .filter(fieldInfo -> fieldInfo.attributes().containsKey(SparseTokensField.SPARSE_FIELD))
+                    .filter(fieldInfo -> {
+                        final MappedFieldType fieldType = mapperService.fieldType(fieldInfo.getName());
+                        return fieldType instanceof SparseTokensFieldType;
+                    })
+                    .map(FieldInfo::getName)
+                    .collect(Collectors.toSet());
+
+                log.info("[Neural Sparse] Warming up sparse fields: {} in segment", sparseFieldNames);
+
+                // Preload sparse field data by accessing binary doc values
+                for (String fieldName : sparseFieldNames) {
+                    try {
+                        final FieldInfo fieldInfo = leafReader.getFieldInfos().fieldInfo(fieldName);
+                        if (fieldInfo != null && fieldInfo.getDocValuesType() == DocValuesType.BINARY) {
+                            // Access binary doc values to trigger loading
+                            leafReader.getBinaryDocValues(fieldName);
+                        }
+                    } catch (Exception e) {
+                        log.warn("[Neural Sparse] Failed to warm up field: {}", fieldName, e);
+                    }
+                }
             }
         }
+
+        log.info("[Neural Sparse] Completed warming up index: [{}]", getIndexName());
     }
 
-    private Set<String> warmUpMemoryOptimizedSearcher(
-            final LeafReader leafReader,
-            final MapperService mapperService,
-            final String indexName
-    ) {
+    /**
+     * Clear all cached neural-sparse data for this shard.
+     * Removes sparse field data from memory to free up resources.
+     */
+    public void clearCache() {
+        final String indexName = getIndexName();
+        log.info("[Neural Sparse] Clearing cache for index: [{}]", indexName);
 
-        final Set<FieldInfo> fieldsForMemoryOptimizedSearch = StreamSupport.stream(leafReader.getFieldInfos().spliterator(), false)
-                .filter(fieldInfo -> fieldInfo.attributes().containsKey(KNNVectorFieldMapper.KNN_FIELD))
-                .filter(fieldInfo -> {
-                    final MappedFieldType fieldType = mapperService.fieldType(fieldInfo.getName());
+        try (Engine.Searcher searcher = indexShard.acquireSearcher("neural-sparse-clear-cache")) {
+            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
+                final LeafReader leafReader = leafReaderContext.reader();
 
-                    if (fieldType instanceof KNNVectorFieldType knnFieldType) {
-                        return MemoryOptimizedSearchSupportSpec.isSupportedFieldType(knnFieldType, indexName);
+                // Find all sparse token fields in this segment
+                final Set<String> sparseFieldNames = StreamSupport.stream(leafReader.getFieldInfos().spliterator(), false)
+                    .filter(fieldInfo -> fieldInfo.attributes().containsKey(SparseTokensField.SPARSE_FIELD))
+                    .map(FieldInfo::getName)
+                    .collect(Collectors.toSet());
+
+                // Get segment info for creating cache keys
+                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+
+                // Clear in-memory cache for each sparse field
+                for (String fieldName : sparseFieldNames) {
+                    try {
+                        InMemoryKey.IndexKey indexKey = new InMemoryKey.IndexKey(segmentInfo, fieldName);
+                        InMemoryClusteredPosting.clearIndex(indexKey);
+                        InMemorySparseVectorForwardIndex.removeIndex(indexKey);
+                        log.debug("[Neural Sparse] Cleared cache for field: {} in segment: {}", fieldName, segmentInfo.name);
+                    } catch (Exception e) {
+                        log.warn("[Neural Sparse] Failed to clear cache for field: {} in segment: {}", fieldName, segmentInfo.name, e);
                     }
-
-                    return false;
-                })
-                .collect(Collectors.toSet());
-
-        final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-        for (final FieldInfo field : fieldsForMemoryOptimizedSearch) {
-            final String dataTypeStr = field.getAttribute(VECTOR_DATA_TYPE_FIELD);
-            if (dataTypeStr == null) {
-                continue;
-            }
-            try {
-                // Partial load Faiss index by triggering search.
-                final VectorDataType vectorDataType = VectorDataType.get(dataTypeStr);
-                if (vectorDataType == VectorDataType.FLOAT) {
-                    segmentReader.getVectorReader().search(field.getName(), (float[]) null, null, null);
-                } else {
-                    segmentReader.getVectorReader().search(field.getName(), (byte[]) null, null, null);
                 }
-            } catch (Exception e) {
-                // Ignore
+
+                log.info("[Neural Sparse] Cleared cache for sparse fields: {} in segment", sparseFieldNames);
             }
+        } catch (Exception e) {
+            log.error("[Neural Sparse] Failed to clear cache for index: [{}]", indexName, e);
+            throw new RuntimeException(e);
         }
 
-        return fieldsForMemoryOptimizedSearch.stream().map(FieldInfo::getName).collect(Collectors.toSet());
+        log.info("[Neural Sparse] Completed clearing cache for index: [{}]", indexName);
     }
 
 }
