@@ -112,6 +112,9 @@ import org.opensearch.search.query.QueryPhaseSearcher;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
+import org.opensearch.neuralsearch.rest.RestNeuralSparseWarmupHandler;
+import org.opensearch.neuralsearch.transport.NeuralSparseWarmupAction;
+import org.opensearch.neuralsearch.transport.NeuralSparseWarmupTransportAction;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -138,6 +141,8 @@ public class NeuralSearch extends Plugin
     private final SemanticHighlighter semanticHighlighter;
     public static final String EXPLANATION_RESPONSE_KEY = "explanation_response";
     public static final String NEURAL_BASE_URI = "/_plugins/_neural";
+
+    private ClusterService clusterService;
 
     public NeuralSearch() {
         this.semanticHighlighter = new SemanticHighlighter();
@@ -196,12 +201,21 @@ public class NeuralSearch extends Plugin
         Supplier<DiscoveryNodes> nodesInCluster
     ) {
         RestNeuralStatsAction restNeuralStatsAction = new RestNeuralStatsAction(settingsAccessor);
-        return ImmutableList.of(restNeuralStatsAction);
+        RestNeuralSparseWarmupHandler restNeuralSparseWarmupHandler = new RestNeuralSparseWarmupHandler(
+            settings,
+            restController,
+            clusterService,
+            indexNameExpressionResolver
+        );
+        return ImmutableList.of(restNeuralStatsAction, restNeuralSparseWarmupHandler);
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return Arrays.asList(new ActionHandler<>(NeuralStatsAction.INSTANCE, NeuralStatsTransportAction.class));
+        return Arrays.asList(
+            new ActionHandler<>(NeuralStatsAction.INSTANCE, NeuralStatsTransportAction.class),
+            new ActionHandler<>(NeuralSparseWarmupAction.INSTANCE, NeuralSparseWarmupTransportAction.class)
+        );
     }
 
     @Override

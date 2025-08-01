@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
 
+    public static final String NEURAL_SPARSE_INDEX = "index.neural_sparse";
+
     /**
      * Gates the functionality of hybrid search
      * Currently query phase searcher added with hybrid search will conflict with concurrent search in core.
