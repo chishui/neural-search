@@ -30,12 +30,13 @@ public class SparseDocValuesFormatTests extends AbstractSparseTestBase {
         mockDelegate = mock(DocValuesFormat.class);
         when(mockDelegate.getName()).thenReturn("TestFormat");
 
-        sparseDocValuesFormat = new SparseDocValuesFormat(mockDelegate);
+        this.sparseDocValuesFormat = new SparseDocValuesFormat(mockDelegate);
         mockWriteState = mock(SegmentWriteState.class);
         mockReadState = mock(SegmentReadState.class);
     }
 
     public void testConstructor() {
+        SparseDocValuesFormat sparseDocValuesFormat = new SparseDocValuesFormat(mockDelegate);
         // Verify that the format name is inherited from delegate
         assertEquals("TestFormat", sparseDocValuesFormat.getName());
     }
