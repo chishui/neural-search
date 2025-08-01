@@ -26,8 +26,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_SPARSE_INDEX;
 import static org.opensearch.action.support.IndicesOptions.strictExpandOpen;
+import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
 /**
  * RestHandler for neural-sparse index warmup API. API provides the ability for a user to load specific indices' neural-sparse index
@@ -77,7 +77,7 @@ public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
         List<String> invalidIndexNames = new ArrayList<>();
 
         Arrays.stream(indices).forEach(index -> {
-            if (!"true".equals(clusterService.state().metadata().getIndexSafe(index).getSettings().get(NEURAL_SPARSE_INDEX))) {
+            if (!"true".equals(clusterService.state().metadata().getIndexSafe(index).getSettings().get(SPARSE_INDEX))) {
                 invalidIndexNames.add(index.getName());
             }
         });
