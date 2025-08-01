@@ -71,7 +71,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         assertTrue(true);
     }
 
-    public void testClearInMemoryData_withValidSparseField_callsConsumer() throws IOException {
+    public void testClearCacheData_withValidSparseField_callsConsumer() throws IOException {
         SparseBinaryDocValuesPassThrough mockBinaryDocValues = mock(SparseBinaryDocValuesPassThrough.class);
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);

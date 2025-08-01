@@ -2,13 +2,12 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.codec;
+package org.opensearch.neuralsearch.sparse.cache;
 
 import org.apache.lucene.index.SegmentInfo;
 import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
@@ -17,13 +16,13 @@ import java.io.IOException;
 
 import static org.mockito.Mockito.mock;
 
-public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBase {
+public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
     private static final String FIELD_NAME = "test_field";
     private static final int DOC_COUNT = 10;
 
     private SegmentInfo segmentInfo;
-    private InMemoryKey.IndexKey indexKey;
+    private CacheKey.IndexKey indexKey;
 
     @Override
     @Before
@@ -33,7 +32,7 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         segmentInfo = mock(SegmentInfo.class);
 
         // Create an IndexKey for testing
-        indexKey = new InMemoryKey.IndexKey(segmentInfo, FIELD_NAME);
+        indexKey = new CacheKey.IndexKey(segmentInfo, FIELD_NAME);
     }
 
     @Override
@@ -201,7 +200,7 @@ public class InMemorySparseVectorForwardIndexTests extends AbstractSparseTestBas
         InMemorySparseVectorForwardIndex index1 = InMemorySparseVectorForwardIndex.getOrCreate(indexKey, DOC_COUNT);
 
         // Create a second index with a different key
-        InMemoryKey.IndexKey indexKey2 = new InMemoryKey.IndexKey(segmentInfo, "another_field");
+        CacheKey.IndexKey indexKey2 = new InMemoryKey.IndexKey(segmentInfo, "another_field");
         InMemorySparseVectorForwardIndex index2 = InMemorySparseVectorForwardIndex.getOrCreate(indexKey2, DOC_COUNT);
 
         // Verify they are different instances
