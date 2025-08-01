@@ -109,7 +109,11 @@ public class SparsePostingsConsumer extends FieldsConsumer {
                 continue;
             }
 
-            this.clusteredPostingTermsWriter.setFieldAndMaxDoc(this.state.fieldInfos.fieldInfo(field), this.state.segmentInfo.maxDoc());
+            this.clusteredPostingTermsWriter.setFieldAndMaxDoc(
+                this.state.fieldInfos.fieldInfo(field),
+                this.state.segmentInfo.maxDoc(),
+                false
+            );
 
             TermsEnum termsEnum = terms.iterator();
             List<BytesRef> termsList = new ArrayList<>();
