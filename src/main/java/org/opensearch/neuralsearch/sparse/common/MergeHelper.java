@@ -10,6 +10,7 @@ import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.opensearch.common.Nullable;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 
 import java.io.IOException;
@@ -19,7 +20,7 @@ public class MergeHelper {
     public static void clearInMemoryData(
         @NonNull MergeStateFacade mergeState,
         @Nullable FieldInfo fieldInfo,
-        @NonNull Consumer<InMemoryKey.IndexKey> consumer
+        @NonNull Consumer<CacheKey.IndexKey> consumer
     ) throws IOException {
         for (DocValuesProducer producer : mergeState.getDocValuesProducers()) {
             for (FieldInfo field : mergeState.getMergeFieldInfos()) {
@@ -32,7 +33,7 @@ public class MergeHelper {
                 if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough binaryDocValuesPassThrough)) {
                     continue;
                 }
-                InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(binaryDocValuesPassThrough.getSegmentInfo(), field);
+                CacheKey.IndexKey key = new CacheKey.IndexKey(binaryDocValuesPassThrough.getSegmentInfo(), field);
                 consumer.accept(key);
             }
         }

@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.codec;
+package org.opensearch.neuralsearch.sparse.cache;
 
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -14,7 +14,7 @@ import java.io.IOException;
  * A cache-gated forward index reader that implements a two-tier read strategy for sparse vectors.
  *
  * This reader acts as a caching layer between clients and the underlying Lucene storage,
- * providing improved read performance through in-memory caching. It follows a read-through
+ * providing improved read performance through cache. It follows a read-through
  * cache pattern where cache misses are automatically populated from the underlying storage.
  */
 public class CacheGatedForwardIndexReader implements SparseVectorReader {
@@ -33,11 +33,11 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      */
     private static final SparseVectorWriter emptySparseVectorWriter = (docId, vector) -> {};
 
-    /** In-memory reader for fast cache lookups */
-    private final SparseVectorReader inMemoryReader;
+    /** Cache reader for fast cache lookups */
+    private final SparseVectorReader cacheReader;
 
-    /** In-memory writer for cache population on misses */
-    private final SparseVectorWriter inMemoryWriter;
+    /** Cache writer for cache population on misses */
+    private final SparseVectorWriter cacheWriter;
 
     /** Lucene-based reader for persistent storage access */
     private final SparseVectorReader luceneReader;
@@ -45,18 +45,14 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
     /**
      * Constructs a new cache-gated forward index reader.
      *
-     * @param inMemoryReader the reader for accessing cached sparse vectors in memory
-     * @param inMemoryWriter the writer for populating the in-memory cache
+     * @param cacheReader the reader for accessing cached sparse vectors in cache
+     * @param cacheWriter the writer for populating the cache
      * @param luceneReader the reader for accessing sparse vectors from Lucene storage
      * @throws NullPointerException if any parameter is null
      */
-    public CacheGatedForwardIndexReader(
-        SparseVectorReader inMemoryReader,
-        SparseVectorWriter inMemoryWriter,
-        SparseVectorReader luceneReader
-    ) {
-        this.inMemoryReader = inMemoryReader == null ? emptySparseVectorReader : inMemoryReader;
-        this.inMemoryWriter = inMemoryWriter == null ? emptySparseVectorWriter : inMemoryWriter;
+    public CacheGatedForwardIndexReader(SparseVectorReader cacheReader, SparseVectorWriter cacheWriter, SparseVectorReader luceneReader) {
+        this.cacheReader = cacheReader == null ? emptySparseVectorReader : cacheReader;
+        this.cacheWriter = cacheWriter == null ? emptySparseVectorWriter : cacheWriter;
         this.luceneReader = luceneReader == null ? emptySparseVectorReader : luceneReader;
     }
 
@@ -64,7 +60,7 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      * Reads a sparse vector given the specified document ID.
      *
      * Read Strategy:
-     * 1. First attempts to read from the in-memory cache
+     * 1. First attempts to read from the cache
      * 2. On cache miss, reads from Lucene storage
      * 3. Automatically populates the cache with the retrieved vector
      *
@@ -73,14 +69,14 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      * @throws IOException if an I/O error occurs while reading
      */
     public SparseVector read(int docId) throws IOException {
-        SparseVector vector = inMemoryReader.read(docId);
+        SparseVector vector = cacheReader.read(docId);
         if (vector != null) {
             return vector;
         }
 
         vector = luceneReader.read(docId);
         if (vector != null) {
-            inMemoryWriter.insert(docId, vector);
+            cacheWriter.insert(docId, vector);
         }
         return vector;
     }

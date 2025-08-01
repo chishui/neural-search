@@ -14,7 +14,7 @@ import org.junit.Before;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -26,7 +26,7 @@ import static org.mockito.Mockito.doThrow;
 public class ClusteringTaskTests extends AbstractSparseTestBase {
     private BytesRef term;
     private List<DocWeight> docs;
-    private InMemoryKey.IndexKey key;
+    private CacheKey.IndexKey key;
     private PostingClustering postingClustering;
 
     @Before
@@ -36,9 +36,8 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
         MockitoAnnotations.openMocks(this);
 
         term = new BytesRef("test_term");
-        key = mock(InMemoryKey.IndexKey.class);
+        key = mock(CacheKey.IndexKey.class);
         docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2));
-        postingClustering = mock(PostingClustering.class);
     }
 
     public void testConstructor_withValidInputs_createsTask() {

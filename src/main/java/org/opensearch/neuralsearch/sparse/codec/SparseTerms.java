@@ -12,7 +12,10 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPosting;
+import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheGatedPostingsReader;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -23,16 +26,16 @@ import java.util.Set;
  */
 @Getter
 public class SparseTerms extends Terms {
-    private final InMemoryKey.IndexKey indexKey;
+    private final CacheKey.IndexKey indexKey;
     private final CacheGatedPostingsReader reader;
 
-    public SparseTerms(InMemoryKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
+    public SparseTerms(CacheKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
         this.indexKey = indexKey;
-        InMemoryClusteredPosting inMemoryClusteredPosting = InMemoryClusteredPosting.getOrCreate(indexKey);
+        CacheClusteredPosting cacheClusteredPosting = CacheClusteredPostingRegistry.getInstance().getOrCreate(indexKey);
         this.reader = new CacheGatedPostingsReader(
             field,
-            inMemoryClusteredPosting.getReader(),
-            inMemoryClusteredPosting.getWriter(),
+            cacheClusteredPosting.getReader(),
+            cacheClusteredPosting.getWriter(),
             sparseTermsLuceneReader
         );
     }
@@ -84,12 +87,11 @@ public class SparseTerms extends Terms {
 
     class SparseTermsEnum extends BaseTermsEnum {
         private BytesRef currentTerm;
-        private final Set<BytesRef> terms;
         // iterator now only used for next()
         private Iterator<BytesRef> termIterator;
 
         SparseTermsEnum() throws IOException {
-            terms = reader.getTerms();
+            Set<BytesRef> terms = reader.getTerms();
             if (terms != null) {
                 termIterator = terms.iterator();
             }

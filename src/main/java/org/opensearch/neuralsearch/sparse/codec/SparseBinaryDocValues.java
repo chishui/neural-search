@@ -8,7 +8,9 @@ import lombok.Getter;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DocIDMerger;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndex;
+import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
@@ -67,11 +69,11 @@ public class SparseBinaryDocValues extends BinaryDocValues {
 
     public SparseVector cachedSparseVector() throws IOException {
         if (this.current == null) return null;
-        InMemoryKey.IndexKey key = this.current.getKey();
+        CacheKey.IndexKey key = this.current.getKey();
         if (key == null) return null;
-        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
+        CacheForwardIndex index = CacheForwardIndexRegistry.getInstance().get(key);
         if (index == null) return null;
-        // Simply read the in-memory data without CacheGatedForwardIndexReader
+        // Simply read the cache without CacheGatedForwardIndexReader
         SparseVectorReader reader = index.getReader();
         int oldDocId = this.current.getDocId();
         return reader.read(oldDocId);

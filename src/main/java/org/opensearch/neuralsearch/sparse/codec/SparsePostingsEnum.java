@@ -12,7 +12,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 
 import java.io.IOException;
@@ -24,11 +24,11 @@ public class SparsePostingsEnum extends PostingsEnum {
     @Getter
     private final PostingClusters clusters;
     @Getter
-    private final InMemoryKey.IndexKey indexKey;
+    private final CacheKey.IndexKey indexKey;
     private IteratorWrapper<DocumentCluster> currentCluster;
     private DocWeightIterator currentDocWeight;
 
-    public SparsePostingsEnum(PostingClusters clusters, InMemoryKey.IndexKey indexKey) throws IOException {
+    public SparsePostingsEnum(PostingClusters clusters, CacheKey.IndexKey indexKey) throws IOException {
         this.clusters = clusters;
         this.indexKey = indexKey;
         currentCluster = clusterIterator();

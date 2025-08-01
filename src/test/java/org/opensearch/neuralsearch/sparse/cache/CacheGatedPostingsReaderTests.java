@@ -2,11 +2,12 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.codec;
+package org.opensearch.neuralsearch.sparse.cache;
 
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 
@@ -26,8 +27,8 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
 
     private final String testFieldName = "test_field";
     private final BytesRef testTerm = new BytesRef("test_term");
-    private final ClusteredPostingReader inMemoryReader = mock(ClusteredPostingReader.class);
-    private final ClusteredPostingWriter inMemoryWriter = mock(ClusteredPostingWriter.class);
+    private final ClusteredPostingReader cacheReader = mock(ClusteredPostingReader.class);
+    private final ClusteredPostingWriter cacheWriter = mock(ClusteredPostingWriter.class);
     private final SparseTermsLuceneReader luceneReader = mock(SparseTermsLuceneReader.class);
     private final PostingClusters testPostingClusters = createTestPostingClusters();
 
@@ -37,31 +38,31 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      */
     public void testConstructorWithNullFieldName() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
-            new CacheGatedPostingsReader(null, inMemoryReader, inMemoryWriter, luceneReader);
+            new CacheGatedPostingsReader(null, cacheReader, cacheWriter, luceneReader);
         });
         assertEquals("fieldName is marked non-null but is null", exception.getMessage());
     }
 
     /**
-     * Tests the constructor of CacheGatedPostingsReader when null is passed for inMemoryReader.
+     * Tests the constructor of CacheGatedPostingsReader when null is passed for the cache reader.
      * This should throw a NullPointerException as specified in the method's documentation.
      */
-    public void testConstructorWithNullInMemoryReader() {
+    public void testConstructorWithNullCacheReader() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
-            new CacheGatedPostingsReader(testFieldName, null, inMemoryWriter, luceneReader);
+            new CacheGatedPostingsReader(testFieldName, null, cacheWriter, luceneReader);
         });
-        assertEquals("inMemoryReader is marked non-null but is null", exception.getMessage());
+        assertEquals("cacheReader is marked non-null but is null", exception.getMessage());
     }
 
     /**
-     * Tests the constructor of CacheGatedPostingsReader when null is passed for inMemoryWriter.
+     * Tests the constructor of CacheGatedPostingsReader when null is passed for the cache writer.
      * This should throw a NullPointerException as specified in the method's documentation.
      */
-    public void testConstructorWithNullInMemoryWriter() {
+    public void testConstructorWithNullCacheWriter() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
-            new CacheGatedPostingsReader(testFieldName, inMemoryReader, null, luceneReader);
+            new CacheGatedPostingsReader(testFieldName, cacheReader, null, luceneReader);
         });
-        assertEquals("inMemoryWriter is marked non-null but is null", exception.getMessage());
+        assertEquals("cacheWriter is marked non-null but is null", exception.getMessage());
     }
 
     /**
@@ -70,7 +71,7 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      */
     public void testConstructorWithNullLuceneReader() {
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
-            new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, null);
+            new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, null);
         });
         assertEquals("luceneReader is marked non-null but is null", exception.getMessage());
     }
@@ -81,69 +82,69 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * when provided with valid non-null parameters.
      */
     public void testConstructorWithValidParameters() {
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         assertNotNull("CacheGatedPostingsReader should be created successfully", reader);
     }
 
     /**
-     * Test case for the read method when the posting clusters are found in the in-memory cache.
+     * Test case for the read method when the posting clusters are found in the cache.
      * This test verifies that the method returns the clusters from the cache without accessing Lucene storage.
      */
     public void testReadFromCache() throws IOException {
-        when(inMemoryReader.read(any(BytesRef.class))).thenReturn(testPostingClusters);
+        when(cacheReader.read(any(BytesRef.class))).thenReturn(testPostingClusters);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         PostingClusters result = reader.read(testTerm);
 
         assertEquals(testPostingClusters, result);
-        verify(inMemoryReader).read(testTerm);
+        verify(cacheReader).read(testTerm);
         verify(luceneReader, never()).read(anyString(), any(BytesRef.class));
-        verify(inMemoryWriter, never()).insert(any(BytesRef.class), any());
+        verify(cacheWriter, never()).insert(any(BytesRef.class), any());
     }
 
     /**
-     * Tests the read method when both in-memory cache and Lucene storage return null.
+     * Tests the read method when both cache and Lucene storage return null.
      * This scenario verifies that the method correctly handles the case where the
      * requested posting clusters do not exist in either storage.
      */
     public void testReadWhenPostingClustersDoNotExist() throws IOException {
-        when(inMemoryReader.read(any(BytesRef.class))).thenReturn(null);
+        when(cacheReader.read(any(BytesRef.class))).thenReturn(null);
         when(luceneReader.read(anyString(), any(BytesRef.class))).thenReturn(null);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         PostingClusters result = reader.read(testTerm);
 
         assertNull(result);
-        verify(inMemoryReader).read(testTerm);
+        verify(cacheReader).read(testTerm);
         verify(luceneReader).read(testFieldName, testTerm);
-        verify(inMemoryWriter, never()).insert(any(BytesRef.class), any());
+        verify(cacheWriter, never()).insert(any(BytesRef.class), any());
     }
 
     /**
-     * Test case for read method when the posting clusters are not in memory cache but exist in Lucene storage.
+     * Test case for read method when the posting clusters are not in cache but exist in Lucene storage.
      * This test verifies that:
-     * 1. The method attempts to read from in-memory cache first (which returns null)
+     * 1. The method attempts to read from cache first (which returns null)
      * 2. Then reads from Lucene storage successfully
-     * 3. The retrieved posting clusters are inserted into the in-memory cache
+     * 3. The retrieved posting clusters are inserted into the cache
      * 4. The method returns the posting clusters retrieved from Lucene storage
      */
     public void testReadWhenNotInCacheButInLucene() throws IOException {
-        when(inMemoryReader.read(any(BytesRef.class))).thenReturn(null);
+        when(cacheReader.read(any(BytesRef.class))).thenReturn(null);
         when(luceneReader.read(anyString(), any(BytesRef.class))).thenReturn(testPostingClusters);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         PostingClusters result = reader.read(testTerm);
 
         assertEquals(testPostingClusters, result);
-        verify(inMemoryReader).read(testTerm);
+        verify(cacheReader).read(testTerm);
         verify(luceneReader).read(testFieldName, testTerm);
-        verify(inMemoryWriter).insert(eq(testTerm), eq(testPostingClusters.getClusters()));
+        verify(cacheWriter).insert(eq(testTerm), eq(testPostingClusters.getClusters()));
     }
 
     /**
      * Tests the getTerms method to verify it returns terms from the Lucene reader.
      * This test ensures that the method correctly delegates to the Lucene reader
-     * rather than using the in-memory cache, which may be incomplete.
+     * rather than using the cache, which may be incomplete.
      */
     public void testGetTerms() {
         Set<BytesRef> expectedTerms = new HashSet<>();
@@ -152,7 +153,7 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
 
         when(luceneReader.getTerms(anyString())).thenReturn(expectedTerms);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         Set<BytesRef> result = reader.getTerms();
 
         assertEquals(expectedTerms, result);
@@ -172,7 +173,7 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
 
         when(luceneReader.getTerms(anyString())).thenReturn(terms);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         long size = reader.size();
 
         assertEquals(3, size);
@@ -185,16 +186,16 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      */
     public void testReadWithEmptyTerm() throws IOException {
         BytesRef emptyTerm = new BytesRef("");
-        when(inMemoryReader.read(emptyTerm)).thenReturn(null);
+        when(cacheReader.read(emptyTerm)).thenReturn(null);
         when(luceneReader.read(anyString(), eq(emptyTerm))).thenReturn(testPostingClusters);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         PostingClusters result = reader.read(emptyTerm);
 
         assertEquals(testPostingClusters, result);
-        verify(inMemoryReader).read(emptyTerm);
+        verify(cacheReader).read(emptyTerm);
         verify(luceneReader).read(testFieldName, emptyTerm);
-        verify(inMemoryWriter).insert(eq(emptyTerm), eq(testPostingClusters.getClusters()));
+        verify(cacheWriter).insert(eq(emptyTerm), eq(testPostingClusters.getClusters()));
     }
 
     /**
@@ -205,7 +206,7 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
         Set<BytesRef> emptyTerms = new HashSet<>();
         when(luceneReader.getTerms(anyString())).thenReturn(emptyTerms);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         Set<BytesRef> result = reader.getTerms();
 
         assertTrue(result.isEmpty());
@@ -220,7 +221,7 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
         Set<BytesRef> emptyTerms = new HashSet<>();
         when(luceneReader.getTerms(anyString())).thenReturn(emptyTerms);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         long size = reader.size();
 
         assertEquals(0, size);
@@ -233,16 +234,16 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      */
     public void testReadWithSpecialCharacterTerm() throws IOException {
         BytesRef specialTerm = new BytesRef("special!@#$%^&*()_+");
-        when(inMemoryReader.read(specialTerm)).thenReturn(null);
+        when(cacheReader.read(specialTerm)).thenReturn(null);
         when(luceneReader.read(anyString(), eq(specialTerm))).thenReturn(testPostingClusters);
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
         PostingClusters result = reader.read(specialTerm);
 
         assertEquals(testPostingClusters, result);
-        verify(inMemoryReader).read(specialTerm);
+        verify(cacheReader).read(specialTerm);
         verify(luceneReader).read(testFieldName, specialTerm);
-        verify(inMemoryWriter).insert(eq(specialTerm), eq(testPostingClusters.getClusters()));
+        verify(cacheWriter).insert(eq(specialTerm), eq(testPostingClusters.getClusters()));
     }
 
     /**
@@ -250,18 +251,18 @@ public class CacheGatedPostingsReaderTests extends AbstractSparseTestBase {
      * This test verifies that the method properly propagates the exception.
      */
     public void testReadWithIOException() throws IOException {
-        when(inMemoryReader.read(any(BytesRef.class))).thenReturn(null);
+        when(cacheReader.read(any(BytesRef.class))).thenReturn(null);
         when(luceneReader.read(anyString(), any(BytesRef.class))).thenThrow(new IOException("Test IO Exception"));
 
-        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, inMemoryReader, inMemoryWriter, luceneReader);
+        CacheGatedPostingsReader reader = new CacheGatedPostingsReader(testFieldName, cacheReader, cacheWriter, luceneReader);
 
         IOException exception = expectThrows(IOException.class, () -> {
             reader.read(testTerm);
         });
 
         assertEquals("Test IO Exception", exception.getMessage());
-        verify(inMemoryReader).read(testTerm);
+        verify(cacheReader).read(testTerm);
         verify(luceneReader).read(testFieldName, testTerm);
-        verify(inMemoryWriter, never()).insert(any(BytesRef.class), any());
+        verify(cacheWriter, never()).insert(any(BytesRef.class), any());
     }
 }

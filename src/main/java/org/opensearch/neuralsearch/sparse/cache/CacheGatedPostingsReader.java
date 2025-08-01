@@ -2,11 +2,12 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.codec;
+package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.NonNull;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 
@@ -15,26 +16,26 @@ import java.util.Set;
 
 public class CacheGatedPostingsReader implements ClusteredPostingReader {
     private final String fieldName;
-    private final ClusteredPostingReader inMemoryReader;
-    private final ClusteredPostingWriter inMemoryWriter;
+    private final ClusteredPostingReader cacheReader;
+    private final ClusteredPostingWriter cacheWriter;
     // SparseTermsLuceneReader to read sparse terms from disk
     private final SparseTermsLuceneReader luceneReader;
 
     public CacheGatedPostingsReader(
         @NonNull String fieldName,
-        @NonNull ClusteredPostingReader inMemoryReader,
-        @NonNull ClusteredPostingWriter inMemoryWriter,
+        @NonNull ClusteredPostingReader cacheReader,
+        @NonNull ClusteredPostingWriter cacheWriter,
         @NonNull SparseTermsLuceneReader luceneReader
     ) {
         this.fieldName = fieldName;
-        this.inMemoryReader = inMemoryReader;
-        this.inMemoryWriter = inMemoryWriter;
+        this.cacheReader = cacheReader;
+        this.cacheWriter = cacheWriter;
         this.luceneReader = luceneReader;
     }
 
     @Override
     public PostingClusters read(BytesRef term) throws IOException {
-        PostingClusters clusters = inMemoryReader.read(term);
+        PostingClusters clusters = cacheReader.read(term);
         if (clusters != null) {
             return clusters;
         }
@@ -44,7 +45,7 @@ public class CacheGatedPostingsReader implements ClusteredPostingReader {
         }
 
         if (clusters != null) {
-            inMemoryWriter.insert(term, clusters.getClusters());
+            cacheWriter.insert(term, clusters.getClusters());
         }
         return clusters;
     }

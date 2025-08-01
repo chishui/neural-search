@@ -13,9 +13,9 @@ import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.indices.cluster.IndicesClusterStateService;
-import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
+import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 
 @AllArgsConstructor
@@ -29,9 +29,9 @@ public class SparseIndexEventListener implements IndexEventListener {
                     for (MappedFieldType fieldType : mapperService.fieldTypes()) {
                         if (fieldType instanceof SparseTokensFieldType) {
                             String fieldName = fieldType.name();
-                            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
-                            InMemorySparseVectorForwardIndex.removeIndex(key);
-                            InMemoryClusteredPosting.clearIndex(key);
+                            CacheKey.IndexKey key = new CacheKey.IndexKey(segmentInfo, fieldName);
+                            CacheForwardIndexRegistry.getInstance().removeIndex(key);
+                            CacheClusteredPostingRegistry.getInstance().removeIndex(key);
                         }
                     }
                 }
