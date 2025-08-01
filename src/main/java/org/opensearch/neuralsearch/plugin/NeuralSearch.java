@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.plugin;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_SEARCH_HYBRID_SEARCH_DISABLED;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.RERANKER_MAX_DOC_FIELDS;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_STATS_ENABLED;
+import static org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning.updateThreadPoolSize;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,9 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.apache.lucene.util.Accountables;
-import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
@@ -29,14 +27,12 @@ import org.opensearch.neuralsearch.highlight.SemanticHighlighterEngine;
 import org.opensearch.neuralsearch.highlight.extractor.QueryTextExtractorRegistry;
 import com.google.common.collect.ImmutableList;
 import org.opensearch.action.ActionRequest;
+import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
-import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
-import org.opensearch.neuralsearch.sparse.common.Profiling;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
@@ -177,6 +173,11 @@ public class NeuralSearch extends Plugin
         pipelineServiceUtil = new PipelineServiceUtil(clusterService);
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
+        clusterService.getClusterSettings()
+            .addSettingsUpdateConsumer(
+                NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
+                newThreadQty -> updateThreadPoolSize(newThreadQty)
+            );
         ClusterTrainingRunning.initialize(threadPool);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
@@ -220,7 +221,7 @@ public class NeuralSearch extends Plugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        int allocatedProcessors = OpenSearchExecutors.allocatedProcessors(settings);
+        int allocatedProcessors = NeuralSearchSettings.updateThreadQtySettings(settings);
         return List.of(
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
@@ -299,7 +300,7 @@ public class NeuralSearch extends Plugin
             RERANKER_MAX_DOC_FIELDS,
             NEURAL_STATS_ENABLED,
             SparseSettings.IS_SPARSE_INDEX_SETTING,
-            SparseSettings.SPARSE_MEMORY_SETTING
+            NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
         );
     }
 
@@ -363,21 +364,6 @@ public class NeuralSearch extends Plugin
     public void onIndexModule(IndexModule indexModule) {
         if (SparseSettings.IS_SPARSE_INDEX_SETTING.get(indexModule.getSettings())) {
             indexModule.addIndexEventListener(new SparseIndexEventListener());
-            indexModule.addSettingsUpdateConsumer(SparseSettings.SPARSE_MEMORY_SETTING, (v) -> {
-                // just to log in-memory data usage
-                InMemoryClusteredPosting inMemoryClusteredPosting = new InMemoryClusteredPosting();
-                log.info(
-                    "memory usage: forward index {}, posting: {}",
-                    RamUsageEstimator.humanReadableUnits(InMemorySparseVectorForwardIndex.memUsage()),
-                    Accountables.toString(inMemoryClusteredPosting)
-                );
-
-                if (v) {
-                    Profiling.INSTANCE.run();
-                } else {
-                    Profiling.INSTANCE.output();
-                }
-            });
         }
     }
 }

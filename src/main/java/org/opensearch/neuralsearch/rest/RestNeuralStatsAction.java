@@ -13,6 +13,7 @@ import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.stats.NeuralStatsInput;
 import org.opensearch.neuralsearch.stats.events.EventStatName;
 import org.opensearch.neuralsearch.stats.info.InfoStatName;
+import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 import org.opensearch.neuralsearch.transport.NeuralStatsAction;
 import org.opensearch.neuralsearch.transport.NeuralStatsRequest;
 import org.opensearch.rest.BaseRestHandler;
@@ -203,6 +204,7 @@ public class RestNeuralStatsAction extends BaseRestHandler {
     private void addAllStats(NeuralStatsInput neuralStatsInput) {
         neuralStatsInput.getEventStatNames().addAll(EnumSet.allOf(EventStatName.class));
         neuralStatsInput.getInfoStatNames().addAll(EnumSet.allOf(InfoStatName.class));
+        neuralStatsInput.getMetricStatNames().addAll(EnumSet.allOf(MetricStatName.class));
     }
 
     private Optional<String[]> splitCommaSeparatedParam(RestRequest request, String paramName) {

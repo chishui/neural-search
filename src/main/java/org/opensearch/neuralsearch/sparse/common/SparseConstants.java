@@ -11,12 +11,21 @@ public final class SparseConstants {
     public static final String SUMMARY_PRUNE_RATIO_FIELD = "summary_prune_ratio";
     public static final String SEISMIC = "seismic";
     public static final String CLUSTER_RATIO_FIELD = "cluster_ratio";
-    public static final String ALGO_TRIGGER_DOC_COUNT_FIELD = "algo_trigger_doc_count";
+    public static final String APPROXIMATE_THRESHOLD_FIELD = "approximate_threshold";
+    public static final String INDEX_THREAD_QTY = "indexThreadQty";
 
-    public final class Seismic {
-        public static final int DEFAULT_N_POSTINGS = 6000;
+    /**
+     * DEFAULT_APPROXIMATE_THRESHOLD: Minimum document collection number to trigger Seismic
+     * DEFAULT_POSTING_MINIMUM_LENGTH: Minimum posting length when operating with a Seismic segments
+     * SEISMIC is generally only recommended for collections at least 100K documents, where 160 is a good value for the posting length
+     * If N_POSTINGS is not provided, each posting list will be automatically pruned with DEFAULT_POSTING_PRUNE_RATIO
+     */
+    public static final class Seismic {
+        public static final int DEFAULT_N_POSTINGS = -1;
         public static final float DEFAULT_SUMMARY_PRUNE_RATIO = 0.4f;
         public static final float DEFAULT_CLUSTER_RATIO = 0.1f;
-        public static final int DEFAULT_ALGO_TRIGGER_DOC_COUNT = 1000000;
+        public static final int DEFAULT_APPROXIMATE_THRESHOLD = 1000000;
+        public static final float DEFAULT_POSTING_PRUNE_RATIO = 0.0005f;
+        public static final int DEFAULT_POSTING_MINIMUM_LENGTH = 160;
     }
 }

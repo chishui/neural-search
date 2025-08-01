@@ -4,50 +4,56 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.NonNull;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 
 import java.io.IOException;
 import java.util.Set;
 
-public class CacheGatedPostingsReader {
-    private final String field;
-    private final InMemoryClusteredPosting.InMemoryClusteredPostingReader inMemoryReader;
-    private final InMemoryKey.IndexKey indexKey;
+public class CacheGatedPostingsReader implements ClusteredPostingReader {
+    private final String fieldName;
+    private final ClusteredPostingReader inMemoryReader;
+    private final ClusteredPostingWriter inMemoryWriter;
     // SparseTermsLuceneReader to read sparse terms from disk
     private final SparseTermsLuceneReader luceneReader;
 
     public CacheGatedPostingsReader(
-        String field,
-        InMemoryClusteredPosting.InMemoryClusteredPostingReader reader,
-        SparseTermsLuceneReader luceneReader,
-        InMemoryKey.IndexKey indexKey
+        @NonNull String fieldName,
+        @NonNull ClusteredPostingReader inMemoryReader,
+        @NonNull ClusteredPostingWriter inMemoryWriter,
+        @NonNull SparseTermsLuceneReader luceneReader
     ) {
-        this.field = field;
-        this.inMemoryReader = reader;
+        this.fieldName = fieldName;
+        this.inMemoryReader = inMemoryReader;
+        this.inMemoryWriter = inMemoryWriter;
         this.luceneReader = luceneReader;
-        this.indexKey = indexKey;
+    }
+
+    @Override
+    public PostingClusters read(BytesRef term) throws IOException {
+        PostingClusters clusters = inMemoryReader.read(term);
+        if (clusters != null) {
+            return clusters;
+        }
+        // if cluster does not exist in cache, read from lucene and populate it to cache
+        clusters = luceneReader.read(fieldName, term);
+        if (clusters != null) {
+            inMemoryWriter.insert(term, clusters.getClusters());
+        }
+        return clusters;
     }
 
     // we return terms from lucene as cache may not have all data due to memory constraint
-    public Set<BytesRef> terms() throws IOException {
-        return luceneReader.getTerms(field);
+    @Override
+    public Set<BytesRef> getTerms() {
+        return luceneReader.getTerms(fieldName);
     }
 
+    @Override
     public long size() {
-        return luceneReader.getTerms(field).size();
-    }
-
-    public PostingClusters read(BytesRef term) throws IOException {
-        PostingClusters clusters = inMemoryReader.read(term);
-        // if cluster does not exist in cache, read from lucene and populate it to cache
-        if (clusters == null) {
-            clusters = luceneReader.read(field, term);
-            if (clusters != null) {
-                InMemoryClusteredPosting.InMemoryClusteredPostingWriter.writePostingClusters(indexKey, term, clusters.getClusters());
-            }
-        }
-        return clusters;
+        return luceneReader.getTerms(fieldName).size();
     }
 }
