@@ -69,7 +69,7 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         NeuralSparseClearCacheRequest clearCacheRequest = createClearCacheRequest(request);
-        log.info("[KNN] ClearCache started for the following indices: [{}]", String.join(",", clearCacheRequest.indices()));
+        log.info("[Neural Sparse] ClearCache started for the following indices: [{}]", String.join(",", clearCacheRequest.indices()));
         return channel -> client.execute(NeuralSparseClearCacheAction.INSTANCE, clearCacheRequest, new RestToXContentListener<>(channel));
     }
 
@@ -93,7 +93,7 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
         if (!invalidIndexNames.isEmpty()) {
             throw new NeuralSparseInvalidIndicesException(
                 invalidIndexNames,
-                "ClearCache request rejected. One or more indices have 'index.knn' set to false."
+                "ClearCache request rejected. One or more indices have 'index.neural_sparse' set to false."
             );
         }
     }
