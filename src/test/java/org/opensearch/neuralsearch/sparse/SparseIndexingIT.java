@@ -12,19 +12,23 @@ import org.opensearch.client.Response;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.index.query.MatchQueryBuilder;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 
 import java.io.IOException;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import static org.opensearch.neuralsearch.util.TestUtils.createRandomTokenWeightMap;
 
@@ -39,6 +43,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final List<String> TEST_TOKENS = List.of("hello", "world", "test", "sparse", "index");
     private static final String ALGO_NAME = "seismic";
+    private static final String TEXT_FIELD = "text";
 
     @Before
     public void setUp() throws Exception {
@@ -205,7 +210,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
             .field("n_postings", 100) // Integer: length of posting list
             .field("summary_prune_ratio", 0.1f) // Float
             .field("cluster_ratio", 0.1f) // Float: cluster ratio
-            .field("algo_trigger_doc_count", 8)
+            .field("approximate_threshold", 8)
             .field("additional_parameter", 8)
             .endObject()
             .endObject()
@@ -260,8 +265,92 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(4, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("8", "7", "6", "5"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "7", "6", "5"), actualIds);
+    }
+
+    public void testIngestDocumentsMixSeismicWithRankFeatures() throws Exception {
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 4, 0.4f, 0.5f, 4);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+            null,
+            1
+        );
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(
+                Map.of("1000", 0.4f, "2000", 0.4f),
+                Map.of("1000", 0.5f, "2000", 0.5f),
+                Map.of("1000", 0.6f, "2000", 0.6f),
+                Map.of("1000", 0.7f, "2000", 0.7f),
+                Map.of("1000", 0.8f, "2000", 0.8f)
+            ),
+            null,
+            4
+        );
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f)
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(7, getHitCount(searchResults));
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "7", "6", "5", "3", "2", "1"), actualIds);
+    }
+
+    public void testIngestDocumentsWithAllRankFeatures() throws Exception {
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 4, 0.4f, 0.5f, 100);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+            null,
+            1
+        );
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.4f, "2000", 0.4f), Map.of("1000", 0.5f, "2000", 0.5f)),
+            null,
+            4
+        );
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.6f, "2000", 0.6f), Map.of("1000", 0.7f, "2000", 0.7f), Map.of("1000", 0.8f, "2000", 0.8f)),
+            null,
+            6
+        );
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f)
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(8, getHitCount(searchResults));
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "7", "6", "5", "4", "3", "2", "1"), actualIds);
     }
 
     public void testIngestDocumentsAllSeismicWithCut() throws Exception {
@@ -300,26 +389,292 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
         assertEquals(1, getHitCount(searchResults));
-        Set<String> actualIds = getDocIDs(searchResults);
-        assertEquals(Set.of("9"), actualIds);
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("9"), actualIds);
     }
 
-    private void ingestDocuments(String index, String field, List<Map<String, Float>> docTokens) throws Exception {
+    public void testIngestDocumentsSeismicHeapFactor() throws Exception {
+        final int docCount = 100;
+        Request request = configureSparseIndex(TEST_INDEX_NAME, docCount, 0.4f, 0.5f, docCount);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        List<Map<String, Float>> docs = new ArrayList<>();
+        for (int i = 0; i < docCount; ++i) {
+            Map<String, Float> tokens = new HashMap<>();
+            tokens.put("1000", randomFloat());
+            tokens.put("2000", randomFloat());
+            tokens.put("3000", randomFloat());
+            tokens.put("4000", randomFloat());
+            tokens.put("5000", randomFloat());
+            docs.add(tokens);
+        }
+
+        ingestDocuments(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, docs);
+
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        waitForSegmentMerge(TEST_INDEX_NAME);
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            0.000001f,
+            docCount,
+            Map.of("1000", 0.12f, "2000", 0.64f, "3000", 0.87f, "4000", 0.53f)
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, docCount);
+        assertNotNull(searchResults);
+        assertTrue(getHitCount(searchResults) < docCount);
+
+        neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            1,
+            100000,
+            docCount,
+            Map.of("1000", 0.12f, "2000", 0.64f, "3000", 0.87f, "4000", 0.53f)
+        );
+        searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, docCount);
+        assertNotNull(searchResults);
+        assertEquals(docCount, getHitCount(searchResults));
+    }
+
+    public void testIngestDocumentsAllSeismicWithPreFiltering() throws Exception {
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 8, 0.4f, 0.5f, 8);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(
+                Map.of("1000", 0.1f, "2000", 0.1f),
+                Map.of("1000", 0.2f, "2000", 0.2f),
+                Map.of("1000", 0.3f, "2000", 0.3f),
+                Map.of("1000", 0.4f, "2000", 0.4f),
+                Map.of("1000", 0.5f, "2000", 0.5f),
+                Map.of("1000", 0.6f, "2000", 0.6f),
+                Map.of("1000", 0.7f, "2000", 0.7f),
+                Map.of("1000", 0.8f, "2000", 0.8f)
+            ),
+            List.of("apple", "tree", "apple", "tree", "apple", "tree", "apple", "tree"),
+            1
+        );
+
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        waitForSegmentMerge(TEST_INDEX_NAME);
+
+        // filter apple
+        BoolQueryBuilder filter = new BoolQueryBuilder();
+        filter.must(new MatchQueryBuilder(TEXT_FIELD, "apple"));
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f),
+            filter
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(4, getHitCount(searchResults));
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("7", "5", "3", "1"), actualIds);
+        // filter tree
+        filter = new BoolQueryBuilder();
+        filter.must(new MatchQueryBuilder(TEXT_FIELD, "tree"));
+        neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f),
+            filter
+        );
+
+        searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(4, getHitCount(searchResults));
+        actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("8", "6", "4", "2"), actualIds);
+    }
+
+    public void testIngestDocumentsAllSeismicWithPostFiltering() throws Exception {
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 8, 0.4f, 0.5f, 8);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(
+                Map.of("1000", 0.1f, "2000", 0.1f),
+                Map.of("1000", 0.2f, "2000", 0.2f),
+                Map.of("1000", 0.3f, "2000", 0.3f),
+                Map.of("1000", 0.4f, "2000", 0.4f),
+                Map.of("1000", 0.5f, "2000", 0.5f),
+                Map.of("1000", 0.6f, "2000", 0.6f),
+                Map.of("1000", 0.7f, "2000", 0.7f),
+                Map.of("1000", 0.8f, "2000", 0.8f)
+            ),
+            List.of("apple", "apple", "apple", "apple", "apple", "apple", "apple", "tree"),
+            1
+        );
+
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        waitForSegmentMerge(TEST_INDEX_NAME);
+
+        // filter apple
+        BoolQueryBuilder filter = new BoolQueryBuilder();
+        filter.must(new MatchQueryBuilder(TEXT_FIELD, "apple"));
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            4,
+            Map.of("1000", 0.1f, "2000", 0.2f),
+            filter
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(3, getHitCount(searchResults));
+        List<String> actualIds = getDocIDs(searchResults);
+        // results with k = 4 are 5, 6, 7, 8, filter results are 1, 2, 3, 4, 5, 6, 7
+        // intersection of both are 5, 6, 7
+        assertEquals(List.of("7", "6", "5"), actualIds);
+    }
+
+    public void testIngestDocumentsRankFeaturesWithFiltering() throws Exception {
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 1, 0.4f, 0.5f, 100);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(
+                Map.of("1000", 0.1f, "2000", 0.1f),
+                Map.of("1000", 0.2f, "2000", 0.2f),
+                Map.of("1000", 0.3f, "2000", 0.3f),
+                Map.of("1000", 0.4f, "2000", 0.4f),
+                Map.of("1000", 0.5f, "2000", 0.5f),
+                Map.of("1000", 0.6f, "2000", 0.6f),
+                Map.of("1000", 0.7f, "2000", 0.7f),
+                Map.of("1000", 0.8f, "2000", 0.8f)
+            ),
+            List.of("apple", "tree", "apple", "tree", "apple", "tree", "apple", "tree"),
+            1
+        );
+
+        // filter apple
+        BoolQueryBuilder filter = new BoolQueryBuilder();
+        filter.must(new MatchQueryBuilder(TEXT_FIELD, "apple"));
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f),
+            filter
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(4, getHitCount(searchResults));
+        List<String> actualIds = getDocIDs(searchResults);
+        assertEquals(List.of("7", "5", "3", "1"), actualIds);
+    }
+
+    public void testIngestDocumentsMultipleShards() throws Exception {
+        int shards = 3;
+        Request request = configureSparseIndex(TEST_INDEX_NAME, 5, 0.4f, 0.5f, 20, shards, 3);
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        int docCount = 20;
+        List<Map<String, Float>> docs = new ArrayList<>();
+        List<String> text = new ArrayList<>();
+        for (int i = 0; i < docCount; ++i) {
+            Map<String, Float> tokens = new HashMap<>();
+            tokens.put("1000", randomFloat());
+            tokens.put("2000", randomFloat());
+            tokens.put("3000", randomFloat());
+            tokens.put("4000", randomFloat());
+            tokens.put("5000", randomFloat());
+            docs.add(tokens);
+            if (i % 2 == 0) {
+                text.add("apple");
+            } else {
+                text.add("tree");
+            }
+        }
+        for (int i = 0; i < 3; ++i) {
+            ingestDocuments(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, docs, text, i * docCount + 1, String.valueOf(i + 1));
+        }
+
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        waitForSegmentMerge(TEST_INDEX_NAME, shards);
+
+        // filter apple
+        BoolQueryBuilder filter = new BoolQueryBuilder();
+        filter.must(new MatchQueryBuilder(TEXT_FIELD, "apple"));
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            9,
+            Map.of("1000", 0.1f),
+            filter
+        );
+
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 20);
+        assertNotNull(searchResults);
+        assertTrue(getHitCount(searchResults) <= 15);
+    }
+
+    private void ingestDocuments(String index, String field, List<Map<String, Float>> docTokens) {
+        ingestDocuments(index, field, docTokens, null, 1);
+    }
+
+    private void ingestDocuments(String index, String field, List<Map<String, Float>> docTokens, List<String> text, int startingId) {
+        ingestDocuments(index, field, docTokens, text, startingId, null);
+    }
+
+    private void ingestDocuments(
+        String index,
+        String field,
+        List<Map<String, Float>> docTokens,
+        List<String> docTexts,
+        int startingId,
+        String routing
+    ) {
         StringBuilder payloadBuilder = new StringBuilder();
         for (int i = 0; i < docTokens.size(); i++) {
             Map<String, Float> docToken = docTokens.get(i);
-            payloadBuilder.append(String.format("{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, i + 1));
+            payloadBuilder.append(
+                String.format(Locale.ROOT, "{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i)
+            );
             payloadBuilder.append(System.lineSeparator());
             String strTokens = convertTokensToText(docToken);
-            payloadBuilder.append(String.format("{ \"%s\": {%s}}", field, strTokens));
+            String text = CollectionUtils.isEmpty(docTexts) ? "text" : docTexts.get(i);
+            payloadBuilder.append(String.format(Locale.ROOT, "{\"%s\": \"%s\", \"%s\": {%s}}", TEXT_FIELD, text, field, strTokens));
             payloadBuilder.append(System.lineSeparator());
         }
-        bulkIngest(payloadBuilder.toString(), null);
+        bulkIngest(payloadBuilder.toString(), null, routing);
     }
 
-    private Set<String> getDocIDs(Map<String, Object> searchResults) {
+    private List<String> getDocIDs(Map<String, Object> searchResults) {
         Map<String, Object> hits1map = (Map<String, Object>) searchResults.get("hits");
-        Set<String> actualIds = new HashSet<>();
+        List<String> actualIds = new ArrayList<>();
         List<Object> hits1List = (List<Object>) hits1map.get("hits");
         for (Object hits1Object : hits1List) {
             Map<String, Object> mapObject = (Map<String, Object>) hits1Object;
@@ -330,9 +685,13 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
     }
 
     private void waitForSegmentMerge(String index) throws InterruptedException {
+        waitForSegmentMerge(index, 1);
+    }
+
+    private void waitForSegmentMerge(String index, int shards) throws InterruptedException {
         int maxRetry = 5;
         for (int i = 0; i < maxRetry; ++i) {
-            if (1 == getSegmentCount(index)) {
+            if (shards == getSegmentCount(index)) {
                 break;
             }
             Thread.sleep(1000);
@@ -352,11 +711,23 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
     }
 
     private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
+        return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
+    }
+
+    private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(
+        String field,
+        int cut,
+        float hf,
+        int k,
+        Map<String, Float> query,
+        QueryBuilder filter
+    ) {
         SparseAnnQueryBuilder annQueryBuilder = new SparseAnnQueryBuilder().queryCut(cut)
             .fieldName(field)
             .heapFactor(hf)
             .k(k)
-            .queryTokens(query);
+            .queryTokens(query)
+            .filter(filter);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
             .fieldName(field)
@@ -372,18 +743,22 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
     }
 
     private String prepareIndexSettings() throws IOException {
+        return prepareIndexSettings(1, 0);
+    }
+
+    private String prepareIndexSettings(int shards, int replicas) throws IOException {
         XContentBuilder settingBuilder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("index")
             .field("sparse", true)
-            .field("number_of_shards", 1)
-            .field("number_of_replicas", 0)
+            .field("number_of_shards", shards)
+            .field("number_of_replicas", replicas)
             .endObject()
             .endObject();
         return settingBuilder.toString();
     }
 
-    private String prepareIndexMapping(int nPostings, float alpha, float clusterRatio, int docTriggerPoint) throws IOException {
+    private String prepareIndexMapping(int nPostings, float alpha, float clusterRatio, int approximateThreshold) throws IOException {
         XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("properties")
@@ -395,7 +770,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
             .field("n_postings", nPostings) // Integer: length of posting list
             .field("summary_prune_ratio", alpha) // Float
             .field("cluster_ratio", clusterRatio) // Float: cluster ratio
-            .field("algo_trigger_doc_count", docTriggerPoint)
+            .field("approximate_threshold", approximateThreshold)
             .endObject()
             .endObject()
             .endObject()
@@ -404,10 +779,22 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
         return mappingBuilder.toString();
     }
 
-    private Request configureSparseIndex(String indexName, int nPostings, float alpha, float clusterRatio, int docTriggerPoint)
+    private Request configureSparseIndex(String indexName, int nPostings, float alpha, float clusterRatio, int approximateThreshold)
         throws IOException {
-        String indexSettings = prepareIndexSettings();
-        String indexMappings = prepareIndexMapping(nPostings, alpha, clusterRatio, docTriggerPoint);
+        return configureSparseIndex(indexName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
+    }
+
+    private Request configureSparseIndex(
+        String indexName,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold,
+        int shards,
+        int replicas
+    ) throws IOException {
+        String indexSettings = prepareIndexSettings(shards, replicas);
+        String indexMappings = prepareIndexMapping(nPostings, alpha, clusterRatio, approximateThreshold);
         Request request = new Request("PUT", "/" + indexName);
         String body = String.format(
             Locale.ROOT,
@@ -421,7 +808,7 @@ public class SparseIndexingIT extends BaseNeuralSearchIT {
 
     private String makeDocument(Map<String, Float> tokens, String fieldName) {
         String tokenText = convertTokensToText(tokens);
-        return String.format("{\n" + "\"passage_text\": \"apple tree\"," + "\"%s\": {%s}}", fieldName, tokenText);
+        return String.format(Locale.ROOT, "{\n" + "\"passage_text\": \"apple tree\"," + "\"%s\": {%s}}", fieldName, tokenText);
     }
 
     private String convertTokensToText(Map<String, Float> tokens) {

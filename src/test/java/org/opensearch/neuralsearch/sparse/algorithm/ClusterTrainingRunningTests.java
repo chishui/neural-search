@@ -4,6 +4,11 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
+import org.mockito.ArgumentCaptor;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.threadpool.ThreadPool;
+
+import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -148,5 +153,21 @@ public class ClusterTrainingRunningTests extends AbstractSparseTestBase {
 
         verify(threadPool, times(1)).executor(ClusterTrainingRunning.THREAD_POOL_NAME);
         verify(executorService, times(1)).execute(null);
+    }
+
+    public void testUpdateThreadPoolSize_updatesThreadPoolWithCorrectSettings() {
+        ClusterTrainingRunning.initialize(threadPool);
+        Integer newThreadQty = 10;
+
+        ArgumentCaptor<Settings> settingsCaptor = ArgumentCaptor.forClass(Settings.class);
+
+        ClusterTrainingRunning.updateThreadPoolSize(newThreadQty);
+
+        verify(threadPool).setThreadPool(settingsCaptor.capture());
+
+        Settings capturedSettings = settingsCaptor.getValue();
+
+        String expectedKey = ClusterTrainingRunning.THREAD_POOL_NAME + ".size";
+        assertTrue("Settings should contain the thread pool size key", capturedSettings.keySet().contains(expectedKey));
     }
 }

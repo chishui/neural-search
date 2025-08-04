@@ -8,8 +8,10 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.BinaryDocValues;
+
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexOptions;
@@ -24,20 +26,9 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.IndexableFieldType;
-import org.apache.lucene.index.LeafReader;
-import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.SegmentReader;
-import org.apache.lucene.util.Bits;
-import org.apache.lucene.index.PointValues;
-import org.apache.lucene.index.TermVectors;
-import org.apache.lucene.index.StoredFields;
-import org.apache.lucene.index.LeafMetaData;
-import org.apache.lucene.index.FloatVectorValues;
-import org.apache.lucene.index.ByteVectorValues;
-import org.apache.lucene.search.KnnCollector;
-
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.Version;
@@ -45,14 +36,11 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.ContentPath;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
-
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
 
 public class TestsPrepareUtils {
 
@@ -99,6 +87,32 @@ public class TestsPrepareUtils {
             Version.LATEST,                // minVersion
             "_test_segment",               // name
             10,                            // maxDoc
+            false,                         // isCompoundFile
+            false,                         // hasBlocks
+            Codec.getDefault(),            // codec
+            Collections.emptyMap(),        // diagnostics
+            id,                            // id
+            Collections.emptyMap(),        // attributes
+            null                           // indexSort
+        );
+        return segmentInfo;
+    }
+
+    public static SegmentInfo prepareSegmentInfo(int maxDoc) {
+        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
+        docMaps[0] = docID -> docID;
+        Directory dir = new ByteBuffersDirectory();
+        byte[] id = new byte[16];
+        for (int i = 0; i < id.length; i++) {
+            id[i] = (byte) i;
+        }
+
+        SegmentInfo segmentInfo = new SegmentInfo(
+            dir,                           // directory
+            Version.LATEST,                // version
+            Version.LATEST,                // minVersion
+            "_test_segment",               // name
+            maxDoc,                        // maxDoc
             false,                         // isCompoundFile
             false,                         // hasBlocks
             Codec.getDefault(),            // codec
@@ -382,143 +396,20 @@ public class TestsPrepareUtils {
         return new ContentPath();
     }
 
-    public static SegmentReader prepareSegmentReader() {
-        // We can't mock SegmentReader as it's final, and we can't easily create a real one
-        // due to its complex dependencies, so we'll return null
-        return null;
+    public static SegmentWriteState prepareSegmentWriteState() {
+        Directory directory = new ByteBuffersDirectory();
+        SegmentInfo segmentInfo = prepareSegmentInfo();
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        IOContext ioContext = IOContext.DEFAULT;
+
+        return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
     }
 
-    public static LeafReaderContext prepareLeafReaderContext() {
-        // Create a mock LeafReader
-        LeafReader leafReader = new LeafReader() {
-            @Override
-            public Terms terms(String field) {
-                return null;
-            }
+    public static SegmentWriteState prepareSegmentWriteState(SegmentInfo segmentInfo) {
+        Directory directory = new ByteBuffersDirectory();
+        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
+        IOContext ioContext = IOContext.DEFAULT;
 
-            @Override
-            public NumericDocValues getNumericDocValues(String field) {
-                return null;
-            }
-
-            @Override
-            public BinaryDocValues getBinaryDocValues(String field) {
-                return null;
-            }
-
-            @Override
-            public SortedDocValues getSortedDocValues(String field) {
-                return null;
-            }
-
-            @Override
-            public SortedNumericDocValues getSortedNumericDocValues(String field) {
-                return null;
-            }
-
-            @Override
-            public SortedSetDocValues getSortedSetDocValues(String field) {
-                return null;
-            }
-
-            @Override
-            public FieldInfos getFieldInfos() {
-                FieldInfo fieldInfo = prepareKeyFieldInfo();
-                fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "1");
-                return new FieldInfos(new FieldInfo[] { fieldInfo });
-            }
-
-            @Override
-            public Bits getLiveDocs() {
-                return null;
-            }
-
-            @Override
-            public PointValues getPointValues(String field) throws IOException {
-                return null;
-            }
-
-            @Override
-            public TermVectors termVectors() throws IOException {
-                return null;
-            }
-
-            @Override
-            public int numDocs() {
-                return 10;
-            }
-
-            @Override
-            public int maxDoc() {
-                return 10;
-            }
-
-            @Override
-            public StoredFields storedFields() throws IOException {
-                return null;
-            }
-
-            @Override
-            protected void doClose() throws IOException {
-
-            }
-
-            @Override
-            public void checkIntegrity() {}
-
-            @Override
-            public LeafMetaData getMetaData() {
-                return null;
-            }
-
-            @Override
-            public CacheHelper getCoreCacheHelper() {
-                return null;
-            }
-
-            @Override
-            public CacheHelper getReaderCacheHelper() {
-                return null;
-            }
-
-            @Override
-            public NumericDocValues getNormValues(String field) {
-                return null;
-            }
-
-            @Override
-            public DocValuesSkipper getDocValuesSkipper(String field) throws IOException {
-                return null;
-            }
-
-            @Override
-            public FloatVectorValues getFloatVectorValues(String field) throws IOException {
-                return null;
-            }
-
-            @Override
-            public ByteVectorValues getByteVectorValues(String field) throws IOException {
-                return null;
-            }
-
-            @Override
-            public void searchNearestVectors(String field, float[] target, KnnCollector knnCollector, Bits acceptDocs) throws IOException {
-
-            }
-
-            @Override
-            public void searchNearestVectors(String field, byte[] target, KnnCollector knnCollector, Bits acceptDocs) throws IOException {
-
-            }
-        };
-
-        // Use reflection to create a LeafReaderContext since the constructor is not public
-        try {
-            Constructor<LeafReaderContext> constructor = LeafReaderContext.class.getDeclaredConstructor(LeafReader.class);
-            constructor.setAccessible(true);
-            return constructor.newInstance(leafReader);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create LeafReaderContext", e);
-        }
+        return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
     }
 }

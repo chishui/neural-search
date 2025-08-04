@@ -39,7 +39,10 @@ public class CacheGatedPostingsReader implements ClusteredPostingReader {
             return clusters;
         }
         // if cluster does not exist in cache, read from lucene and populate it to cache
-        clusters = luceneReader.read(fieldName, term);
+        synchronized (luceneReader) {
+            clusters = luceneReader.read(fieldName, term);
+        }
+
         if (clusters != null) {
             inMemoryWriter.insert(term, clusters.getClusters());
         }

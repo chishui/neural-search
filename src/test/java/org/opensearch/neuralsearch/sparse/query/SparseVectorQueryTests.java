@@ -97,6 +97,7 @@ public class SparseVectorQueryTests extends AbstractSparseTestBase {
         when(mockFilterWeightScorer.iterator()).thenReturn(iter);
 
         // Use ScorerSupplier instead of Scorer directly
+        when(mockRewrittenFilterWeight.scorer(any(LeafReaderContext.class))).thenReturn(mockFilterWeightScorer);
         when(mockRewrittenFilterWeight.scorerSupplier(any(LeafReaderContext.class))).thenReturn(mockScorerSupplier);
         when(mockScorerSupplier.get(anyLong())).thenReturn(mockFilterWeightScorer);
     }
@@ -165,6 +166,7 @@ public class SparseVectorQueryTests extends AbstractSparseTestBase {
         Query filter = new TermQuery(new Term(FILTER_FIELD, "even"));
         when(mockSearcher.rewrite(any(Query.class))).thenReturn(filter);
         when(mockScorerSupplier.get(anyLong())).thenReturn(null);
+        when(mockRewrittenFilterWeight.scorer(any(LeafReaderContext.class))).thenReturn(null);
         SparseVectorQuery query = SparseVectorQuery.builder()
             .queryVector(queryVector)
             .queryContext(mockQueryContext)

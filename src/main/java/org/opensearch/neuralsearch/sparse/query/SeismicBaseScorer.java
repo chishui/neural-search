@@ -19,7 +19,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LongBitSet;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -159,7 +159,7 @@ public abstract class SeismicBaseScorer extends Scorer {
 
     class SingleScorer extends Scorer {
         private final IteratorWrapper<DocumentCluster> clusterIter;
-        private DocFreqIterator docs = null;
+        private DocWeightIterator docs = null;
 
         public SingleScorer(SparsePostingsEnum postingsEnum) throws IOException {
             clusterIter = postingsEnum.clusterIterator();

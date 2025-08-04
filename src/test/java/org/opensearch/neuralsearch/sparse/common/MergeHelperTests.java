@@ -4,44 +4,62 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
 import org.apache.lucene.codecs.DocValuesProducer;
+import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
+import org.apache.lucene.index.SegmentInfo;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.opensearch.neuralsearch.sparse.SparseTokensField.SPARSE_FIELD;
 
 public class MergeHelperTests extends AbstractSparseTestBase {
-
     private MergeStateFacade mergeStateFacade;
     private DocValuesProducer docValuesProducer1;
     private DocValuesProducer docValuesProducer2;
+    private FieldInfo sparseFieldInfo;
+    private FieldInfo nonSparseFieldInfo;
+    private DocValuesProducer docValuesProducer;
+    private SegmentInfo segmentInfo;
 
     @Before
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        // final String inlineMockMaker = "org.mockito.internal.creation.bytebuddy.InlineByteBuddyMockMaker";
-        // MockSettings mockSettingsWithInlineMockMaker = new MockSettingsImpl().mockMaker(inlineMockMaker);
 
         mergeStateFacade = mock(MergeStateFacade.class);
-        DocValuesProducer docValuesProducer1 = mock(DocValuesProducer.class);
-        DocValuesProducer docValuesProducer2 = mock(DocValuesProducer.class);
+        docValuesProducer1 = mock(DocValuesProducer.class);
+        docValuesProducer2 = mock(DocValuesProducer.class);
+        docValuesProducer = mock(DocValuesProducer.class);
+        segmentInfo = mock(SegmentInfo.class);
 
-        FieldInfo fieldInfo1 = mock(FieldInfo.class);
-        FieldInfo fieldInfo2 = mock(FieldInfo.class);
-        List<FieldInfo> fields = Arrays.asList(fieldInfo1, fieldInfo2);
+        // Setup sparse field
+        sparseFieldInfo = mock(FieldInfo.class);
+        Map<String, String> sparseAttributes = new HashMap<>();
+        sparseAttributes.put(SPARSE_FIELD, "true");
+        when(sparseFieldInfo.attributes()).thenReturn(sparseAttributes);
 
+        // Setup non-sparse field
+        nonSparseFieldInfo = mock(FieldInfo.class);
+        when(nonSparseFieldInfo.attributes()).thenReturn(new HashMap<>());
+
+        List<FieldInfo> fields = Arrays.asList(sparseFieldInfo, nonSparseFieldInfo);
         FieldInfos fieldInfos = mock(FieldInfos.class);
         when(fieldInfos.iterator()).thenReturn(fields.iterator());
         when(mergeStateFacade.getMergeFieldInfos()).thenReturn(fieldInfos);
-
+        when(mergeStateFacade.getDocValuesProducers()).thenReturn(new DocValuesProducer[] { docValuesProducer });
     }
 
     public void testClear() throws IOException {
@@ -52,4 +70,65 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         assertTrue(true);
     }
 
+    public void testClearInMemoryData_withValidSparseField_callsConsumer() throws IOException {
+        SparseBinaryDocValuesPassThrough mockBinaryDocValues = mock(SparseBinaryDocValuesPassThrough.class);
+        when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
+        when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
+
+        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+
+        MergeHelper.clearInMemoryData(mergeStateFacade, sparseFieldInfo, consumer);
+
+        assertEquals("Consumer should NOT be called when fieldInfo matches", 0, capturedKeys.size());
+    }
+
+    public void testClearInMemoryData_withNullFieldInfo_processesAllSparseFields() throws IOException {
+        SparseBinaryDocValuesPassThrough mockBinaryDocValues = mock(SparseBinaryDocValuesPassThrough.class);
+        when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
+        when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
+
+        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+
+        MergeHelper.clearInMemoryData(mergeStateFacade, null, consumer);
+
+        assertEquals("Consumer should NOT be called when fieldInfo is null", 0, capturedKeys.size());
+    }
+
+    public void testClearInMemoryData_withNonSparseFieldInfo_processesAllSparseFields() throws IOException {
+        SparseBinaryDocValuesPassThrough mockBinaryDocValues = mock(SparseBinaryDocValuesPassThrough.class);
+        when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
+        when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
+
+        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+
+        MergeHelper.clearInMemoryData(mergeStateFacade, nonSparseFieldInfo, consumer);
+
+        assertEquals("Consumer should be called for sparse field when fieldInfo doesn't match", 1, capturedKeys.size());
+    }
+
+    public void testClearInMemoryData_withNonSparseBinaryDocValues_skipsField() throws IOException {
+        BinaryDocValues mockBinaryDocValues = mock(BinaryDocValues.class);
+        when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
+
+        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+
+        MergeHelper.clearInMemoryData(mergeStateFacade, nonSparseFieldInfo, consumer);
+
+        assertEquals("Consumer should NOT be called for non-SparseBinaryDocValuesPassThrough", 0, capturedKeys.size());
+    }
+
+    public void testClearInMemoryData_withEmptyMergeState_doesNotCallConsumer() throws IOException {
+        when(mergeStateFacade.getDocValuesProducers()).thenReturn(new DocValuesProducer[]{});
+
+        List<InMemoryKey.IndexKey> capturedKeys = new ArrayList<>();
+        Consumer<InMemoryKey.IndexKey> consumer = capturedKeys::add;
+
+        MergeHelper.clearInMemoryData(mergeStateFacade, sparseFieldInfo, consumer);
+
+        assertEquals("Consumer should NOT be called with empty producers", 0, capturedKeys.size());
+    }
 }

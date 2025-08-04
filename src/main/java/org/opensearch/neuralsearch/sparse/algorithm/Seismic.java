@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
@@ -77,21 +77,21 @@ public class Seismic implements SparseAlgorithm {
             }
             parameters.remove(CLUSTER_RATIO_FIELD);
         }
-        if (parameters.containsKey(ALGO_TRIGGER_DOC_COUNT_FIELD)) {
+        if (parameters.containsKey(APPROXIMATE_THRESHOLD_FIELD)) {
             try {
-                String fieldValueString = parameters.get(ALGO_TRIGGER_DOC_COUNT_FIELD).toString();
+                String fieldValueString = parameters.get(APPROXIMATE_THRESHOLD_FIELD).toString();
                 int algoTriggerThreshold = NumberUtils.createInteger(fieldValueString);
                 if (algoTriggerThreshold < 0) {
                     errorMessages.add(
-                        String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD)
+                        String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", APPROXIMATE_THRESHOLD_FIELD)
                     );
                 }
             } catch (Exception e) {
                 errorMessages.add(
-                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", ALGO_TRIGGER_DOC_COUNT_FIELD, Integer.class.getName())
+                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", APPROXIMATE_THRESHOLD_FIELD, Integer.class.getName())
                 );
             }
-            parameters.remove(ALGO_TRIGGER_DOC_COUNT_FIELD);
+            parameters.remove(APPROXIMATE_THRESHOLD_FIELD);
         }
         for (String key : parameters.keySet()) {
             errorMessages.add(String.format(Locale.ROOT, "Unknown parameter '%s' found", key));

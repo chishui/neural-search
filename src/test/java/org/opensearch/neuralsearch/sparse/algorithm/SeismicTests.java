@@ -15,7 +15,7 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseMethodContext;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
 
@@ -23,7 +23,7 @@ public class SeismicTests extends AbstractSparseTestBase {
 
     public void testValidateMethod_invalidAlgoTriggerDocCount() {
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, -1);
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, -1);
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, "testMethod");
@@ -33,13 +33,13 @@ public class SeismicTests extends AbstractSparseTestBase {
         ValidationException result = Seismic.INSTANCE.validateMethod(context);
 
         assertNotNull(result);
-        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD);
+        String expectedError = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", APPROXIMATE_THRESHOLD_FIELD);
         assertTrue(result.validationErrors().contains(expectedError));
     }
 
     public void testValidateMethod_validAlgoTriggerStringNumberDocCount() {
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, "12");
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, "12");
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, "testMethod");
@@ -53,7 +53,7 @@ public class SeismicTests extends AbstractSparseTestBase {
 
     public void testValidateMethod_invalidAlgoTriggerStringTextDocCount() {
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, "invalid number");
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, "invalid number");
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, "testMethod");
@@ -66,7 +66,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         String expectedError = String.format(
             Locale.ROOT,
             "Parameter [%s] must be of %s type",
-            ALGO_TRIGGER_DOC_COUNT_FIELD,
+            APPROXIMATE_THRESHOLD_FIELD,
             Integer.class.getName()
         );
         assertTrue(result.validationErrors().contains(expectedError));
@@ -74,7 +74,7 @@ public class SeismicTests extends AbstractSparseTestBase {
 
     public void testValidateMethod_invalidAlgoTriggerBooleanDocCount() {
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, false);
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, false);
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, "testMethod");
@@ -87,7 +87,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         String expectedError = String.format(
             Locale.ROOT,
             "Parameter [%s] must be of %s type",
-            ALGO_TRIGGER_DOC_COUNT_FIELD,
+            APPROXIMATE_THRESHOLD_FIELD,
             Integer.class.getName()
         );
         assertTrue(result.validationErrors().contains(expectedError));
@@ -293,7 +293,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put(N_POSTINGS_FIELD, 0);
         parameters.put(CLUSTER_RATIO_FIELD, -1.5f);
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, -1);
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, -1);
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, "testMethod");
@@ -305,7 +305,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         assertNotNull(validationException);
         String expectedError1 = String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD);
         String expectedError2 = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD);
-        String expectedError3 = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD);
+        String expectedError3 = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", APPROXIMATE_THRESHOLD_FIELD);
         assertTrue(validationException.validationErrors().contains(expectedError1));
         assertTrue(validationException.validationErrors().contains(expectedError2));
         assertTrue(validationException.validationErrors().contains(expectedError3));
@@ -331,7 +331,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         parameters.put(SUMMARY_PRUNE_RATIO_FIELD, 0.5f);
         parameters.put(N_POSTINGS_FIELD, 10);
         parameters.put(CLUSTER_RATIO_FIELD, 0.5f);
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, 100);
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, 100);
 
         Map<String, Object> methodMap = new HashMap<>();
         methodMap.put(NAME_FIELD, "testMethod");
@@ -348,7 +348,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         parameters.put(SUMMARY_PRUNE_RATIO_FIELD, 0.0f);
         parameters.put(N_POSTINGS_FIELD, 0);
         parameters.put(CLUSTER_RATIO_FIELD, 1.0f);
-        parameters.put(ALGO_TRIGGER_DOC_COUNT_FIELD, -1);
+        parameters.put(APPROXIMATE_THRESHOLD_FIELD, -1);
         parameters.put("unknown_param", "value");
 
         Map<String, Object> methodMap = new HashMap<>();
@@ -361,7 +361,7 @@ public class SeismicTests extends AbstractSparseTestBase {
         assertNotNull(result);
         String expectedError1 = String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD);
         String expectedError2 = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD);
-        String expectedError3 = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", ALGO_TRIGGER_DOC_COUNT_FIELD);
+        String expectedError3 = String.format(Locale.ROOT, "Parameter [%s] must be a non-Negative integer", APPROXIMATE_THRESHOLD_FIELD);
         String expectedError4 = String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD);
         assertTrue(result.validationErrors().contains(expectedError1));
         assertTrue(result.validationErrors().contains(expectedError2));

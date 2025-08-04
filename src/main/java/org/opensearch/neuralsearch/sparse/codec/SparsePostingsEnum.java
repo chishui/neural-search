@@ -11,7 +11,7 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 
@@ -26,13 +26,13 @@ public class SparsePostingsEnum extends PostingsEnum {
     @Getter
     private final InMemoryKey.IndexKey indexKey;
     private IteratorWrapper<DocumentCluster> currentCluster;
-    private DocFreqIterator currentDocFreq;
+    private DocWeightIterator currentDocWeight;
 
     public SparsePostingsEnum(PostingClusters clusters, InMemoryKey.IndexKey indexKey) throws IOException {
         this.clusters = clusters;
         this.indexKey = indexKey;
         currentCluster = clusterIterator();
-        currentDocFreq = currentCluster.next().getDisi();
+        currentDocWeight = currentCluster.next().getDisi();
     }
 
     public IteratorWrapper<DocumentCluster> clusterIterator() {
@@ -45,8 +45,8 @@ public class SparsePostingsEnum extends PostingsEnum {
 
     @Override
     public int freq() throws IOException {
-        assert this.currentDocFreq != null;
-        return ByteQuantizer.getUnsignedByte(this.currentDocFreq.freq());
+        assert this.currentDocWeight != null;
+        return ByteQuantizer.getUnsignedByte(this.currentDocWeight.weight());
     }
 
     @Override
@@ -71,22 +71,22 @@ public class SparsePostingsEnum extends PostingsEnum {
 
     @Override
     public int docID() {
-        if (currentDocFreq == null) {
+        if (currentDocWeight == null) {
             return -1;
         }
-        return currentDocFreq.docID();
+        return currentDocWeight.docID();
     }
 
     @Override
     public int nextDoc() throws IOException {
-        assert currentDocFreq != null;
-        int doc = currentDocFreq.nextDoc();
+        assert currentDocWeight != null;
+        int doc = currentDocWeight.nextDoc();
         while (doc == DocIdSetIterator.NO_MORE_DOCS) {
             if (!currentCluster.hasNext()) {
                 return DocIdSetIterator.NO_MORE_DOCS;
             }
-            currentDocFreq = currentCluster.next().getDisi();
-            doc = currentDocFreq.nextDoc();
+            currentDocWeight = currentCluster.next().getDisi();
+            doc = currentDocWeight.nextDoc();
         }
         return doc;
     }
