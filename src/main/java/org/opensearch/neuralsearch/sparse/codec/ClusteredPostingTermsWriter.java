@@ -89,44 +89,9 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     public void setFieldAndMaxDoc(FieldInfo fieldInfo, int maxDoc, boolean isMerge) {
         super.setField(fieldInfo);
         key = new InMemoryKey.IndexKey(this.state.segmentInfo, fieldInfo);
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
 
         if (!isMerge) {
-            SparseBinaryDocValuesPassThrough luceneReader = null;
-            DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();
-            SegmentReadState readState = new SegmentReadState(
-                this.state.directory,
-                this.state.segmentInfo,
-                this.state.fieldInfos,
-                IOContext.DEFAULT
-            );
-            try {
-                this.docValuesProducer = fmt.fieldsProducer(readState);
-                BinaryDocValues binaryDocValues = this.docValuesProducer.getBinary(fieldInfo);
-                if (binaryDocValues != null) {
-                    luceneReader = new SparseBinaryDocValuesPassThrough(binaryDocValues, this.state.segmentInfo);
-                }
-            } catch (Exception e) {
-                log.error(String.format(Locale.ROOT, "Failed to retrieve lucene reader due to exception: [%s]", e.getMessage()));
-            }
-
-            float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-            int nPostings;
-            if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
-                nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
-            } else {
-                nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
-            }
-            float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
-
-            this.postingClustering = new PostingClustering(
-                nPostings,
-                new RandomClustering(
-                    summaryPruneRatio,
-                    cluster_ratio,
-                    new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), luceneReader)
-                )
-            );
+            setPostingClustering(maxDoc);
         }
     }
 
@@ -138,6 +103,46 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     @Override
     public void startTerm(NumericDocValues norms) throws IOException {
         docWeights.clear();
+    }
+
+    private void setPostingClustering(int maxDoc) {
+        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
+
+        SparseBinaryDocValuesPassThrough luceneReader = null;
+        DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();
+        SegmentReadState readState = new SegmentReadState(
+            this.state.directory,
+            this.state.segmentInfo,
+            this.state.fieldInfos,
+            IOContext.DEFAULT
+        );
+        try {
+            this.docValuesProducer = fmt.fieldsProducer(readState);
+            BinaryDocValues binaryDocValues = this.docValuesProducer.getBinary(fieldInfo);
+            if (binaryDocValues != null) {
+                luceneReader = new SparseBinaryDocValuesPassThrough(binaryDocValues, this.state.segmentInfo);
+            }
+        } catch (Exception e) {
+            log.error(String.format(Locale.ROOT, "Failed to retrieve lucene reader due to exception: [%s]", e.getMessage()));
+        }
+
+        float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
+        int nPostings;
+        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
+            nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
+        } else {
+            nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+        }
+        float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
+
+        this.postingClustering = new PostingClustering(
+            nPostings,
+            new RandomClustering(
+                summaryPruneRatio,
+                cluster_ratio,
+                new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), luceneReader)
+            )
+        );
     }
 
     private void writePostingClusters(PostingClusters postingClusters, BlockTermState state) throws IOException {
@@ -212,6 +217,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         CodecUtil.writeFooter(this.postingOut);
         if (this.docValuesProducer != null) {
             this.docValuesProducer.close();
+            this.docValuesProducer = null;
         }
     }
 
