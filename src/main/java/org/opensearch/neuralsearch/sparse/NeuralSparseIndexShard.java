@@ -13,7 +13,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.engine.Engine;
@@ -25,26 +25,13 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
-import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
-import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
-import org.opensearch.neuralsearch.sparse.algorithm.ClusteringTask;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClustering;
-import org.opensearch.neuralsearch.sparse.algorithm.RandomClustering;
 import org.opensearch.neuralsearch.sparse.codec.CacheGatedForwardIndexReader;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermsEnum;
-import java.util.List;
-import java.util.ArrayList;
-
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
+import org.opensearch.neuralsearch.sparse.codec.CacheGatedPostingsReader;
+import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
+import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
+import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.apache.lucene.index.SegmentReadState;
+import java.util.Set;
 
 import java.io.IOException;
 import java.util.Set;
@@ -58,7 +45,6 @@ import java.util.stream.StreamSupport;
 public class NeuralSparseIndexShard {
     @Getter
     private final IndexShard indexShard;
-    // private final NativeMemoryCacheManager nativeMemoryCacheManager;
 
     /**
      * Constructor to generate NeuralSparseIndexShard. We do not perform validation that the index the shard is from
@@ -105,52 +91,26 @@ public class NeuralSparseIndexShard {
 
                 log.info("[Neural Sparse] Warming up sparse fields: {} in segment", sparseFieldNames);
 
-                // Preload sparse field data by reading all binary doc values
+                // Use CacheGated readers to automatically populate cache on read
                 for (String fieldName : sparseFieldNames) {
                     try {
                         final FieldInfo fieldInfo = leafReader.getFieldInfos().fieldInfo(fieldName);
                         if (fieldInfo != null && fieldInfo.getDocValuesType() == DocValuesType.BINARY) {
-                            // Actually read the binary doc values to trigger cache loading
-                            final BinaryDocValues binaryDocValues = leafReader.getBinaryDocValues(fieldName);
-                            if (binaryDocValues != null) {
-                                // Create cache key and check if already cached
-                                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-                                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
-                                final InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
+                            final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                            final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+                            final InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
 
-                                // Check if both forward index and clustered posting are already cached
-                                if (InMemorySparseVectorForwardIndex.get(key) != null && InMemoryClusteredPosting.get(key) != null) {
-                                    log.info(
-                                        "[Neural Sparse] Cache already exists for field: {} in segment: {}, skipping",
-                                        fieldName,
-                                        segmentInfo.name
-                                    );
-                                    continue;
-                                }
-
-                                final int docCount = segmentInfo.maxDoc();
-                                final SparseVectorWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount).getWriter();
-
-                                // Read all documents to populate forward index cache
-                                int docId = binaryDocValues.nextDoc();
-                                int loadedDocs = 0;
-                                while (docId != DocIdSetIterator.NO_MORE_DOCS) {
-                                    final BytesRef bytesRef = binaryDocValues.binaryValue();
-                                    writer.insert(docId, new SparseVector(bytesRef));
-                                    loadedDocs++;
-                                    docId = binaryDocValues.nextDoc();
-                                }
-
-                                // Now trigger clustering to populate inverted index cache
-                                warmUpClusteredPostings(leafReader, fieldInfo, key);
-
+                            // Check if both caches already exist
+                            if (InMemorySparseVectorForwardIndex.get(key) != null && InMemoryClusteredPosting.get(key) != null) {
                                 log.info(
-                                    "[Neural Sparse] Loaded {} documents for field: {} in segment: {}",
-                                    loadedDocs,
+                                    "[Neural Sparse] Cache already exists for field: {} in segment: {}, skipping",
                                     fieldName,
                                     segmentInfo.name
                                 );
+                                continue;
                             }
+
+                            warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
                         }
                     } catch (Exception e) {
                         log.warn("[Neural Sparse] Failed to warm up field: {}", fieldName, e);
@@ -163,62 +123,102 @@ public class NeuralSparseIndexShard {
     }
 
     /**
-     * Warm up clustered postings (inverted index) for a specific field
+     * Warm up using CacheGated readers that automatically populate cache on read
      */
-    private void warmUpClusteredPostings(LeafReader leafReader, FieldInfo fieldInfo, InMemoryKey.IndexKey key) throws IOException {
-        // Get terms for this field to trigger clustering
-        final Terms terms = leafReader.terms(fieldInfo.name);
-        if (terms == null) {
+    private void warmUpWithCacheGatedReaders(LeafReader leafReader, FieldInfo fieldInfo, InMemoryKey.IndexKey key) throws IOException {
+        final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+        final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+        final int docCount = segmentInfo.maxDoc();
+
+        // Create SegmentReadState for SparseTermsLuceneReader
+        final BinaryDocValues binaryDocValues = leafReader.getBinaryDocValues(fieldInfo.name);
+        if (binaryDocValues == null) {
+            log.warn("[Neural Sparse] No binary doc values found for field: {}", fieldInfo.name);
             return;
         }
 
-        // Create PostingClustering with field attributes
-        final int maxDoc = leafReader.maxDoc();
-        float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-        int nPostings;
-        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
-            nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
+        try {
+            // Create SegmentReadState for SparseTermsLuceneReader
+            final SegmentReadState readState = new SegmentReadState(
+                segmentInfo.dir,
+                segmentInfo,
+                leafReader.getFieldInfos(),
+                IOContext.DEFAULT
+            );
+
+            // Create SparseTermsLuceneReader for inverted index
+            final SparseTermsLuceneReader luceneReader = new SparseTermsLuceneReader(readState);
+
+            // Create CacheGated readers
+            final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
+            final CacheGatedPostingsReader postingsReader = new CacheGatedPostingsReader(
+                fieldInfo.name,
+                InMemoryClusteredPosting.getOrCreate(key).getReader(),
+                InMemoryClusteredPosting.getOrCreate(key).getWriter(),
+                luceneReader
+            );
+
+            // Warm up forward index
+            int loadedDocs = 0;
+            for (int docId = 0; docId < docCount; docId++) {
+                if (forwardIndexReader.read(docId) != null) {
+                    loadedDocs++;
+                }
+            }
+
+            // Warm up inverted index
+            final Set<BytesRef> terms = postingsReader.getTerms();
+            for (BytesRef term : terms) {
+                postingsReader.read(term);
+            }
+
+            log.info("[Neural Sparse] Warmed up {} docs and {} terms for field: {}", loadedDocs, terms.size(), fieldInfo.name);
+
+        } catch (Exception e) {
+            log.warn("[Neural Sparse] Failed to create lucene readers, using forward index only", e);
+
+            // Fallback: only warm up forward index
+            final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
+            int loadedDocs = 0;
+            for (int docId = 0; docId < docCount; docId++) {
+                if (forwardIndexReader.read(docId) != null) {
+                    loadedDocs++;
+                }
+            }
+            log.info("[Neural Sparse] Warmed up {} documents for field: {} (forward index only)", loadedDocs, fieldInfo.name);
+        }
+    }
+
+    /**
+     * Create CacheGatedForwardIndexReader following the existing pattern
+     */
+    private CacheGatedForwardIndexReader getCacheGatedForwardIndexReader(
+        BinaryDocValues binaryDocValues,
+        InMemoryKey.IndexKey key,
+        int docCount
+    ) {
+        if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues) {
+            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
+            if (index == null) {
+                index = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount);
+            }
+            return new CacheGatedForwardIndexReader(null, index.getWriter(), sparseBinaryDocValues);
         } else {
-            nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+            // For regular BinaryDocValues, create a SparseVectorReader wrapper
+            final SparseVectorReader luceneReader = docId -> {
+                try {
+                    if (binaryDocValues.advanceExact(docId)) {
+                        return new SparseVector(binaryDocValues.binaryValue());
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to read doc {}", docId, e);
+                }
+                return null;
+            };
+
+            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount);
+            return new CacheGatedForwardIndexReader(null, index.getWriter(), luceneReader);
         }
-        final float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
-        int clusterUtilDocCountReach = Integer.parseInt(fieldInfo.attributes().get(APPROXIMATE_THRESHOLD_FIELD));
-
-        if (clusterUtilDocCountReach > 0 && maxDoc < clusterUtilDocCountReach) {
-            clusterRatio = 0;
-        }
-
-        final PostingClustering postingClustering = new PostingClustering(
-            nPostings,
-            new RandomClustering(
-                summaryPruneRatio,
-                clusterRatio,
-                new CacheGatedForwardIndexReader(InMemorySparseVectorForwardIndex.get(key).getReader(), null, null)
-            )
-        );
-
-        // Iterate through all terms and trigger clustering
-        final TermsEnum termsEnum = terms.iterator();
-        int clusteredTerms = 0;
-        BytesRef term;
-        while ((term = termsEnum.next()) != null) {
-            // Collect DocWeight for this term
-            final List<DocWeight> docWeights = new ArrayList<>();
-            final var postingsEnum = termsEnum.postings(null);
-            int docId;
-            while ((docId = postingsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-                final int freq = postingsEnum.freq();
-                docWeights.add(new DocWeight(docId, ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq))));
-            }
-
-            // Trigger clustering for this term
-            if (!docWeights.isEmpty()) {
-                new ClusteringTask(term, docWeights, key, postingClustering).get();
-                clusteredTerms++;
-            }
-        }
-
-        log.info("[Neural Sparse] Clustered {} terms for field: {}", clusteredTerms, fieldInfo.name);
     }
 
     /**
