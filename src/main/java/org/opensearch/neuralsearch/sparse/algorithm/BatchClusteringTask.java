@@ -13,9 +13,9 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
 import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndex;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsReader;
@@ -88,7 +88,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                 );
                 List<DocumentCluster> clusters = postingClustering.cluster(docWeights);
                 postingClusters.add(Pair.of(term, new PostingClusters(clusters)));
-                ClusteredPostingWriter writer = CacheClusteredPostingRegistry.getInstance().getOrCreate(key).getWriter();
+                ClusteredPostingWriter writer = ClusteredPostingCacheManager.getInstance().getOrCreate(key).getWriter();
                 writer.insert(term, clusters);
             }
         } catch (IOException e) {
@@ -116,7 +116,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues) {
             SegmentInfo segmentInfo = sparseBinaryDocValues.getSegmentInfo();
             CacheKey.IndexKey indexKey = new CacheKey.IndexKey(segmentInfo, fieldInfo);
-            CacheForwardIndex index = CacheForwardIndexRegistry.getInstance().get(indexKey);
+            CacheForwardIndex index = ForwardIndexCacheManager.getInstance().get(indexKey);
             if (index == null) {
                 return new CacheGatedForwardIndexReader(null, null, sparseBinaryDocValues);
             }

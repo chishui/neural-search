@@ -20,7 +20,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
@@ -175,7 +175,7 @@ public class SparsePostingsConsumer extends FieldsConsumer {
             MergeHelper.clearCacheData(
                 new MergeStateFacade(mergeState),
                 null,
-                key -> CacheClusteredPostingRegistry.getInstance().removeIndex(key)
+                key -> ClusteredPostingCacheManager.getInstance().removeIndex(key)
             );
         } catch (Exception e) {
             log.error("Merge sparse postings error", e);

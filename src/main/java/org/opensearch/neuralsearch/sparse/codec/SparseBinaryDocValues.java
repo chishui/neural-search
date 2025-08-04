@@ -9,7 +9,7 @@ import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DocIDMerger;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndex;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -71,7 +71,7 @@ public class SparseBinaryDocValues extends BinaryDocValues {
         if (this.current == null) return null;
         CacheKey.IndexKey key = this.current.getKey();
         if (key == null) return null;
-        CacheForwardIndex index = CacheForwardIndexRegistry.getInstance().get(key);
+        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().get(key);
         if (index == null) return null;
         // Simply read the cache without CacheGatedForwardIndexReader
         SparseVectorReader reader = index.getReader();

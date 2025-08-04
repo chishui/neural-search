@@ -13,8 +13,8 @@ import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.indices.cluster.IndicesClusterStateService;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 
@@ -30,8 +30,8 @@ public class SparseIndexEventListener implements IndexEventListener {
                         if (fieldType instanceof SparseTokensFieldType) {
                             String fieldName = fieldType.name();
                             CacheKey.IndexKey key = new CacheKey.IndexKey(segmentInfo, fieldName);
-                            CacheForwardIndexRegistry.getInstance().removeIndex(key);
-                            CacheClusteredPostingRegistry.getInstance().removeIndex(key);
+                            ForwardIndexCacheManager.getInstance().removeIndex(key);
+                            ClusteredPostingCacheManager.getInstance().removeIndex(key);
                         }
                     }
                 }

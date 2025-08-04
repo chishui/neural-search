@@ -13,7 +13,7 @@ import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndex;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
@@ -106,7 +106,7 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         CacheKey.IndexKey testKey = new CacheKey.IndexKey(segmentInfo, fieldInfo);
 
         // Create an actual index with some data
-        CacheForwardIndex index = CacheForwardIndexRegistry.getInstance().getOrCreate(testKey, 10);
+        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(testKey, 10);
         SparseVector testVector = createVector(1, 2, 3, 4);
         index.getWriter().insert(5, testVector);
 

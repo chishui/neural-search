@@ -12,21 +12,21 @@ import org.apache.lucene.util.RamUsageEstimator;
  * Given the limited cache introduced by CacheKey.IndexKey, we will simply use the addWithoutBreaking
  * method to ensure success insertion in registry.
  */
-public class CacheForwardIndexRegistry extends CacheRegistry<CacheForwardIndex> {
+public class ForwardIndexCacheManager extends SparseCacheManager<CacheForwardIndex> {
 
-    private static final CacheForwardIndexRegistry INSTANCE = new CacheForwardIndexRegistry();
+    private static final ForwardIndexCacheManager INSTANCE = new ForwardIndexCacheManager();
 
-    private CacheForwardIndexRegistry() {
-        CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(registryMap));
+    private ForwardIndexCacheManager() {
+        CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(cacheMap));
     }
 
-    public static CacheForwardIndexRegistry getInstance() {
+    public static ForwardIndexCacheManager getInstance() {
         return INSTANCE;
     }
 
     @NonNull
     public CacheForwardIndex getOrCreate(@NonNull CacheKey.IndexKey key, int docCount) {
-        return registryMap.computeIfAbsent(key, k -> {
+        return cacheMap.computeIfAbsent(key, k -> {
             CacheForwardIndex cacheForwardIndex = new CacheForwardIndex(docCount);
             CircuitBreakerManager.addWithoutBreaking(cacheForwardIndex.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(key));
             return cacheForwardIndex;

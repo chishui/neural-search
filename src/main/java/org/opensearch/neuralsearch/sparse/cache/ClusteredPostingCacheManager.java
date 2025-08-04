@@ -12,21 +12,21 @@ import org.apache.lucene.util.RamUsageEstimator;
  * Given the limited cache introduced by CacheKey.IndexKey, we will simply use the addWithoutBreaking
  * method to ensure success insertion in registry.
  */
-public class CacheClusteredPostingRegistry extends CacheRegistry<CacheClusteredPosting> {
+public class ClusteredPostingCacheManager extends SparseCacheManager<CacheClusteredPosting> {
 
-    private static final CacheClusteredPostingRegistry INSTANCE = new CacheClusteredPostingRegistry();
+    private static final ClusteredPostingCacheManager INSTANCE = new ClusteredPostingCacheManager();
 
-    private CacheClusteredPostingRegistry() {
-        CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(registryMap));
+    private ClusteredPostingCacheManager() {
+        CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(cacheMap));
     }
 
-    public static CacheClusteredPostingRegistry getInstance() {
+    public static ClusteredPostingCacheManager getInstance() {
         return INSTANCE;
     }
 
     @NonNull
     public CacheClusteredPosting getOrCreate(@NonNull CacheKey.IndexKey key) {
-        return registryMap.computeIfAbsent(key, k -> {
+        return cacheMap.computeIfAbsent(key, k -> {
             CacheClusteredPosting cacheClusteredPosting = new CacheClusteredPosting();
             CircuitBreakerManager.addWithoutBreaking(cacheClusteredPosting.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(key));
             return cacheClusteredPosting;

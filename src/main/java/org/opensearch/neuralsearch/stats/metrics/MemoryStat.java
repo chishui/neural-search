@@ -5,8 +5,8 @@
 package org.opensearch.neuralsearch.stats.metrics;
 
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -36,11 +36,11 @@ public class MemoryStat implements MetricStat {
         switch (statName) {
             case MetricStatName.MEMORY_SPARSE_MEMORY_USAGE:
             case MetricStatName.MEMORY_SPARSE_MEMORY_USAGE_PERCENTAGE:
-                return CacheForwardIndexRegistry.getInstance().ramBytesUsed() + CacheClusteredPostingRegistry.getInstance().ramBytesUsed();
+                return ForwardIndexCacheManager.getInstance().ramBytesUsed() + ClusteredPostingCacheManager.getInstance().ramBytesUsed();
             case MetricStatName.MEMORY_SPARSE_FORWARD_INDEX_USAGE:
-                return CacheForwardIndexRegistry.getInstance().ramBytesUsed();
+                return ForwardIndexCacheManager.getInstance().ramBytesUsed();
             case MetricStatName.MEMORY_SPARSE_CLUSTERED_POSTING_USAGE:
-                return CacheClusteredPostingRegistry.getInstance().ramBytesUsed();
+                return ClusteredPostingCacheManager.getInstance().ramBytesUsed();
             default:
                 throw new IllegalArgumentException(String.format(Locale.ROOT, "Metric stat not found: %s", statName));
         }

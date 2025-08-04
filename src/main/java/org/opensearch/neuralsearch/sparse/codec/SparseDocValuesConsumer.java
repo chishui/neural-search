@@ -15,7 +15,7 @@ import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndexRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
@@ -60,9 +60,8 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
         }
         BinaryDocValues binaryDocValues = valuesProducer.getBinary(field);
         CacheKey.IndexKey key = new CacheKey.IndexKey(this.state.segmentInfo, field);
-        SparseBinaryDocValuesRegistry.registerBinaryDocValues(key, binaryDocValues);
         int docCount = this.state.segmentInfo.maxDoc();
-        SparseVectorWriter writer = CacheForwardIndexRegistry.getInstance().getOrCreate(key, docCount).getWriter();
+        SparseVectorWriter writer = ForwardIndexCacheManager.getInstance().getOrCreate(key, docCount).getWriter();
         if (writer == null) {
             throw new IllegalStateException("Forward index writer is null");
         }
@@ -88,7 +87,7 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
                 MergeHelper.clearCacheData(
                     new MergeStateFacade(reader.getMergeState()),
                     field,
-                    registryKey -> CacheForwardIndexRegistry.getInstance().removeIndex(registryKey)
+                    registryKey -> ForwardIndexCacheManager.getInstance().removeIndex(registryKey)
                 );
             }
         }

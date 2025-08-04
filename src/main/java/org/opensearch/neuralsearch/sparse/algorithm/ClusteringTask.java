@@ -6,7 +6,7 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
@@ -39,7 +39,7 @@ public class ClusteringTask implements Supplier<PostingClusters> {
             log.error("cluster failed", e);
             throw new RuntimeException(e);
         }
-        ClusteredPostingWriter writer = CacheClusteredPostingRegistry.getInstance().getOrCreate(key).getWriter();
+        ClusteredPostingWriter writer = ClusteredPostingCacheManager.getInstance().getOrCreate(key).getWriter();
         writer.insert(term, clusters);
         return new PostingClusters(clusters);
     }

@@ -13,7 +13,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPosting;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPostingRegistry;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedPostingsReader;
 
@@ -31,7 +31,7 @@ public class SparseTerms extends Terms {
 
     public SparseTerms(CacheKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
         this.indexKey = indexKey;
-        CacheClusteredPosting cacheClusteredPosting = CacheClusteredPostingRegistry.getInstance().getOrCreate(indexKey);
+        CacheClusteredPosting cacheClusteredPosting = ClusteredPostingCacheManager.getInstance().getOrCreate(indexKey);
         this.reader = new CacheGatedPostingsReader(
             field,
             cacheClusteredPosting.getReader(),

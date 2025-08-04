@@ -11,9 +11,9 @@ import org.apache.lucene.util.RamUsageEstimator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class CacheRegistry<T extends Accountable> implements Accountable {
+public abstract class SparseCacheManager<T extends Accountable> implements Accountable {
 
-    protected final Map<CacheKey.IndexKey, T> registryMap = new ConcurrentHashMap<>();
+    protected final Map<CacheKey.IndexKey, T> cacheMap = new ConcurrentHashMap<>();
 
     /**
      * Remove a specific index from cache.
@@ -23,12 +23,12 @@ public abstract class CacheRegistry<T extends Accountable> implements Accountabl
      * @param key The IndexKey that identifies the index to be removed
      */
     public void removeIndex(@NonNull CacheKey.IndexKey key) {
-        T value = registryMap.get(key);
+        T value = cacheMap.get(key);
         if (value == null) {
             return;
         }
         long ramBytesUsed = value.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(key);
-        registryMap.remove(key);
+        cacheMap.remove(key);
         CircuitBreakerManager.releaseBytes(ramBytesUsed);
     }
 
@@ -39,13 +39,13 @@ public abstract class CacheRegistry<T extends Accountable> implements Accountabl
      * @return The instance associated with the key, or null if not found
      */
     public T get(@NonNull CacheKey.IndexKey key) {
-        return registryMap.get(key);
+        return cacheMap.get(key);
     }
 
     @Override
     public long ramBytesUsed() {
-        long mem = RamUsageEstimator.shallowSizeOf(registryMap);
-        for (Map.Entry<CacheKey.IndexKey, T> entry : registryMap.entrySet()) {
+        long mem = RamUsageEstimator.shallowSizeOf(cacheMap);
+        for (Map.Entry<CacheKey.IndexKey, T> entry : cacheMap.entrySet()) {
             mem += RamUsageEstimator.shallowSizeOf(entry.getKey());
             mem += entry.getValue().ramBytesUsed();
         }
