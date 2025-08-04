@@ -124,11 +124,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
                 new RandomClustering(
                     summaryPruneRatio,
                     cluster_ratio,
-                    new CacheGatedForwardIndexReader(
-                        index == null ? null : index.getReader(),
-                        index == null ? null : index.getWriter(),
-                        luceneReader
-                    )
+                    new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), luceneReader)
                 )
             );
         }
