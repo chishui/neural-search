@@ -26,7 +26,8 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
     public void testGetBinary_StandardMergeState() throws IOException {
         // Setup with standard merge state
         boolean isWithLiveDocs = false;
-        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(isWithLiveDocs);
+        boolean isNullLiveDocs = false;
+        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(isWithLiveDocs, isNullLiveDocs);
         sparseDocValuesReader = new SparseDocValuesReader(mergeState);
 
         // Execute
@@ -40,7 +41,7 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
 
     public void testGetBinary_MergeStateWithoutLiveDocs() throws IOException {
         // Setup with merge state without LiveDocs
-        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithoutLiveDocs();
+        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(false, true);
         sparseDocValuesReader = new SparseDocValuesReader(mergeState);
 
         RuntimeException exception = expectThrows(RuntimeException.class, () -> {
@@ -55,7 +56,8 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
     public void testGetBinary_WithLiveDocs() throws IOException {
         // Setup with merge state that has live docs
         boolean isWithLiveDocs = true;
-        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(isWithLiveDocs);
+        boolean isNullLiveDocs = false;
+        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(isWithLiveDocs, isNullLiveDocs);
         sparseDocValuesReader = new SparseDocValuesReader(mergeState);
 
         // Execute
@@ -84,7 +86,8 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
 
     public void testGetMergeState() throws IOException {
         boolean isWithLiveDocs = true;
-        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(isWithLiveDocs);
+        boolean isNullLiveDocs = false;
+        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(isWithLiveDocs, isNullLiveDocs);
         sparseDocValuesReader = new SparseDocValuesReader(mergeState);
         assertEquals(mergeState, sparseDocValuesReader.getMergeState());
     }

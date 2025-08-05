@@ -251,7 +251,7 @@ public class TestsPrepareUtils {
     /**
      * Creates a MergeState with mocked BinaryDocValues
      */
-    public static MergeState prepareMergeStateWithMockedBinaryDocValues(boolean withLiveDocs) throws IOException {
+    public static MergeState prepareMergeStateWithMockedBinaryDocValues(boolean withLiveDocs, boolean nullLiveDocs) throws IOException {
         MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
         docMaps[0] = docID -> docID;
         SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
@@ -288,6 +288,9 @@ public class TestsPrepareUtils {
             };
         } else {
             liveDocs[0] = null;
+        }
+        if (nullLiveDocs) {
+            liveDocs = null;
         }
 
         // Create MergeState
@@ -372,51 +375,6 @@ public class TestsPrepareUtils {
             docValuesProducers,        // docValuesProducers
             fieldInfosArray,           // fieldInfos
             liveDocs,                  // liveDocs
-            fieldsProducers,           // fieldsProducers
-            null,                      // pointsReaders
-            null,                      // knnVectorsReaders
-            new int[] { 10 },          // maxDocs
-            null,                      // infoStream
-            null,                      // executor
-            false                      // needsIndexSort
-        );
-    }
-
-    /**
-     * Creates a MergeState with mocked BinaryDocValues
-     */
-    public static MergeState prepareMergeStateWithoutLiveDocs() throws IOException {
-        MergeState.DocMap[] docMaps = new MergeState.DocMap[1];
-        docMaps[0] = docID -> docID;
-        SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
-
-        // Create a DocValuesProducer that returns mocked BinaryDocValues
-        DocValuesProducer docValuesProducer = prepareDocValuesProducer(prepareBinaryDocValues());
-
-        DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
-        docValuesProducers[0] = docValuesProducer;
-
-        // Create FieldInfos
-        FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { prepareKeyFieldInfo() });
-        FieldInfos[] fieldInfosArray = new FieldInfos[1];
-        fieldInfosArray[0] = fieldInfos;
-
-        // Create FieldsProducer
-        FieldsProducer fieldsProducer = TestsPrepareUtils.prepareFieldsProducer();
-        FieldsProducer[] fieldsProducers = new FieldsProducer[1];
-        fieldsProducers[0] = fieldsProducer;
-
-        // Create MergeState
-        return new MergeState(
-            docMaps,
-            segmentInfo,
-            fieldInfos,                // mergeFieldInfos
-            null,                      // storedFieldsReaders
-            null,                      // termVectorsReaders
-            null,                      // normsProducers
-            docValuesProducers,        // docValuesProducers
-            fieldInfosArray,           // fieldInfos
-            null,                      // liveDocs
             fieldsProducers,           // fieldsProducers
             null,                      // pointsReaders
             null,                      // knnVectorsReaders
