@@ -5,6 +5,8 @@
 package org.opensearch.neuralsearch.sparse;
 
 import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.BinaryDocValues;
@@ -13,15 +15,14 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.index.engine.Engine;
-import org.opensearch.index.mapper.MappedFieldType;
-import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
-import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
+import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
@@ -34,7 +35,6 @@ import org.apache.lucene.index.SegmentReadState;
 import java.util.Set;
 
 import java.io.IOException;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -42,20 +42,14 @@ import java.util.stream.StreamSupport;
  * NeuralSparseIndexShard wraps IndexShard and adds methods to perform neural-sparse related operations against the shard
  */
 @Log4j2
+@RequiredArgsConstructor
 public class NeuralSparseIndexShard {
     @Getter
+    @NonNull
     private final IndexShard indexShard;
 
-    /**
-     * Constructor to generate NeuralSparseIndexShard. We do not perform validation that the index the shard is from
-     * is in fact a neural sparse Index (index.neural_sparse = true). This may make sense to add later, but for now the operations for
-     * NeuralSparseIndexShard that are not from a neural-sparse index should be no-ops.
-     *
-     * @param indexShard IndexShard to be wrapped.
-     */
-    public NeuralSparseIndexShard(IndexShard indexShard) {
-        this.indexShard = indexShard;
-    }
+    private static final String warmUpSearcherSource = "warm-up-searcher-source";
+    private static final String clearCacheSearcherSource = "clear-cache-searcher-source";
 
     /**
      * Return the name of the shards index
@@ -73,21 +67,12 @@ public class NeuralSparseIndexShard {
     public void warmUp() throws IOException {
         log.info("[Neural Sparse] Warming up index: [{}]", getIndexName());
 
-        final MapperService mapperService = indexShard.mapperService();
-
-        try (Engine.Searcher searcher = indexShard.acquireSearcher("neural-sparse-warmup")) {
+        try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
             for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
                 final LeafReader leafReader = leafReaderContext.reader();
 
                 // Find all sparse token fields in this segment
-                final Set<String> sparseFieldNames = StreamSupport.stream(leafReader.getFieldInfos().spliterator(), false)
-                    .filter(fieldInfo -> fieldInfo.attributes().containsKey(SparseTokensField.SPARSE_FIELD))
-                    .filter(fieldInfo -> {
-                        final MappedFieldType fieldType = mapperService.fieldType(fieldInfo.getName());
-                        return fieldType instanceof SparseTokensFieldType;
-                    })
-                    .map(FieldInfo::getName)
-                    .collect(Collectors.toSet());
+                final Set<String> sparseFieldNames = collectSparseTokenFields(leafReader);
 
                 log.info("[Neural Sparse] Warming up sparse fields: {} in segment", sparseFieldNames);
 
@@ -99,6 +84,10 @@ public class NeuralSparseIndexShard {
                             final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
                             final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
                             final InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(segmentInfo, fieldName);
+
+                            if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
+                                continue;
+                            }
 
                             // Check if both caches already exist
                             if (InMemorySparseVectorForwardIndex.get(key) != null && InMemoryClusteredPosting.get(key) != null) {
@@ -118,8 +107,45 @@ public class NeuralSparseIndexShard {
                 }
             }
         }
+    }
 
-        log.info("[Neural Sparse] Completed warming up index: [{}]", getIndexName());
+    /**
+     * Clear all cached neural-sparse data for this shard.
+     * Removes sparse field data from memory to free up resources.
+     */
+    public void clearCache() {
+        final String indexName = getIndexName();
+        log.info("[Neural Sparse] Clearing cache for index: [{}]", indexName);
+
+        try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
+            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
+                final LeafReader leafReader = leafReaderContext.reader();
+
+                // Find all sparse token fields in this segment
+                final Set<String> sparseFieldNames = collectSparseTokenFields(leafReader);
+
+                // Get segment info for creating cache keys
+                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+
+                // Clear in-memory cache for each sparse field
+                for (String fieldName : sparseFieldNames) {
+                    try {
+                        InMemoryKey.IndexKey indexKey = new InMemoryKey.IndexKey(segmentInfo, fieldName);
+                        InMemoryClusteredPosting.clearIndex(indexKey);
+                        InMemorySparseVectorForwardIndex.removeIndex(indexKey);
+                        log.debug("[Neural Sparse] Cleared cache for field: {} in segment: {}", fieldName, segmentInfo.name);
+                    } catch (Exception e) {
+                        log.warn("[Neural Sparse] Failed to clear cache for field: {} in segment: {}", fieldName, segmentInfo.name, e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("[Neural Sparse] Failed to clear cache for index: [{}]", indexName, e);
+            throw new RuntimeException(e);
+        }
+
+        log.info("[Neural Sparse] Completed clearing cache for index: [{}]", indexName);
     }
 
     /**
@@ -160,10 +186,16 @@ public class NeuralSparseIndexShard {
 
             // Warm up forward index
             int loadedDocs = 0;
-            for (int docId = 0; docId < docCount; docId++) {
-                if (forwardIndexReader.read(docId) != null) {
-                    loadedDocs++;
+            int docId = binaryDocValues.nextDoc();
+            while (docId != DocIdSetIterator.NO_MORE_DOCS) {
+                try {
+                    if (forwardIndexReader.read(docId) != null) {
+                        loadedDocs++;
+                    }
+                } catch (IOException e) {
+                    log.warn("[Neural Sparse] Failed to read doc {} during warm up", docId, e);
                 }
+                docId = binaryDocValues.nextDoc();
             }
 
             // Warm up inverted index
@@ -198,10 +230,7 @@ public class NeuralSparseIndexShard {
         int docCount
     ) {
         if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues) {
-            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(key);
-            if (index == null) {
-                index = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount);
-            }
+            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount);
             return new CacheGatedForwardIndexReader(null, index.getWriter(), sparseBinaryDocValues);
         } else {
             // For regular BinaryDocValues, create a SparseVectorReader wrapper
@@ -221,48 +250,11 @@ public class NeuralSparseIndexShard {
         }
     }
 
-    /**
-     * Clear all cached neural-sparse data for this shard.
-     * Removes sparse field data from memory to free up resources.
-     */
-    public void clearCache() {
-        final String indexName = getIndexName();
-        log.info("[Neural Sparse] Clearing cache for index: [{}]", indexName);
-
-        try (Engine.Searcher searcher = indexShard.acquireSearcher("neural-sparse-clear-cache")) {
-            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
-                final LeafReader leafReader = leafReaderContext.reader();
-
-                // Find all sparse token fields in this segment
-                final Set<String> sparseFieldNames = StreamSupport.stream(leafReader.getFieldInfos().spliterator(), false)
-                    .filter(fieldInfo -> fieldInfo.attributes().containsKey(SparseTokensField.SPARSE_FIELD))
-                    .map(FieldInfo::getName)
-                    .collect(Collectors.toSet());
-
-                // Get segment info for creating cache keys
-                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
-
-                // Clear in-memory cache for each sparse field
-                for (String fieldName : sparseFieldNames) {
-                    try {
-                        InMemoryKey.IndexKey indexKey = new InMemoryKey.IndexKey(segmentInfo, fieldName);
-                        InMemoryClusteredPosting.clearIndex(indexKey);
-                        InMemorySparseVectorForwardIndex.removeIndex(indexKey);
-                        log.debug("[Neural Sparse] Cleared cache for field: {} in segment: {}", fieldName, segmentInfo.name);
-                    } catch (Exception e) {
-                        log.warn("[Neural Sparse] Failed to clear cache for field: {} in segment: {}", fieldName, segmentInfo.name, e);
-                    }
-                }
-
-                log.info("[Neural Sparse] Cleared cache for sparse fields: {} in segment", sparseFieldNames);
-            }
-        } catch (Exception e) {
-            log.error("[Neural Sparse] Failed to clear cache for index: [{}]", indexName, e);
-            throw new RuntimeException(e);
-        }
-
-        log.info("[Neural Sparse] Completed clearing cache for index: [{}]", indexName);
+    private Set<String> collectSparseTokenFields(LeafReader leafReader) {
+        return StreamSupport.stream(leafReader.getFieldInfos().spliterator(), false)
+            .filter(SparseTokensField::isSparseField)
+            .map(FieldInfo::getName)
+            .collect(Collectors.toSet());
     }
 
 }

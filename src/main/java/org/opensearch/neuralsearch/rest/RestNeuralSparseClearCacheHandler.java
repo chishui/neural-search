@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.rest;
 
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.sparse.common.exception.NeuralSparseInvalidIndicesException;
@@ -22,6 +23,7 @@ import org.opensearch.rest.action.RestToXContentListener;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.opensearch.action.support.IndicesOptions.strictExpandOpen;
@@ -30,18 +32,13 @@ import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 /**
  * RestHandler for neural-sparse Clear Cache API. API provides the ability for a user to evict those indices from Cache.
  */
-
 @Log4j2
+@AllArgsConstructor
 public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
-    private static final String INDEX = "index";
+    private static final String URL_PATH = "/clear_cache/{index}";
     public static String NAME = "neural_sparse_clear_cache_action";
     private final ClusterService clusterService;
     private final IndexNameExpressionResolver indexNameExpressionResolver;
-
-    public RestNeuralSparseClearCacheHandler(ClusterService clusterService, IndexNameExpressionResolver indexNameExpressionResolver) {
-        this.clusterService = clusterService;
-        this.indexNameExpressionResolver = indexNameExpressionResolver;
-    }
 
     /**
      * @return name of Clear Cache API action
@@ -57,7 +54,7 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         return ImmutableList.of(
-            new Route(RestRequest.Method.POST, String.format(Locale.ROOT, "%s/%s/{%s}", NeuralSearch.NEURAL_BASE_URI, "clear_cache", INDEX))
+            new Route(RestRequest.Method.POST, String.format(Locale.ROOT, "%s%s", NeuralSearch.NEURAL_BASE_URI, URL_PATH))
         );
     }
 
@@ -69,7 +66,6 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         NeuralSparseClearCacheRequest clearCacheRequest = createClearCacheRequest(request);
-        log.info("[Neural Sparse] ClearCache started for the following indices: [{}]", String.join(",", clearCacheRequest.indices()));
         return channel -> client.execute(NeuralSparseClearCacheAction.INSTANCE, clearCacheRequest, new RestToXContentListener<>(channel));
     }
 
@@ -77,23 +73,30 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     private NeuralSparseClearCacheRequest createClearCacheRequest(RestRequest request) {
         String[] indexNames = Strings.splitStringByCommaToArray(request.param("index"));
         Index[] indices = indexNameExpressionResolver.concreteIndices(clusterService.state(), strictExpandOpen(), indexNames);
-        validateIndices(indices);
+        validateIndices(indices, clusterService, SPARSE_INDEX, "clear cache");
 
         return new NeuralSparseClearCacheRequest(indexNames);
     }
 
-    // Validate if the given indices are k-NN indices or not. If there are any invalid indices,
+    // Validate if the given indices are SEISMIC indices or not. If there are any invalid indices,
     // the request is rejected and an exception is thrown.
-    private void validateIndices(Index[] indices) {
-        List<String> invalidIndexNames = Arrays.stream(indices)
-            .filter(index -> !"true".equals(clusterService.state().metadata().getIndexSafe(index).getSettings().get(SPARSE_INDEX)))
-            .map(Index::getName)
-            .collect(Collectors.toList());
+    public static void validateIndices(Index[] indices, ClusterService clusterService, String sparse_index, String apiOperation) {
+        List<String> invalidIndexNames = Arrays.stream(indices).filter(index -> {
+            String sparseIndexSetting = Optional.ofNullable(clusterService)
+                .map(cs -> cs.state())
+                .map(state -> state.metadata())
+                .map(metadata -> metadata.getIndexSafe(index))
+                .map(indexMetadata -> indexMetadata.getSettings())
+                .map(settings -> settings.get(sparse_index))
+                .orElse(null);
+
+            return !"true".equals(sparseIndexSetting);
+        }).map(Index::getName).collect(Collectors.toList());
 
         if (!invalidIndexNames.isEmpty()) {
             throw new NeuralSparseInvalidIndicesException(
                 invalidIndexNames,
-                "ClearCache request rejected. One or more indices have 'index.neural_sparse' set to false."
+                String.format("Request rejected. Indices %s don't support %s operation.", invalidIndexNames, apiOperation)
             );
         }
     }

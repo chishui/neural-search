@@ -19,8 +19,6 @@ import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
 
-    public static final String NEURAL_SPARSE_INDEX = "index.neural_sparse";
-
     public static final int DEFAULT_INDEX_THREAD_QTY = -1;
     public static int MAX_INDEX_THREAD_QTY = 1024;
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "neural.sparse.algo_param.index_thread_qty";

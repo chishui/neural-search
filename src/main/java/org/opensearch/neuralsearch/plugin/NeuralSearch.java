@@ -206,7 +206,7 @@ public class NeuralSearch extends Plugin
         Supplier<DiscoveryNodes> nodesInCluster
     ) {
         RestNeuralStatsAction restNeuralStatsAction = new RestNeuralStatsAction(settingsAccessor);
-        RestNeuralSparseWarmupHandler restNeuralSparseWarmupHandler = new RestNeuralSparseWarmupHandler(
+        RestNeuralSparseWarmupHandler restNeuralSparseWarmupCacheHandler = new RestNeuralSparseWarmupHandler(
             settings,
             restController,
             clusterService,
@@ -216,7 +216,7 @@ public class NeuralSearch extends Plugin
             clusterService,
             indexNameExpressionResolver
         );
-        return ImmutableList.of(restNeuralStatsAction, restNeuralSparseWarmupHandler, restNeuralSparseClearCacheHandler);
+        return ImmutableList.of(restNeuralStatsAction, restNeuralSparseWarmupCacheHandler, restNeuralSparseClearCacheHandler);
     }
 
     @Override

@@ -6,6 +6,9 @@ package org.opensearch.neuralsearch.sparse.common.exception;
 
 import java.util.List;
 
+/**
+ * This is a customized exception class for those invalid indices during warmup/clear cache
+ */
 public class NeuralSparseInvalidIndicesException extends RuntimeException {
 
     private final List<String> invalidIndices;
