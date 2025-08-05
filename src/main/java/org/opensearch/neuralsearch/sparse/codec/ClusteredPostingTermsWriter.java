@@ -227,6 +227,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         IOUtils.closeWhileHandlingException(this.postingOut);
         if (this.docValuesProducer != null) {
             IOUtils.closeWhileHandlingException(this.docValuesProducer);
+            this.docValuesProducer = null;
         }
     }
 
