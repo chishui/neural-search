@@ -181,6 +181,7 @@ public class SparsePostingsReader {
         List<DocWeight> docWeights = new ArrayList<>();
         for (int i = 0; i < mergeState.fieldsProducers.length; i++) {
             FieldsProducer fieldsProducer = mergeState.fieldsProducers[i];
+            // we need this SparseBinaryDocValuesPassThrough to get segment info
             BinaryDocValues binaryDocValues = mergeState.docValuesProducers[i].getBinary(fieldInfo);
             if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough)) {
                 log.error("binaryDocValues is not SparseBinaryDocValuesPassThrough, {}", binaryDocValues.getClass().getName());
