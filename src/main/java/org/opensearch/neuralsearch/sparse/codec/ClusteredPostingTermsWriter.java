@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.BlockTermState;
 import org.apache.lucene.codecs.CodecUtil;
@@ -107,8 +108,9 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         docWeights.clear();
     }
 
-    private void setPostingClustering(int maxDoc) {
-        SparseVectorForwardIndex index = ForwardIndexCache.getInstance().getOrCreate(key, maxDoc);
+    @VisibleForTesting
+    void setPostingClustering(int maxDoc) {
+        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
 
         SparseBinaryDocValuesPassThrough luceneReader = null;
         DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();
