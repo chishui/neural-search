@@ -29,7 +29,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.SparseTokensField.SPARSE_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 
 public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
@@ -57,7 +57,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         sparseFieldInfo = mock(FieldInfo.class);
         Map<String, String> sparseAttributes = new HashMap<>();
         sparseAttributes.put(SPARSE_FIELD, "true");
-        sparseAttributes.put(ALGO_TRIGGER_DOC_COUNT_FIELD, "50");
+        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, "50");
         when(sparseFieldInfo.attributes()).thenReturn(sparseAttributes);
         when(sparseFieldInfo.getDocValuesType()).thenReturn(DocValuesType.BINARY);
 
@@ -291,20 +291,6 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void testMerge_WithSparseFieldAndReader() {
         // Create segmentInfo above threshold
-        // SegmentInfo newSegmentInfo = new SegmentInfo(
-        // segmentInfo.dir,
-        // segmentInfo.getVersion(),
-        // segmentInfo.getMinVersion(),
-        // segmentInfo.name,
-        // 100,
-        // segmentInfo.getUseCompoundFile(),
-        // segmentInfo.getHasBlocks(),
-        // segmentInfo.getCodec(),
-        // segmentInfo.getDiagnostics(),
-        // segmentInfo.getId(),
-        // segmentInfo.getAttributes(),
-        // segmentInfo.getIndexSort()
-        // );
         SegmentInfo newSegmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
         SegmentWriteState newState = TestsPrepareUtils.prepareSegmentWriteState(newSegmentInfo);
         SparseDocValuesConsumer newConsumer = new SparseDocValuesConsumer(newState, delegate);
@@ -319,8 +305,5 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         newConsumer.merge(mergeState);
 
         verify(delegate, times(1)).merge(mergeState);
-
-        // Clean up
-        // InMemorySparseVectorForwardIndex.removeIndex(new InMemoryKey.IndexKey(newSegmentInfo, sparseFieldInfo));
     }
 }
