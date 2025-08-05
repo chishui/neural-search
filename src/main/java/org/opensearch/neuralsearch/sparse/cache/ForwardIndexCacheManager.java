@@ -28,7 +28,7 @@ public class ForwardIndexCacheManager extends SparseCacheManager<CacheForwardInd
     public CacheForwardIndex getOrCreate(@NonNull CacheKey.IndexKey key, int docCount) {
         return cacheMap.computeIfAbsent(key, k -> {
             CacheForwardIndex cacheForwardIndex = new CacheForwardIndex(docCount);
-            CircuitBreakerManager.addWithoutBreaking(cacheForwardIndex.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(key));
+            CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(key));
             return cacheForwardIndex;
         });
     }

@@ -87,7 +87,7 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
                 MergeHelper.clearCacheData(
                     new MergeStateFacade(reader.getMergeState()),
                     field,
-                    registryKey -> ForwardIndexCacheManager.getInstance().removeIndex(registryKey)
+                    ForwardIndexCacheManager.getInstance()::removeIndex
                 );
             }
         }

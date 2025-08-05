@@ -26,7 +26,15 @@ public final class NeuralSearchSettings {
     public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = DEFAULT_INDEX_THREAD_QTY;
     public static final String NEURAL_CIRCUIT_BREAKER_NAME = "neural_search";
 
+    /**
+     * Specifies the initial memory limit for the parent circuit breaker.
+     * Defaults to 95% of the JVM heap.
+     */
     private static final String DEFAULT_CIRCUIT_BREAKER_LIMIT = "50%";
+    /**
+     * A constant by which the neural data estimations are multiplied to determine the final estimation.
+     * Default is 1.0 while minimum is 0.0.
+     */
     private static final double DEFAULT_CIRCUIT_BREAKER_OVERHEAD = 1.0d;
     private static final double MINIMUM_CIRCUIT_BREAKER_OVERHEAD = 0.0d;
 
@@ -97,8 +105,8 @@ public final class NeuralSearchSettings {
         "plugins.neural_search.circuit_breaker.overhead",
         DEFAULT_CIRCUIT_BREAKER_OVERHEAD,
         MINIMUM_CIRCUIT_BREAKER_OVERHEAD,
-        Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
     );
 
     /**

@@ -9,14 +9,12 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +34,10 @@ public class CacheClusteredPosting implements Accountable {
     private final ClusteredPostingReader reader = new CacheClusteredPostingReader();
     @Getter
     private final ClusteredPostingWriter writer = new CacheClusteredPostingWriter();
+
+    public CacheClusteredPosting() {
+        CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
+    }
 
     @Override
     public long ramBytesUsed() {
@@ -73,16 +75,8 @@ public class CacheClusteredPosting implements Accountable {
                 ? clonedTerm.bytes.length
                 : 0);
 
-            try {
-                CircuitBreakerManager.addEstimateBytesAndMaybeBreak(ramBytesUsed, CIRCUIT_BREAKER_LABEL);
-            } catch (CircuitBreakingException circuitBreakingException) {
-                log.debug(
-                    String.format(
-                        Locale.ROOT,
-                        "Cannot insert cluster into cache due to circuit breaker exception: %s",
-                        circuitBreakingException.getMessage()
-                    )
-                );
+            if (CircuitBreakerManager.updateMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+                // TODO: cache eviction
                 return;
             }
 

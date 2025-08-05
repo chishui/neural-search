@@ -8,14 +8,12 @@ import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
 
 import java.io.IOException;
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -37,6 +35,7 @@ public class CacheForwardIndex implements SparseVectorForwardIndex, Accountable 
         sparseVectors = new AtomicReferenceArray<>(docCount);
         // Account for the array itself in memory usage
         usedRamBytes = new AtomicLong(RamUsageEstimator.shallowSizeOf(sparseVectors));
+        CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 
     @Override
@@ -63,16 +62,9 @@ public class CacheForwardIndex implements SparseVectorForwardIndex, Accountable 
             }
 
             long ramBytesUsed = vector.ramBytesUsed();
-            try {
-                CircuitBreakerManager.addEstimateBytesAndMaybeBreak(ramBytesUsed, CIRCUIT_BREAKER_LABEL);
-            } catch (CircuitBreakingException circuitBreakingException) {
-                log.debug(
-                    String.format(
-                        Locale.ROOT,
-                        "Cannot insert sparse vector into cache due to circuit breaker exception: %s",
-                        circuitBreakingException.getMessage()
-                    )
-                );
+
+            if (CircuitBreakerManager.updateMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+                // TODO: cache eviction
                 return;
             }
 

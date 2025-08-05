@@ -172,11 +172,7 @@ public class SparsePostingsConsumer extends FieldsConsumer {
         try {
             SparsePostingsReader sparsePostingsReader = new SparsePostingsReader(mergeState);
             sparsePostingsReader.merge(this.sparseTermsLuceneWriter, this.clusteredPostingTermsWriter);
-            MergeHelper.clearCacheData(
-                new MergeStateFacade(mergeState),
-                null,
-                key -> ClusteredPostingCacheManager.getInstance().removeIndex(key)
-            );
+            MergeHelper.clearCacheData(new MergeStateFacade(mergeState), null, ClusteredPostingCacheManager.getInstance()::removeIndex);
         } catch (Exception e) {
             log.error("Merge sparse postings error", e);
         }
