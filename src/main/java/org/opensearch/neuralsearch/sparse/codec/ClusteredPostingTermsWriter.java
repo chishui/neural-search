@@ -29,7 +29,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.algorithm.RandomClustering;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClustering;
-import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
@@ -64,7 +64,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     private final List<DocWeight> docWeights = new ArrayList<>();
     private BytesRef currentTerm;
     private PostingClustering postingClustering;
-    private CacheKey.IndexKey key;
+    private CacheKey key;
     private final int version;
     private final String codec_name;
     private SegmentWriteState state;
@@ -90,7 +90,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
 
     public void setFieldAndMaxDoc(FieldInfo fieldInfo, int maxDoc, boolean isMerge) {
         super.setField(fieldInfo);
-        key = new CacheKey.IndexKey(this.state.segmentInfo, fieldInfo);
+        key = new CacheKey(this.state.segmentInfo, fieldInfo);
 
         if (!isMerge) {
             setPostingClustering(maxDoc);
@@ -108,7 +108,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     }
 
     private void setPostingClustering(int maxDoc) {
-        SparseVectorForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(key, maxDoc);
+        SparseVectorForwardIndex index = ForwardIndexCache.getInstance().getOrCreate(key, maxDoc);
 
         SparseBinaryDocValuesPassThrough luceneReader = null;
         DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();

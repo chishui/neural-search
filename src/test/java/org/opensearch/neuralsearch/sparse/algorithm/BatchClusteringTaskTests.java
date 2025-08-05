@@ -22,7 +22,7 @@ import java.util.List;
 public class BatchClusteringTaskTests extends AbstractSparseTestBase {
     private List<BytesRef> terms;
     private MergeState mergeState;
-    private CacheKey.IndexKey key;
+    private CacheKey key;
 
     @Before
     @Override
@@ -35,7 +35,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
 
         terms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
         mergeState = TestsPrepareUtils.prepareMergeState(isEmptyMaxDocs);
-        key = new CacheKey.IndexKey(segmentInfo, "test_field");
+        key = new CacheKey(segmentInfo, "test_field");
     }
 
     public void testConstructorDeepCopiesTerms() throws Exception {

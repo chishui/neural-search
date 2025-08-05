@@ -27,7 +27,7 @@ import org.opensearch.common.lucene.Lucene;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
-import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
@@ -103,8 +103,8 @@ public class SparseQueryWeight extends Weight {
     private Scorer selectScorer(SparseVectorQuery query, LeafReaderContext context, SegmentInfo segmentInfo) throws IOException {
         CacheGatedForwardIndexReader cacheGatedForwardIndexReader = new CacheGatedForwardIndexReader(null, null, null);
         if (segmentInfo != null) {
-            CacheKey.IndexKey key = new CacheKey.IndexKey(segmentInfo, query.getFieldName());
-            ForwardIndexCacheManager.getInstance().getOrCreate(key, segmentInfo.maxDoc());
+            CacheKey key = new CacheKey(segmentInfo, query.getFieldName());
+            ForwardIndexCache.getInstance().getOrCreate(key, segmentInfo.maxDoc());
             cacheGatedForwardIndexReader = getCacheGatedForwardIndexReader(context.reader(), query.getFieldName());
         }
         Similarity.SimScorer simScorer = ByteQuantizer.getSimScorer(boost);
@@ -135,8 +135,8 @@ public class SparseQueryWeight extends Weight {
         BinaryDocValues docValues = leafReader.getBinaryDocValues(fieldName);
         if (docValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
             SegmentInfo segmentInfo = sparseBinaryDocValuesPassThrough.getSegmentInfo();
-            CacheKey.IndexKey key = new CacheKey.IndexKey(segmentInfo, fieldName);
-            SparseVectorForwardIndex index = ForwardIndexCacheManager.getInstance().get(key);
+            CacheKey key = new CacheKey(segmentInfo, fieldName);
+            SparseVectorForwardIndex index = ForwardIndexCache.getInstance().get(key);
             if (index == null) {
                 return new CacheGatedForwardIndexReader(null, null, sparseBinaryDocValuesPassThrough);
             }

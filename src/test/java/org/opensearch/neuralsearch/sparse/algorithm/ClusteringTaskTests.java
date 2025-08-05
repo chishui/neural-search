@@ -26,7 +26,7 @@ import static org.mockito.Mockito.doThrow;
 public class ClusteringTaskTests extends AbstractSparseTestBase {
     private BytesRef term;
     private List<DocWeight> docs;
-    private CacheKey.IndexKey key;
+    private CacheKey key;
     private PostingClustering postingClustering;
 
     @Before
@@ -36,7 +36,7 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
         MockitoAnnotations.openMocks(this);
 
         term = new BytesRef("test_term");
-        key = mock(CacheKey.IndexKey.class);
+        key = mock(CacheKey.class);
         docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2));
     }
 

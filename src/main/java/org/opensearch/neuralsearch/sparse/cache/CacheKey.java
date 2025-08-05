@@ -10,23 +10,21 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
 
 /**
- * Key for cache sparse vector forward index
+ * Key for cache sparse vector forward index and clustered posting
  */
+@EqualsAndHashCode
 public class CacheKey {
 
-    @EqualsAndHashCode
-    public static class IndexKey {
-        private final SegmentInfo segmentInfo;
-        private final String field;
+    private final SegmentInfo segmentInfo;
+    private final String field;
 
-        public IndexKey(@NonNull SegmentInfo segmentInfo, @NonNull FieldInfo fieldInfo) {
-            this.segmentInfo = segmentInfo;
-            this.field = fieldInfo.name;
-        }
+    public CacheKey(@NonNull SegmentInfo segmentInfo, @NonNull FieldInfo fieldInfo) {
+        this.segmentInfo = segmentInfo;
+        this.field = fieldInfo.name;
+    }
 
-        public IndexKey(@NonNull SegmentInfo segmentInfo, @NonNull String fieldName) {
-            this.segmentInfo = segmentInfo;
-            this.field = fieldName;
-        }
+    public CacheKey(@NonNull SegmentInfo segmentInfo, @NonNull String fieldName) {
+        this.segmentInfo = segmentInfo;
+        this.field = fieldName;
     }
 }

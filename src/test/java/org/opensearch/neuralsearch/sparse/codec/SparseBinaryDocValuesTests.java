@@ -12,8 +12,8 @@ import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.cache.CacheForwardIndex;
-import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
@@ -92,7 +92,7 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         FieldInfo fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
         SegmentInfo segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
         when(docIDMerger.next()).thenReturn(binaryDocValuesSub);
-        CacheKey.IndexKey testKey = new CacheKey.IndexKey(segmentInfo, fieldInfo);
+        CacheKey testKey = new CacheKey(segmentInfo, fieldInfo);
         when(binaryDocValuesSub.getKey()).thenReturn(testKey);
         sparseBinaryDocValues.nextDoc();
         SparseVector result = sparseBinaryDocValues.cachedSparseVector();
@@ -103,10 +103,10 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
     public void testCachedSparseVector_WithExistingIndex() throws IOException {
         SegmentInfo segmentInfo = mock(SegmentInfo.class);
         FieldInfo fieldInfo = mock(FieldInfo.class);
-        CacheKey.IndexKey testKey = new CacheKey.IndexKey(segmentInfo, fieldInfo);
+        CacheKey testKey = new CacheKey(segmentInfo, fieldInfo);
 
         // Create an actual index with some data
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(testKey, 10);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(testKey, 10);
         SparseVector testVector = createVector(1, 2, 3, 4);
         index.getWriter().insert(5, testVector);
 
@@ -120,16 +120,16 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         assertEquals(testVector, result);
 
         // Clean up
-        InMemorySparseVectorForwardIndex.removeIndex(testKey);
+        ForwardIndexCache.getInstance().removeIndex(testKey);
     }
 
     public void testCachedSparseVector_WithExistingIndexButNoVector() throws IOException {
         SegmentInfo segmentInfo = mock(SegmentInfo.class);
         FieldInfo fieldInfo = mock(FieldInfo.class);
-        CacheKey.IndexKey testKey = new CacheKey.IndexKey(segmentInfo, fieldInfo);
+        CacheKey testKey = new CacheKey(segmentInfo, fieldInfo);
 
         // Create an index but don't insert any data
-        InMemorySparseVectorForwardIndex.getOrCreate(testKey, 10);
+        ForwardIndexCache.getInstance().getOrCreate(testKey, 10);
 
         when(docIDMerger.next()).thenReturn(binaryDocValuesSub);
         when(binaryDocValuesSub.getKey()).thenReturn(testKey);
@@ -141,7 +141,7 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
         assertNull(result); // No vector at docId 3
 
         // Clean up
-        InMemorySparseVectorForwardIndex.removeIndex(testKey);
+        ForwardIndexCache.getInstance().removeIndex(testKey);
     }
 
     public void testSetTotalLiveDocs() {

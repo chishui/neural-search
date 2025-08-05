@@ -12,8 +12,8 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.cache.CacheClusteredPosting;
-import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheManager;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheItem;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedPostingsReader;
 
@@ -26,16 +26,16 @@ import java.util.Set;
  */
 @Getter
 public class SparseTerms extends Terms {
-    private final CacheKey.IndexKey indexKey;
+    private final CacheKey cacheKey;
     private final CacheGatedPostingsReader reader;
 
-    public SparseTerms(CacheKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
-        this.indexKey = indexKey;
-        CacheClusteredPosting cacheClusteredPosting = ClusteredPostingCacheManager.getInstance().getOrCreate(indexKey);
+    public SparseTerms(CacheKey cacheKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
+        this.cacheKey = cacheKey;
+        ClusteredPostingCacheItem clusteredPostingCacheItem = ClusteredPostingCache.getInstance().getOrCreate(cacheKey);
         this.reader = new CacheGatedPostingsReader(
             field,
-            cacheClusteredPosting.getReader(),
-            cacheClusteredPosting.getWriter(),
+            clusteredPostingCacheItem.getReader(),
+            clusteredPostingCacheItem.getWriter(),
             sparseTermsLuceneReader
         );
     }
@@ -138,7 +138,7 @@ public class SparseTerms extends Terms {
             }
             PostingClusters clusters = reader.read(currentTerm);
             if (clusters != null) {
-                return new SparsePostingsEnum(clusters, indexKey);
+                return new SparsePostingsEnum(clusters, cacheKey);
             }
             return null;
         }

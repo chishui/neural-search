@@ -75,7 +75,7 @@ public class SparsePostingsReader {
             log.debug("Merge field: {}", fieldInfo.name);
             sparseTermsLuceneWriter.writeFieldNumber(fieldInfo.number);
 
-            CacheKey.IndexKey key = new CacheKey.IndexKey(mergeState.segmentInfo, fieldInfo);
+            CacheKey key = new CacheKey(mergeState.segmentInfo, fieldInfo);
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
             int nPostings;
             if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {

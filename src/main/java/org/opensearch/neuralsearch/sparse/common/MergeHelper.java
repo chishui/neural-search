@@ -20,7 +20,7 @@ public class MergeHelper {
     public static void clearCacheData(
         @NonNull MergeStateFacade mergeState,
         @Nullable FieldInfo fieldInfo,
-        @NonNull Consumer<CacheKey.IndexKey> consumer
+        @NonNull Consumer<CacheKey> consumer
     ) throws IOException {
         for (DocValuesProducer producer : mergeState.getDocValuesProducers()) {
             for (FieldInfo field : mergeState.getMergeFieldInfos()) {
@@ -33,7 +33,7 @@ public class MergeHelper {
                 if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough binaryDocValuesPassThrough)) {
                     continue;
                 }
-                CacheKey.IndexKey key = new CacheKey.IndexKey(binaryDocValuesPassThrough.getSegmentInfo(), field);
+                CacheKey key = new CacheKey(binaryDocValuesPassThrough.getSegmentInfo(), field);
                 consumer.accept(key);
             }
         }

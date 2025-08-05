@@ -19,10 +19,10 @@ import java.io.IOException;
 public class BinaryDocValuesSub extends DocIDMerger.Sub {
 
     private final BinaryDocValues values;
-    private final CacheKey.IndexKey key;
+    private final CacheKey key;
     private int docId = 0;
 
-    public BinaryDocValuesSub(MergeState.DocMap docMap, BinaryDocValues values, CacheKey.IndexKey key) {
+    public BinaryDocValuesSub(MergeState.DocMap docMap, BinaryDocValues values, CacheKey key) {
         super(docMap);
         if (values == null || (values.docID() != -1)) {
             throw new IllegalStateException("Doc values is either null or docID is not -1 ");

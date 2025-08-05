@@ -63,7 +63,7 @@ public class SparsePostingsProducer extends FieldsProducer {
         if (reader == null) {
             reader = new SparseTermsLuceneReader(state);
         }
-        CacheKey.IndexKey key = new CacheKey.IndexKey(this.state.segmentInfo, fieldInfo);
+        CacheKey key = new CacheKey(this.state.segmentInfo, fieldInfo);
         return new SparseTerms(key, reader, field);
     }
 

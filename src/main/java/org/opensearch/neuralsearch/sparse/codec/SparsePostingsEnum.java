@@ -24,13 +24,13 @@ public class SparsePostingsEnum extends PostingsEnum {
     @Getter
     private final PostingClusters clusters;
     @Getter
-    private final CacheKey.IndexKey indexKey;
+    private final CacheKey cacheKey;
     private IteratorWrapper<DocumentCluster> currentCluster;
     private DocWeightIterator currentDocWeight;
 
-    public SparsePostingsEnum(PostingClusters clusters, CacheKey.IndexKey indexKey) throws IOException {
+    public SparsePostingsEnum(PostingClusters clusters, CacheKey cacheKey) throws IOException {
         this.clusters = clusters;
-        this.indexKey = indexKey;
+        this.cacheKey = cacheKey;
         currentCluster = clusterIterator();
         currentDocWeight = currentCluster.next().getDisi();
     }

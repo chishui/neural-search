@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * It is used by the SparsePostingsConsumer and SparsePostingsReader classes.
  */
 @Log4j2
-public class CacheClusteredPosting implements Accountable {
+public class ClusteredPostingCacheItem implements Accountable {
 
     private static final String CIRCUIT_BREAKER_LABEL = "Cache Clustered Posting";
     private final Map<BytesRef, PostingClusters> clusteredPostings = new ConcurrentHashMap<>();
@@ -35,7 +35,7 @@ public class CacheClusteredPosting implements Accountable {
     @Getter
     private final ClusteredPostingWriter writer = new CacheClusteredPostingWriter();
 
-    public CacheClusteredPosting() {
+    public ClusteredPostingCacheItem() {
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 

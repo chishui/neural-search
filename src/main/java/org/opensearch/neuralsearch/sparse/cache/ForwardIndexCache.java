@@ -9,27 +9,27 @@ import org.apache.lucene.util.RamUsageEstimator;
 
 /**
  * Registry class to manage forward index within cache.
- * Given the limited cache introduced by CacheKey.IndexKey, we will simply use the addWithoutBreaking
+ * Given the limited cache introduced by CacheKey, we will simply use the addWithoutBreaking
  * method to ensure success insertion in registry.
  */
-public class ForwardIndexCacheManager extends SparseCacheManager<CacheForwardIndex> {
+public class ForwardIndexCache extends SparseCache<ForwardIndexCacheItem> {
 
-    private static final ForwardIndexCacheManager INSTANCE = new ForwardIndexCacheManager();
+    private static final ForwardIndexCache INSTANCE = new ForwardIndexCache();
 
-    private ForwardIndexCacheManager() {
+    private ForwardIndexCache() {
         CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(cacheMap));
     }
 
-    public static ForwardIndexCacheManager getInstance() {
+    public static ForwardIndexCache getInstance() {
         return INSTANCE;
     }
 
     @NonNull
-    public CacheForwardIndex getOrCreate(@NonNull CacheKey.IndexKey key, int docCount) {
+    public ForwardIndexCacheItem getOrCreate(@NonNull CacheKey key, int docCount) {
         return cacheMap.computeIfAbsent(key, k -> {
-            CacheForwardIndex cacheForwardIndex = new CacheForwardIndex(docCount);
+            ForwardIndexCacheItem forwardIndexCacheItem = new ForwardIndexCacheItem(docCount);
             CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(key));
-            return cacheForwardIndex;
+            return forwardIndexCacheItem;
         });
     }
 }

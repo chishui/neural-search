@@ -76,8 +76,8 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey> consumer = capturedKeys::add;
 
         MergeHelper.clearCacheData(mergeStateFacade, sparseFieldInfo, consumer);
 
@@ -89,8 +89,8 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey> consumer = capturedKeys::add;
 
         MergeHelper.clearCacheData(mergeStateFacade, null, consumer);
 
@@ -102,8 +102,8 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockBinaryDocValues.getSegmentInfo()).thenReturn(segmentInfo);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey> consumer = capturedKeys::add;
 
         MergeHelper.clearCacheData(mergeStateFacade, nonSparseFieldInfo, consumer);
 
@@ -114,8 +114,8 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         BinaryDocValues mockBinaryDocValues = mock(BinaryDocValues.class);
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(mockBinaryDocValues);
 
-        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey> consumer = capturedKeys::add;
 
         MergeHelper.clearCacheData(mergeStateFacade, nonSparseFieldInfo, consumer);
 
@@ -125,8 +125,8 @@ public class MergeHelperTests extends AbstractSparseTestBase {
     public void testClearInMemoryData_withEmptyMergeState_doesNotCallConsumer() throws IOException {
         when(mergeStateFacade.getDocValuesProducers()).thenReturn(new DocValuesProducer[]{});
 
-        List<CacheKey.IndexKey> capturedKeys = new ArrayList<>();
-        Consumer<CacheKey.IndexKey> consumer = capturedKeys::add;
+        List<CacheKey> capturedKeys = new ArrayList<>();
+        Consumer<CacheKey> consumer = capturedKeys::add;
 
         MergeHelper.clearCacheData(mergeStateFacade, sparseFieldInfo, consumer);
 

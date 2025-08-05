@@ -16,13 +16,13 @@ import java.io.IOException;
 
 import static org.mockito.Mockito.mock;
 
-public class CacheForwardIndexTests extends AbstractSparseTestBase {
+public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
 
     private static final String FIELD_NAME = "test_field";
     private static final int DOC_COUNT = 10;
 
     private SegmentInfo segmentInfo;
-    private CacheKey.IndexKey indexKey;
+    private CacheKey cacheKey;
 
     @Override
     @Before
@@ -31,70 +31,71 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
         segmentInfo = mock(SegmentInfo.class);
 
-        // Create an IndexKey for testing
-        indexKey = new CacheKey.IndexKey(segmentInfo, FIELD_NAME);
+        // Create a CacheKey for testing
+        cacheKey = new CacheKey(segmentInfo, FIELD_NAME);
     }
 
     @Override
     @After
     public void tearDown() throws Exception {
         // Clean up any existing indices with this key
-        ForwardIndexCacheManager.getInstance().removeIndex(indexKey);
+        ForwardIndexCache.getInstance().removeIndex(cacheKey);
         super.tearDown();
     }
 
     public void testGetOrCreate_withExistingKey() {
         // Create an index and then get it
-        CacheForwardIndex createdIndex = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
-        CacheForwardIndex retrievedIndex = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem createdIndex = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
+        ForwardIndexCacheItem retrievedIndex = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
         assertSame("Should return the same index instance", createdIndex, retrievedIndex);
     }
 
     public void testGetOrCreate_withNullKey() {
         // Test with null key
         IllegalArgumentException exception = expectThrows(IllegalArgumentException.class, () -> {
-            ForwardIndexCacheManager.getInstance().getOrCreate(null, DOC_COUNT);
+            ForwardIndexCache.getInstance().getOrCreate(null, DOC_COUNT);
         });
         assertEquals("Index key cannot be null", exception.getMessage());
     }
 
     public void testGet_withExistingKey() {
         // Create an index and then get it
-        CacheForwardIndex createdIndex = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
-        CacheForwardIndex retrievedIndex = ForwardIndexCacheManager.getInstance().get(indexKey);
+        ForwardIndexCacheItem createdIndex = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
+        ForwardIndexCacheItem retrievedIndex = ForwardIndexCache.getInstance().get(cacheKey);
         assertSame("Should return the same index instance", createdIndex, retrievedIndex);
     }
 
     public void testGet_withNonExistingKey() {
         // Test getting a non-existent index
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().get(indexKey);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().get(cacheKey);
         assertNull("Index should be null for non-existent key", index);
     }
 
     public void testGet_withNullKey() {
         // Test with null key
-        IllegalArgumentException exception = expectThrows(IllegalArgumentException.class, () -> {
-            ForwardIndexCacheManager.getInstance().get(null);
-        });
+        IllegalArgumentException exception = expectThrows(
+            IllegalArgumentException.class,
+            () -> { ForwardIndexCache.getInstance().get(null); }
+        );
         assertEquals("Index key cannot be null", exception.getMessage());
     }
 
     public void testRemoveIndex() {
         // Create an index
-        ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
-        assertNotNull("Index should exist", ForwardIndexCacheManager.getInstance().get(indexKey));
+        ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
+        assertNotNull("Index should exist", ForwardIndexCache.getInstance().get(cacheKey));
 
         // Remove the index
-        ForwardIndexCacheManager.getInstance().removeIndex(indexKey);
-        assertNull("Index should be removed", ForwardIndexCacheManager.getInstance().get(indexKey));
+        ForwardIndexCache.getInstance().removeIndex(cacheKey);
+        assertNull("Index should be removed", ForwardIndexCache.getInstance().get(cacheKey));
 
         // Test removing a non-existent index (should not throw)
-        ForwardIndexCacheManager.getInstance().removeIndex(indexKey);
+        ForwardIndexCache.getInstance().removeIndex(cacheKey);
     }
 
     public void testReadInsert_withValidVector() throws IOException {
         // Create an index
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
 
         // Get reader and writer
         SparseVectorReader reader = index.getReader();
@@ -119,7 +120,7 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
     public void testReadInsert_withNullVector() throws IOException {
         // Create an index
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
 
         // Get reader and writer
         SparseVectorReader reader = index.getReader();
@@ -137,7 +138,7 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
     public void testInsert_skipsDuplicates() throws IOException {
         // Create an index
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
 
         // Get reader and writer
         SparseVectorReader reader = index.getReader();
@@ -156,7 +157,7 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
     public void testRamBytesUsed() throws IOException {
         // Create an empty index
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
 
         // Initial RAM usage should be positive (array overhead)
         long initialRam = index.ramBytesUsed();
@@ -176,10 +177,10 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
     public void testTotalMemoryUsed() throws IOException {
         // Create an empty index
-        CacheForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
 
         // Initial Memory usage should be positive
-        long initialMemUsage = ForwardIndexCacheManager.getInstance().ramBytesUsed();
+        long initialMemUsage = ForwardIndexCache.getInstance().ramBytesUsed();
         assertTrue("Initial memory usage should be positive", initialMemUsage > 0);
 
         // Add some vectors
@@ -190,17 +191,17 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
         writer.insert(1, vector2);
 
         // Test memUsage static method
-        long totalMemUsage = ForwardIndexCacheManager.getInstance().ramBytesUsed();
+        long totalMemUsage = ForwardIndexCache.getInstance().ramBytesUsed();
         assertTrue("Total memory usage should increase", totalMemUsage > initialMemUsage);
     }
 
     public void testMultipleIndices() {
         // Create first index
-        CacheForwardIndex index1 = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey, DOC_COUNT);
+        ForwardIndexCacheItem index1 = ForwardIndexCache.getInstance().getOrCreate(cacheKey, DOC_COUNT);
 
         // Create a second index with a different key
-        CacheKey.IndexKey indexKey2 = new CacheKey.IndexKey(segmentInfo, "another_field");
-        CacheForwardIndex index2 = ForwardIndexCacheManager.getInstance().getOrCreate(indexKey2, DOC_COUNT);
+        CacheKey cacheKey2 = new CacheKey(segmentInfo, "another_field");
+        ForwardIndexCacheItem index2 = ForwardIndexCache.getInstance().getOrCreate(cacheKey2, DOC_COUNT);
 
         // Verify they are different instances
         assertNotSame("Should be different index instances", index1, index2);

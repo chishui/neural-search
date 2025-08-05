@@ -18,10 +18,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
- * CacheForwardIndex is used to store/read sparse vector in cache
+ * This class is used to store/read sparse vector in cache
  */
 @Log4j2
-public class CacheForwardIndex implements SparseVectorForwardIndex, Accountable {
+public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accountable {
 
     private static final String CIRCUIT_BREAKER_LABEL = "Cache Forward Index";
     private final AtomicReferenceArray<SparseVector> sparseVectors;
@@ -31,7 +31,7 @@ public class CacheForwardIndex implements SparseVectorForwardIndex, Accountable 
     @Getter
     private final SparseVectorWriter writer = new CacheSparseVectorWriter();
 
-    public CacheForwardIndex(int docCount) {
+    public ForwardIndexCacheItem(int docCount) {
         sparseVectors = new AtomicReferenceArray<>(docCount);
         // Account for the array itself in memory usage
         usedRamBytes = new AtomicLong(RamUsageEstimator.shallowSizeOf(sparseVectors));
