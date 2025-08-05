@@ -22,13 +22,12 @@ public class SparseBinaryDocValues extends BinaryDocValues {
 
     @Getter
     private long totalLiveDocs;
+    private BinaryDocValuesSub current;
+    private int docID = -1;
 
     SparseBinaryDocValues(DocIDMerger<BinaryDocValuesSub> docIdMerger) {
         this.docIDMerger = docIdMerger;
     }
-
-    private BinaryDocValuesSub current;
-    private int docID = -1;
 
     @Override
     public int docID() {

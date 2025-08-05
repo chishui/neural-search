@@ -52,11 +52,11 @@ import lombok.experimental.Accessors;
 public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBuilder> {
     public static final String NAME = "sparse_ann";
     @VisibleForTesting
-    static final ParseField CUT_FIELD = new ParseField("cut");
+    public static final ParseField CUT_FIELD = new ParseField("cut");
     @VisibleForTesting
-    static final ParseField TOP_K_FIELD = new ParseField("k");
+    public static final ParseField TOP_K_FIELD = new ParseField("k");
     @VisibleForTesting
-    static final ParseField HEAP_FACTOR_FIELD = new ParseField("heap_factor");
+    public static final ParseField HEAP_FACTOR_FIELD = new ParseField("heap_factor");
     @VisibleForTesting
     public static final ParseField METHOD_PARAMETERS_FIELD = new ParseField("method_parameters");
     @VisibleForTesting
@@ -84,6 +84,7 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
         this.queryCut = in.readOptionalInt();
         this.k = in.readOptionalInt();
         this.heapFactor = in.readOptionalFloat();
+        this.filter = in.readOptionalNamedWriteable(QueryBuilder.class);
     }
 
     public static SparseAnnQueryBuilder fromXContent(XContentParser parser) throws IOException {
@@ -130,6 +131,7 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
         out.writeOptionalInt(this.queryCut);
         out.writeOptionalInt(this.k);
         out.writeOptionalFloat(this.heapFactor);
+        out.writeOptionalNamedWriteable(this.filter);
     }
 
     @Override
@@ -142,6 +144,9 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
         }
         if (Objects.nonNull(heapFactor)) {
             xContentBuilder.field(HEAP_FACTOR_FIELD.getPreferredName(), heapFactor);
+        }
+        if (Objects.nonNull(filter)) {
+            xContentBuilder.field(FILTER_FIELD.getPreferredName(), filter);
         }
     }
 

@@ -4,7 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 
 import java.io.IOException;
 import java.util.List;
@@ -13,5 +13,5 @@ import java.util.List;
  * Interface for clustering algorithm
  */
 public interface Clustering {
-    List<DocumentCluster> cluster(List<DocFreq> docFreqs) throws IOException;
+    List<DocumentCluster> cluster(List<DocWeight> docWeights) throws IOException;
 }

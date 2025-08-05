@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -36,6 +37,7 @@ public class InMemorySparseVectorForwardIndex implements SparseVectorForwardInde
         return mem;
     }
 
+    @NonNull
     public static InMemorySparseVectorForwardIndex getOrCreate(InMemoryKey.IndexKey key, int docCount) {
         if (key == null) {
             throw new IllegalArgumentException("Index key cannot be null");

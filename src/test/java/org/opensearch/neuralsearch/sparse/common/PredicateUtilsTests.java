@@ -10,7 +10,7 @@ import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ALGO_TRIGGER_DOC_COUNT_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 
 public class PredicateUtilsTests extends AbstractSparseTestBase {
 
@@ -28,7 +28,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
 
     public void testShouldRunSeisPredicate_withDocCountAboveThreshold_returnsTrue() {
 
-        fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "5");
+        fieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, "5");
 
         // Execute
         boolean result = PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo);
@@ -38,7 +38,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
     }
 
     public void testShouldRunSeisPredicate_withDocCountEqualToThreshold_returnsTrue() {
-        fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "10");
+        fieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, "10");
 
         // Execute
         boolean result = PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo);
@@ -49,7 +49,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
 
     public void testShouldRunSeisPredicate_withDocCountBelowThreshold_returnsFalse() {
 
-        fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "15");
+        fieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, "15");
 
         // Execute
         boolean result = PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo);
@@ -60,7 +60,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
 
     public void testShouldRunSeisPredicate_withInvalidThreshold_throwsException() {
 
-        fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, "invalid_number");
+        fieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, "invalid_number");
 
         // Execute and verify exception
         NumberFormatException exception = expectThrows(NumberFormatException.class, () -> {
@@ -72,7 +72,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
 
     public void testShouldRunSeisPredicate_withMissingAttribute_throwsException() {
 
-        // No ALGO_TRIGGER_DOC_COUNT_FIELD
+        // No APPROXIMATE_THRESHOLD_FIELD
 
         // Execute and verify exception
         NumberFormatException exception = expectThrows(NumberFormatException.class, () -> {
@@ -84,7 +84,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
 
     public void testShouldRunSeisPredicate_withNullAttribute_throwsException() {
 
-        fieldInfo.putAttribute(ALGO_TRIGGER_DOC_COUNT_FIELD, null);
+        fieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, null);
 
         // Execute and verify exception
         NumberFormatException exception = expectThrows(NumberFormatException.class, () -> {

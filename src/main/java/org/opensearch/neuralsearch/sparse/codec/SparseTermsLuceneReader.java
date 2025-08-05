@@ -15,7 +15,7 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.io.IOException;
@@ -118,9 +118,9 @@ public class SparseTermsLuceneReader extends FieldsProducer {
         List<DocumentCluster> clusters = new ArrayList<>((int) clusterSize);
         for (int j = 0; j < clusterSize; j++) {
             long docSize = postingIn.readVLong();
-            List<DocFreq> docs = new ArrayList<>((int) docSize);
+            List<DocWeight> docs = new ArrayList<>((int) docSize);
             for (int k = 0; k < docSize; ++k) {
-                docs.add(new DocFreq(postingIn.readVInt(), postingIn.readByte()));
+                docs.add(new DocWeight(postingIn.readVInt(), postingIn.readByte()));
             }
             boolean shouldNotSkip = postingIn.readByte() == 1;
             // summary

@@ -25,7 +25,7 @@ import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -261,8 +261,8 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
         when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
-        // Mock DocFreqIterator
-        DocFreqIterator docIterator = mock(DocFreqIterator.class);
+        // Mock DocWeightIterator
+        DocWeightIterator docIterator = mock(DocWeightIterator.class);
         when(cluster.getDisi()).thenReturn(docIterator);
         when(docIterator.nextDoc()).thenReturn(1).thenReturn(NO_MORE_DOCS);
         when(docIterator.docID()).thenReturn(1).thenReturn(NO_MORE_DOCS);
@@ -307,8 +307,8 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
         when(postingsEnum.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
-        // Mock DocFreqIterator - returns 3 docs: deleted, already visited, and valid
-        DocFreqIterator docIterator = constructDocFreqIterator(Arrays.asList(10, 20, 30, 20), Arrays.asList(1, 2, 3, 4));
+        // Mock DocWeightIterator - returns 3 docs: deleted, already visited, and valid
+        DocWeightIterator docIterator = constructDocWeightIterator(Arrays.asList(10, 20, 30, 20), Arrays.asList(1, 2, 3, 4));
         when(cluster.getDisi()).thenReturn(docIterator);
 
         // Mock acceptedDocs (live docs) - doc 10 is deleted
@@ -446,8 +446,8 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
         when(postingsEnum1.clusterIterator()).thenReturn(clusterIterator);
         when(clusterIterator.next()).thenReturn(cluster).thenReturn(null);
 
-        // Mock DocFreqIterator with two docs - one with vector and one without
-        DocFreqIterator docIterator = constructDocFreqIterator(1, 2);
+        // Mock DocWeightIterator with two docs - one with vector and one without
+        DocWeightIterator docIterator = constructDocWeightIterator(1, 2);
         when(cluster.getDisi()).thenReturn(docIterator);
         // Doc 1 has no vector
         when(vectorReader.read(1)).thenReturn(null);

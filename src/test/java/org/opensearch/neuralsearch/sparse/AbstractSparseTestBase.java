@@ -13,8 +13,8 @@ import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -32,16 +32,16 @@ import static org.mockito.Mockito.when;
 
 public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
 
-    protected DocFreqIterator constructDocFreqIterator(Integer... docs) {
-        return constructDocFreqIterator(Arrays.asList(docs), Arrays.asList(docs));
+    protected DocWeightIterator constructDocWeightIterator(Integer... docs) {
+        return constructDocWeightIterator(Arrays.asList(docs), Arrays.asList(docs));
     }
 
-    protected DocFreqIterator constructDocFreqIterator(List<Integer> docs, List<Integer> freqs) {
-        return new DocFreqIterator() {
+    protected DocWeightIterator constructDocWeightIterator(List<Integer> docs, List<Integer> freqs) {
+        return new DocWeightIterator() {
             int i = -1;
 
             @Override
-            public byte freq() {
+            public byte weight() {
                 return (byte) (freqs.get(i) & 0xff);
             }
 
@@ -71,18 +71,18 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         };
     }
 
-    protected List<DocFreq> preparePostings(int... docFreqs) {
-        List<DocFreq> postings = new ArrayList<>();
-        for (int i = 0; i < docFreqs.length; i += 2) {
-            postings.add(new DocFreq(docFreqs[i], (byte) docFreqs[i + 1]));
+    protected List<DocWeight> preparePostings(int... docWeights) {
+        List<DocWeight> postings = new ArrayList<>();
+        for (int i = 0; i < docWeights.length; i += 2) {
+            postings.add(new DocWeight(docWeights[i], (byte) docWeights[i + 1]));
         }
         return postings;
     }
 
-    protected SparseVector createVector(int... docFreqs) {
+    protected SparseVector createVector(int... docWeights) {
         List<SparseVector.Item> items = new ArrayList<>();
-        for (int i = 0; i < docFreqs.length; i += 2) {
-            items.add(new SparseVector.Item(docFreqs[i], (byte) docFreqs[i + 1]));
+        for (int i = 0; i < docWeights.length; i += 2) {
+            items.add(new SparseVector.Item(docWeights[i], (byte) docWeights[i + 1]));
         }
         return new SparseVector(items);
     }
@@ -105,8 +105,8 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
     protected void prepareCluster(SparsePostingsEnum postingsEnum) {
         // Setup cluster iterator for postingsEnum
         DocumentCluster cluster = mock(DocumentCluster.class);
-        DocFreqIterator docFreqIterator = constructDocFreqIterator(1, 2, 3);
-        when(cluster.getDisi()).thenReturn(docFreqIterator);
+        DocWeightIterator docWeightIterator = constructDocWeightIterator(1, 2, 3);
+        when(cluster.getDisi()).thenReturn(docWeightIterator);
         when(cluster.isShouldNotSkip()).thenReturn(true);
 
         SparseVector summaryVector = createVector(1, 2, 2, 3);
@@ -151,8 +151,8 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         for (int i = 0; i < docScores.length; i += 2) {
             docs.add(docScores[i]);
         }
-        // Mock DocFreqIterator with two docs - one with vector and one without
-        DocFreqIterator docIterator = constructDocFreqIterator(docs, docs);
+        // Mock DocWeightIterator with two docs - one with vector and one without
+        DocWeightIterator docIterator = constructDocWeightIterator(docs, docs);
         when(cluster.getDisi()).thenReturn(docIterator);
     }
 
@@ -161,14 +161,14 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         SparseVector documentSummary1 = createVector(1, 10, 2, 20);
         SparseVector documentSummary2 = createVector(1, 1, 2, 2);
 
-        List<DocFreq> docFreqs1 = new ArrayList<>();
-        docFreqs1.add(new DocFreq(0, (byte) 1));
+        List<DocWeight> docWeights1 = new ArrayList<>();
+        docWeights1.add(new DocWeight(0, (byte) 1));
 
-        List<DocFreq> docFreqs2 = new ArrayList<>();
-        docFreqs1.add(new DocFreq(1, (byte) 2));
+        List<DocWeight> docWeights2 = new ArrayList<>();
+        docWeights1.add(new DocWeight(1, (byte) 2));
 
-        clusters.add(new DocumentCluster(documentSummary1, docFreqs1, false));
-        clusters.add(new DocumentCluster(documentSummary2, docFreqs2, false));
+        clusters.add(new DocumentCluster(documentSummary1, docWeights1, false));
+        clusters.add(new DocumentCluster(documentSummary2, docWeights2, false));
 
         return new PostingClusters(clusters);
     }

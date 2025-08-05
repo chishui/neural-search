@@ -8,7 +8,7 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.io.IOException;
@@ -19,11 +19,11 @@ import java.util.function.Supplier;
 @Log4j2
 public class ClusteringTask implements Supplier<PostingClusters> {
     private final BytesRef term;
-    private final List<DocFreq> docs;
+    private final List<DocWeight> docs;
     private final PostingClustering postingClustering;
     private final InMemoryKey.IndexKey key;
 
-    public ClusteringTask(BytesRef term, Collection<DocFreq> docs, InMemoryKey.IndexKey key, PostingClustering postingClustering) {
+    public ClusteringTask(BytesRef term, Collection<DocWeight> docs, InMemoryKey.IndexKey key, PostingClustering postingClustering) {
         this.docs = docs.stream().toList();
         this.term = BytesRef.deepCopyOf(term);
         this.key = key;
