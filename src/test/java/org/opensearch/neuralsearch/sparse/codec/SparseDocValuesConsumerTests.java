@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.BinaryDocValues;
@@ -13,7 +14,6 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
-import org.apache.lucene.util.BytesRef;
 import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
@@ -21,7 +21,6 @@ import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -81,13 +80,15 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         super.tearDown();
     }
 
-    public void testAddNumericField() throws IOException {
+    @SneakyThrows
+    public void testAddNumericField() {
         sparseDocValuesConsumer.addNumericField(sparseFieldInfo, docValuesProducer);
 
         verify(delegate, times(1)).addNumericField(sparseFieldInfo, docValuesProducer);
     }
 
-    public void testAddBinaryField_NonSparseField() throws IOException {
+    @SneakyThrows
+    public void testAddBinaryField_NonSparseField() {
         sparseDocValuesConsumer.addBinaryField(nonSparseFieldInfo, docValuesProducer);
 
         verify(delegate, times(1)).addBinaryField(nonSparseFieldInfo, docValuesProducer);
@@ -95,7 +96,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         assertNull(InMemorySparseVectorForwardIndex.get(new InMemoryKey.IndexKey(segmentInfo, nonSparseFieldInfo)));
     }
 
-    public void testAddBinaryField_SparseFieldBelowThreshold() throws IOException {
+    @SneakyThrows
+    public void testAddBinaryField_SparseFieldBelowThreshold() {
         // Create new segmentInfo with lower maxDoc
         segmentInfo = TestsPrepareUtils.prepareSegmentInfo(30);
         indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
@@ -111,7 +113,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         assertNull(InMemorySparseVectorForwardIndex.get(indexKey));
     }
 
-    public void testAddBinaryField_SparseFieldAboveThreshold() throws IOException {
+    @SneakyThrows
+    public void testAddBinaryField_SparseFieldAboveThreshold() {
         // Create new segmentInfo with higher maxDoc
         segmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
         indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
@@ -122,7 +125,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
         BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
         when(binaryDocValues.nextDoc()).thenReturn(0, 1, BinaryDocValues.NO_MORE_DOCS);
-        when(binaryDocValues.binaryValue()).thenReturn(createValidSparseVectorBytes());
+        when(binaryDocValues.binaryValue()).thenReturn(TestsPrepareUtils.prepareValidSparseVectorBytes());
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(binaryDocValues);
 
         sparseDocValuesConsumer.addBinaryField(sparseFieldInfo, docValuesProducer);
@@ -140,31 +143,36 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         assertNotNull(vector1);
     }
 
-    public void testAddSortedField() throws IOException {
+    @SneakyThrows
+    public void testAddSortedField() {
         sparseDocValuesConsumer.addSortedField(sparseFieldInfo, docValuesProducer);
 
         verify(delegate, times(1)).addSortedField(sparseFieldInfo, docValuesProducer);
     }
 
-    public void testAddSortedNumericField() throws IOException {
+    @SneakyThrows
+    public void testAddSortedNumericField() {
         sparseDocValuesConsumer.addSortedNumericField(sparseFieldInfo, docValuesProducer);
 
         verify(delegate, times(1)).addSortedNumericField(sparseFieldInfo, docValuesProducer);
     }
 
-    public void testAddSortedSetField() throws IOException {
+    @SneakyThrows
+    public void testAddSortedSetField() {
         sparseDocValuesConsumer.addSortedSetField(sparseFieldInfo, docValuesProducer);
 
         verify(delegate, times(1)).addSortedSetField(sparseFieldInfo, docValuesProducer);
     }
 
-    public void testClose() throws IOException {
+    @SneakyThrows
+    public void testClose() {
         sparseDocValuesConsumer.close();
 
         verify(delegate, times(1)).close();
     }
 
-    public void testMerge_WithSparseField() throws IOException {
+    @SneakyThrows
+    public void testMerge_WithSparseField() {
         MergeState mergeState = mock(MergeState.class);
         FieldInfos mergeFieldInfos = mock(FieldInfos.class);
         when(mergeFieldInfos.iterator()).thenReturn(java.util.Arrays.asList(sparseFieldInfo).iterator());
@@ -184,7 +192,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).merge(mergeState);
     }
 
-    public void testMerge_WithNonSparseField() throws IOException {
+    @SneakyThrows
+    public void testMerge_WithNonSparseField() {
         MergeState mergeState = mock(MergeState.class);
         FieldInfos mergeFieldInfos = mock(FieldInfos.class);
         when(mergeFieldInfos.iterator()).thenReturn(java.util.Arrays.asList(nonSparseFieldInfo).iterator());
@@ -197,7 +206,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         assertNull(InMemorySparseVectorForwardIndex.get(new InMemoryKey.IndexKey(segmentInfo, nonSparseFieldInfo)));
     }
 
-    public void testMerge_WithException() throws IOException {
+    @SneakyThrows
+    public void testMerge_WithException() {
         MergeState mergeState = mock(MergeState.class);
         // Don't set mergeFieldInfos to null as it causes assertion error
         // Instead test with empty field infos
@@ -211,22 +221,10 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).merge(mergeState);
     }
 
-    public void testAddBinary_WithSparseBinaryDocValues() throws IOException {
+    @SneakyThrows
+    public void testAddBinary_WithSparseBinaryDocValues() {
         // Create new segmentInfo with higher maxDoc
-        segmentInfo = new SegmentInfo(
-            segmentInfo.dir,
-            segmentInfo.getVersion(),
-            segmentInfo.getMinVersion(),
-            segmentInfo.name,
-            100,  // maxDoc above threshold
-            segmentInfo.getUseCompoundFile(),
-            segmentInfo.getHasBlocks(),
-            segmentInfo.getCodec(),
-            segmentInfo.getDiagnostics(),
-            segmentInfo.getId(),
-            segmentInfo.getAttributes(),
-            segmentInfo.getIndexSort()
-        );
+        segmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
         indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
@@ -239,7 +237,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
         SparseVector mockVector = createVector(1, 2, 3, 4);
         when(sparseBinaryDocValues.cachedSparseVector()).thenReturn(mockVector);
-        when(sparseBinaryDocValues.binaryValue()).thenReturn(createValidSparseVectorBytes());
+        when(sparseBinaryDocValues.binaryValue()).thenReturn(TestsPrepareUtils.prepareValidSparseVectorBytes());
         when(docValuesProducer.getBinary(sparseFieldInfo)).thenReturn(sparseBinaryDocValues);
 
         sparseDocValuesConsumer.addBinaryField(sparseFieldInfo, docValuesProducer);
@@ -253,7 +251,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         assertNotNull(storedVector);
     }
 
-    public void testAddBinary_WriterIsNull() throws IOException {
+    @SneakyThrows
+    public void testAddBinary_WriterIsNull() {
         // This test covers the normal case since writer null is hard to trigger
         BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
         when(binaryDocValues.nextDoc()).thenReturn(BinaryDocValues.NO_MORE_DOCS);
@@ -264,7 +263,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).addBinaryField(sparseFieldInfo, docValuesProducer);
     }
 
-    public void testMerge_WithSparseDocValuesReader() throws IOException {
+    @SneakyThrows
+    public void testMerge_WithSparseDocValuesReader() {
         // Create a real MergeState to test the SparseDocValuesReader instanceof check
         MergeState realMergeState = TestsPrepareUtils.prepareMergeState(false);
 
@@ -274,7 +274,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).merge(realMergeState);
     }
 
-    public void testMerge_WithRealException() throws IOException {
+    @SneakyThrows
+    public void testMerge_WithRealException() {
         MergeState mergeState = mock(MergeState.class);
         FieldInfos mergeFieldInfos = mock(FieldInfos.class);
         // Create an iterator that throws exception
@@ -287,22 +288,24 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).merge(mergeState);
     }
 
-    public void testMerge_WithSparseFieldAndReader() throws IOException {
+    @SneakyThrows
+    public void testMerge_WithSparseFieldAndReader() {
         // Create segmentInfo above threshold
-        SegmentInfo newSegmentInfo = new SegmentInfo(
-            segmentInfo.dir,
-            segmentInfo.getVersion(),
-            segmentInfo.getMinVersion(),
-            segmentInfo.name,
-            100,
-            segmentInfo.getUseCompoundFile(),
-            segmentInfo.getHasBlocks(),
-            segmentInfo.getCodec(),
-            segmentInfo.getDiagnostics(),
-            segmentInfo.getId(),
-            segmentInfo.getAttributes(),
-            segmentInfo.getIndexSort()
-        );
+        // SegmentInfo newSegmentInfo = new SegmentInfo(
+        // segmentInfo.dir,
+        // segmentInfo.getVersion(),
+        // segmentInfo.getMinVersion(),
+        // segmentInfo.name,
+        // 100,
+        // segmentInfo.getUseCompoundFile(),
+        // segmentInfo.getHasBlocks(),
+        // segmentInfo.getCodec(),
+        // segmentInfo.getDiagnostics(),
+        // segmentInfo.getId(),
+        // segmentInfo.getAttributes(),
+        // segmentInfo.getIndexSort()
+        // );
+        SegmentInfo newSegmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
         SegmentWriteState newState = TestsPrepareUtils.prepareSegmentWriteState(newSegmentInfo);
         SparseDocValuesConsumer newConsumer = new SparseDocValuesConsumer(newState, delegate);
 
@@ -319,25 +322,5 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
         // Clean up
         // InMemorySparseVectorForwardIndex.removeIndex(new InMemoryKey.IndexKey(newSegmentInfo, sparseFieldInfo));
-    }
-
-    private BytesRef createValidSparseVectorBytes() {
-        // Create a valid sparse vector BytesRef with token "1" -> 0.5f
-        try {
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
-
-            // Write one token-value pair: "1" -> 0.5f
-            String token = "1";
-            byte[] tokenBytes = token.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            dos.writeInt(tokenBytes.length);
-            dos.write(tokenBytes);
-            dos.writeFloat(0.5f);
-
-            dos.close();
-            return new BytesRef(baos.toByteArray());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 }

@@ -412,4 +412,24 @@ public class TestsPrepareUtils {
 
         return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
     }
+
+    public static BytesRef prepareValidSparseVectorBytes() {
+        // Create a valid sparse vector BytesRef with token "1" -> 0.5f
+        try {
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
+
+            // Write one token-value pair: "1" -> 0.5f
+            String token = "1";
+            byte[] tokenBytes = token.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            dos.writeInt(tokenBytes.length);
+            dos.write(tokenBytes);
+            dos.writeFloat(0.5f);
+
+            dos.close();
+            return new BytesRef(baos.toByteArray());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
