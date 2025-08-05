@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.plugin;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_SEARCH_HYBRID_SEARCH_DISABLED;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.RERANKER_MAX_DOC_FIELDS;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_STATS_ENABLED;
+import static org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning.updateThreadPoolSize;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,7 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
@@ -27,6 +27,7 @@ import org.opensearch.neuralsearch.highlight.SemanticHighlighterEngine;
 import org.opensearch.neuralsearch.highlight.extractor.QueryTextExtractorRegistry;
 import com.google.common.collect.ImmutableList;
 import org.opensearch.action.ActionRequest;
+import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
@@ -167,6 +168,11 @@ public class NeuralSearch extends Plugin
         pipelineServiceUtil = new PipelineServiceUtil(clusterService);
         infoStatsManager = new InfoStatsManager(NeuralSearchClusterUtil.instance(), settingsAccessor, pipelineServiceUtil);
         EventStatsManager.instance().initialize(settingsAccessor);
+        clusterService.getClusterSettings()
+            .addSettingsUpdateConsumer(
+                NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
+                newThreadQty -> updateThreadPoolSize(newThreadQty)
+            );
         ClusterTrainingRunning.initialize(threadPool);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
@@ -201,7 +207,7 @@ public class NeuralSearch extends Plugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        int allocatedProcessors = OpenSearchExecutors.allocatedProcessors(settings);
+        int allocatedProcessors = NeuralSearchSettings.updateThreadQtySettings(settings);
         return List.of(
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
@@ -279,7 +285,8 @@ public class NeuralSearch extends Plugin
             NEURAL_SEARCH_HYBRID_SEARCH_DISABLED,
             RERANKER_MAX_DOC_FIELDS,
             NEURAL_STATS_ENABLED,
-            SparseSettings.IS_SPARSE_INDEX_SETTING
+            SparseSettings.IS_SPARSE_INDEX_SETTING,
+            NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
         );
     }
 

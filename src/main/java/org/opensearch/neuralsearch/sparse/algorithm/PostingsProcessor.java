@@ -5,8 +5,8 @@
 package org.opensearch.neuralsearch.sparse.algorithm;
 
 import org.apache.lucene.search.DocIdSetIterator;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
-import org.opensearch.neuralsearch.sparse.common.DocFreqIterator;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
@@ -24,13 +24,13 @@ import java.util.stream.Collectors;
  */
 public class PostingsProcessor {
 
-    public static List<DocFreq> getTopK(List<DocFreq> postings, int K) {
+    public static List<DocWeight> getTopK(List<DocWeight> postings, int K) {
         if (K >= postings.size()) {
             return postings;
         }
-        PriorityQueue<DocFreq> pq = new PriorityQueue<>(K, (o1, o2) -> ByteQuantizer.compareUnsignedByte(o1.getFreq(), o2.getFreq()));
-        for (DocFreq docFreq : postings) {
-            pq.add(docFreq);
+        PriorityQueue<DocWeight> pq = new PriorityQueue<>(K, (o1, o2) -> ByteQuantizer.compareUnsignedByte(o1.getWeight(), o2.getWeight()));
+        for (DocWeight docWeight : postings) {
+            pq.add(docWeight);
             if (pq.size() > K) {
                 pq.poll();
             }
@@ -40,7 +40,7 @@ public class PostingsProcessor {
 
     public static void summarize(DocumentCluster cluster, SparseVectorReader reader, float summaryPruneRatio) throws IOException {
         Map<Integer, Integer> summary = new HashMap<>();
-        DocFreqIterator iterator = cluster.getDisi();
+        DocWeightIterator iterator = cluster.getDisi();
         while (iterator.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
             int docId = iterator.docID();
             SparseVector vector = reader.read(docId);

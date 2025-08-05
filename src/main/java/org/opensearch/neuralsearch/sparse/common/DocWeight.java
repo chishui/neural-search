@@ -10,21 +10,21 @@ import lombok.Getter;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
 /**
- * DocFreq class to store docID and freq
+ * DocWeight class to store docID and weight
  */
 @AllArgsConstructor
 @Getter
 @EqualsAndHashCode
-public final class DocFreq implements Comparable<DocFreq> {
+public final class DocWeight implements Comparable<DocWeight> {
     private final int docID;
-    private final byte freq;
+    private final byte weight;
 
     @Override
-    public int compareTo(DocFreq o) {
+    public int compareTo(DocWeight o) {
         return Integer.compare(this.docID, o.docID);
     }
 
     public int getIntFreq() {
-        return ByteQuantizer.getUnsignedByte(freq);
+        return ByteQuantizer.getUnsignedByte(weight);
     }
 }

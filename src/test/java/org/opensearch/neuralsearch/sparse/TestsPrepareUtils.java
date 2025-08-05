@@ -112,7 +112,7 @@ public class TestsPrepareUtils {
             Version.LATEST,                // version
             Version.LATEST,                // minVersion
             "_test_segment",               // name
-            maxDoc,                            // maxDoc
+            maxDoc,                        // maxDoc
             false,                         // isCompoundFile
             false,                         // hasBlocks
             Codec.getDefault(),            // codec

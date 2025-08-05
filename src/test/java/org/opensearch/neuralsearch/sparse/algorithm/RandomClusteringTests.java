@@ -8,7 +8,7 @@ import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocFreq;
+import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
 
@@ -28,7 +28,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
     @Mock
     private SparseVectorReader reader;
 
-    private List<DocFreq> docFreqs;
+    private List<DocWeight> docWeights;
 
     @Before
     @Override
@@ -37,7 +37,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
         MockitoAnnotations.openMocks(this);
 
         // Prepare test data
-        docFreqs = preparePostings(0, 10, 1, 20, 2, 30, 3, 40, 4, 50);
+        docWeights = preparePostings(0, 10, 1, 20, 2, 30, 3, 40, 4, 50);
     }
 
     public void testClusterWithClusterRatio0() throws IOException {
@@ -45,21 +45,21 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
         RandomClustering clustering = new RandomClustering(1.0f, 0, reader);
 
         // Call cluster method
-        List<DocumentCluster> clusters = clustering.cluster(docFreqs);
+        List<DocumentCluster> clusters = clustering.cluster(docWeights);
 
         // Verify that only one cluster is returned
         assertEquals(1, clusters.size());
 
         // Verify that the cluster contains all documents
         DocumentCluster cluster = clusters.get(0);
-        assertEquals(docFreqs.size(), cluster.size());
+        assertEquals(docWeights.size(), cluster.size());
         assertTrue(cluster.isShouldNotSkip());
 
         // Verify all documents are in the cluster
         List<Integer> docIds = new ArrayList<>();
         cluster.iterator().forEachRemaining(df -> docIds.add(df.getDocID()));
-        assertEquals(docFreqs.size(), docIds.size());
-        for (DocFreq df : docFreqs) {
+        assertEquals(docWeights.size(), docIds.size());
+        for (DocWeight df : docWeights) {
             assertTrue(docIds.contains(df.getDocID()));
         }
         verify(reader, times(0)).read(anyInt());
@@ -83,7 +83,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
         RandomClustering clustering = new RandomClustering(1f, 0.5f, reader);
 
         // Call cluster method
-        List<DocumentCluster> clusters = clustering.cluster(docFreqs);
+        List<DocumentCluster> clusters = clustering.cluster(docWeights);
 
         // Verify that multiple clusters are returned
         assertEquals(3, clusters.size());
@@ -99,10 +99,10 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
         for (DocumentCluster cluster : clusters) {
             totalDocs += cluster.size();
         }
-        assertEquals(docFreqs.size(), totalDocs);
+        assertEquals(docWeights.size(), totalDocs);
     }
 
-    public void testClusterWithEmptyDocFreqs() throws IOException {
+    public void testClusterWithEmptyDocWeights() throws IOException {
         // Create RandomClustering
         RandomClustering clustering = new RandomClustering(1.0f, 0.1f, reader);
 
@@ -131,7 +131,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
         RandomClustering clustering = new RandomClustering(2, 0.5f, reader);
 
         // Call cluster method
-        List<DocumentCluster> clusters = clustering.cluster(docFreqs);
+        List<DocumentCluster> clusters = clustering.cluster(docWeights);
 
         // Verify that clusters are created
         assertFalse(clusters.isEmpty());
@@ -158,17 +158,17 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
 
         // Test with different lambda values
         RandomClustering clustering1 = new RandomClustering(5, 0.5f, reader);
-        List<DocumentCluster> clusters1 = clustering1.cluster(docFreqs);
+        List<DocumentCluster> clusters1 = clustering1.cluster(docWeights);
 
         RandomClustering clustering2 = new RandomClustering(10, 0.5f, reader);
-        List<DocumentCluster> clusters2 = clustering2.cluster(docFreqs);
+        List<DocumentCluster> clusters2 = clustering2.cluster(docWeights);
 
         // Higher lambda should result in fewer clusters
         assertTrue(clusters1.size() >= clusters2.size());
 
         // Test with different alpha values
         RandomClustering clustering3 = new RandomClustering(5, 0.3f, reader);
-        List<DocumentCluster> clusters3 = clustering3.cluster(docFreqs);
+        List<DocumentCluster> clusters3 = clustering3.cluster(docWeights);
 
         // Verify that clusters are created with different alpha
         assertFalse(clusters3.isEmpty());
@@ -191,7 +191,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
 
         // Create clustering with 3 clusters
         RandomClustering clustering = new RandomClustering(2, 1.0f, reader);
-        List<DocumentCluster> clusters = clustering.cluster(docFreqs);
+        List<DocumentCluster> clusters = clustering.cluster(docWeights);
 
         // Verify that we have clusters
         assertEquals(3, clusters.size());
