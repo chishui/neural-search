@@ -18,7 +18,7 @@ public abstract class SparseCache<T extends Accountable> implements Accountable 
     /**
      * Remove a specific index from cache.
      * This method delegates to the CacheSparseVectorForwardIndex implementation
-     * to clean up resources associated with the specified index key.
+     * to clean up resources associated with the specified cache key.
      *
      * @param key The CacheKey that identifies the index to be removed
      */

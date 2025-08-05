@@ -9,9 +9,12 @@ import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
+import org.junit.Before;
+import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
@@ -31,6 +34,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
+
+    @Before
+    public void setup() {
+        CircuitBreakerManager.setCircuitBreaker(mock(CircuitBreaker.class));
+    }
 
     protected DocWeightIterator constructDocWeightIterator(Integer... docs) {
         return constructDocWeightIterator(Arrays.asList(docs), Arrays.asList(docs));

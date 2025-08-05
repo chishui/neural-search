@@ -52,10 +52,10 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
 
     public void testGetOrCreate_withNullKey() {
         // Test with null key
-        IllegalArgumentException exception = expectThrows(IllegalArgumentException.class, () -> {
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> {
             ForwardIndexCache.getInstance().getOrCreate(null, DOC_COUNT);
         });
-        assertEquals("Index key cannot be null", exception.getMessage());
+        assertEquals("key is marked non-null but is null", exception.getMessage());
     }
 
     public void testGet_withExistingKey() {
@@ -73,11 +73,8 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
 
     public void testGet_withNullKey() {
         // Test with null key
-        IllegalArgumentException exception = expectThrows(
-            IllegalArgumentException.class,
-            () -> { ForwardIndexCache.getInstance().get(null); }
-        );
-        assertEquals("Index key cannot be null", exception.getMessage());
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> { ForwardIndexCache.getInstance().get(null); });
+        assertEquals("key is marked non-null but is null", exception.getMessage());
     }
 
     public void testRemoveIndex() {

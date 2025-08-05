@@ -12,7 +12,9 @@ import java.util.List;
 import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
 import org.mockito.MockitoAnnotations;
+import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 
@@ -38,10 +40,11 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
         term = new BytesRef("test_term");
         key = mock(CacheKey.class);
         docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2));
+        postingClustering = mock(PostingClustering.class);
+        CircuitBreakerManager.setCircuitBreaker(mock(CircuitBreaker.class));
     }
 
     public void testConstructor_withValidInputs_createsTask() {
-
         ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
 
         assertNotNull(task);

@@ -48,17 +48,17 @@ public class CacheKeyTests extends AbstractSparseTestBase {
     }
 
     public void testCacheKey_constructorWithNullFieldName_createsCorrectly() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> { new CacheKey(segmentInfo, null); });
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> { new CacheKey(segmentInfo, (String) null); });
         assertEquals("fieldName is marked non-null but is null", exception.getMessage());
     }
 
     public void testCacheKey_constructorWithNullFieldInfo_createsCorrectly() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> { new CacheKey(segmentInfo, null); });
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> { new CacheKey(segmentInfo, (FieldInfo) null); });
         assertEquals("fieldInfo is marked non-null but is null", exception.getMessage());
     }
 
     public void testCacheKey_constructorWithBothNullFieldInfo_createsCorrectly() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> { new CacheKey(null, null); });
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> { new CacheKey(null, (FieldInfo) null); });
         // Trigger first parameter NonNull check
         assertEquals("segmentInfo is marked non-null but is null", exception.getMessage());
     }
@@ -124,10 +124,5 @@ public class CacheKeyTests extends AbstractSparseTestBase {
         CacheKey cacheKey2 = new CacheKey(segmentInfo, "test_field");
 
         assertEquals("CacheKey created with FieldInfo should equal CacheKey created with field name", cacheKey1, cacheKey2);
-    }
-
-    public void testCacheKey_canBeInstantiated() {
-        CacheKey cacheKey = new CacheKey();
-        assertNotNull("CacheKey should be instantiable", cacheKey);
     }
 }
