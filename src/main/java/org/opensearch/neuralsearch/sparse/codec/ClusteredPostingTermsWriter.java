@@ -29,6 +29,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.algorithm.RandomClustering;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClustering;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheManager;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
@@ -48,6 +49,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.*;
 
 /**
  * ClusteredPostingTermsWriter is used to write postings for each segment.
@@ -86,7 +88,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
 
     public void setFieldAndMaxDoc(FieldInfo fieldInfo, int maxDoc, boolean isMerge) {
         super.setField(fieldInfo);
-        key = new InMemoryKey.IndexKey(this.state.segmentInfo, fieldInfo);
+        key = new CacheKey.IndexKey(this.state.segmentInfo, fieldInfo);
 
         if (!isMerge) {
             setPostingClustering(maxDoc);
@@ -104,7 +106,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     }
 
     private void setPostingClustering(int maxDoc) {
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
+        SparseVectorForwardIndex index = ForwardIndexCacheManager.getInstance().getOrCreate(key, maxDoc);
 
         SparseBinaryDocValuesPassThrough luceneReader = null;
         DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();
