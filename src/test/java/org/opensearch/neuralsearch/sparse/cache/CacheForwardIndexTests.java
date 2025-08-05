@@ -73,10 +73,9 @@ public class CacheForwardIndexTests extends AbstractSparseTestBase {
 
     public void testGet_withNullKey() {
         // Test with null key
-        IllegalArgumentException exception = expectThrows(
-            IllegalArgumentException.class,
-            () -> { ForwardIndexCacheManager.getInstance().get(null); }
-        );
+        IllegalArgumentException exception = expectThrows(IllegalArgumentException.class, () -> {
+            ForwardIndexCacheManager.getInstance().get(null);
+        });
         assertEquals("Index key cannot be null", exception.getMessage());
     }
 
