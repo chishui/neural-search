@@ -40,7 +40,7 @@ public class SparseDocValuesReader extends EmptyDocValuesProducer {
                 BinaryDocValues values = null;
                 DocValuesProducer docValuesProducer = mergeState.docValuesProducers[i];
                 if (docValuesProducer != null) {
-                    FieldInfo readerFieldInfo = mergeState.fieldInfos[i].fieldInfo(field.name);
+                    FieldInfo readerFieldInfo = mergeState.fieldInfos[i].fieldInfo(field.getName());
                     if (readerFieldInfo != null && readerFieldInfo.getDocValuesType() == DocValuesType.BINARY) {
                         values = docValuesProducer.getBinary(readerFieldInfo);
                     }

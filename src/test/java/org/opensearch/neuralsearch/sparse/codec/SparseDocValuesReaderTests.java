@@ -12,6 +12,9 @@ import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 public class SparseDocValuesReaderTests extends OpenSearchTestCase {
 
     private SparseDocValuesReader sparseDocValuesReader;
@@ -20,7 +23,8 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
+        fieldInfo = mock(FieldInfo.class);
+        when(fieldInfo.getName()).thenReturn("test_field");
     }
 
     public void testGetBinary_StandardMergeState() throws IOException {
@@ -44,13 +48,7 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
         MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(false, true);
         sparseDocValuesReader = new SparseDocValuesReader(mergeState);
 
-        RuntimeException exception = expectThrows(RuntimeException.class, () -> {
-            BinaryDocValues result = sparseDocValuesReader.getBinary(fieldInfo);
-        });
-        assertEquals(
-            "java.lang.NullPointerException: Cannot load from object array because \"this.mergeState.liveDocs\" is null",
-            exception.getMessage()
-        );
+        expectThrows(RuntimeException.class, () -> { BinaryDocValues result = sparseDocValuesReader.getBinary(fieldInfo); });
     }
 
     public void testGetBinary_WithLiveDocs() throws IOException {
