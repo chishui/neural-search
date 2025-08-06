@@ -18,7 +18,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.util.HashMap;
@@ -40,7 +42,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
     private FieldInfo sparseFieldInfo;
     private FieldInfo nonSparseFieldInfo;
     private DocValuesProducer docValuesProducer;
-    private InMemoryKey.IndexKey indexKey;
+    private CacheKey cacheKey;
 
     @Before
     @Override
@@ -67,15 +69,15 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         when(nonSparseFieldInfo.getDocValuesType()).thenReturn(DocValuesType.BINARY);
 
         docValuesProducer = mock(DocValuesProducer.class);
-        indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
+        cacheKey = new CacheKey(segmentInfo, sparseFieldInfo);
     }
 
     @After
     @Override
     public void tearDown() throws Exception {
         // Clean up any created indices
-        if (indexKey != null) {
-            InMemorySparseVectorForwardIndex.removeIndex(indexKey);
+        if (cacheKey != null) {
+            ForwardIndexCache.getInstance().removeIndex(cacheKey);
         }
         super.tearDown();
     }
@@ -93,14 +95,14 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
         verify(delegate, times(1)).addBinaryField(nonSparseFieldInfo, docValuesProducer);
         // Should not create forward index for non-sparse field
-        assertNull(InMemorySparseVectorForwardIndex.get(new InMemoryKey.IndexKey(segmentInfo, nonSparseFieldInfo)));
+        assertNull(ForwardIndexCache.getInstance().get(new CacheKey(segmentInfo, nonSparseFieldInfo)));
     }
 
     @SneakyThrows
     public void testAddBinaryField_SparseFieldBelowThreshold() {
         // Create new segmentInfo with lower maxDoc
         segmentInfo = TestsPrepareUtils.prepareSegmentInfo(30);
-        indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
+        cacheKey = new CacheKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
         segmentWriteState = TestsPrepareUtils.prepareSegmentWriteState(segmentInfo);
@@ -110,14 +112,14 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
         verify(delegate, times(1)).addBinaryField(sparseFieldInfo, docValuesProducer);
         // Should not create forward index when below threshold
-        assertNull(InMemorySparseVectorForwardIndex.get(indexKey));
+        assertNull(ForwardIndexCache.getInstance().get(cacheKey));
     }
 
     @SneakyThrows
     public void testAddBinaryField_SparseFieldAboveThreshold() {
         // Create new segmentInfo with higher maxDoc
         segmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
-        indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
+        cacheKey = new CacheKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
         segmentWriteState = TestsPrepareUtils.prepareSegmentWriteState(segmentInfo);
@@ -133,7 +135,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(delegate, times(1)).addBinaryField(sparseFieldInfo, docValuesProducer);
 
         // Verify forward index was created and populated
-        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(indexKey);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().get(cacheKey);
         assertNotNull(index);
 
         // Verify vectors were inserted
@@ -203,7 +205,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
         verify(delegate, times(1)).merge(mergeState);
         // Should not create forward index for non-sparse field
-        assertNull(InMemorySparseVectorForwardIndex.get(new InMemoryKey.IndexKey(segmentInfo, nonSparseFieldInfo)));
+        assertNull(ForwardIndexCache.getInstance().get(new CacheKey(segmentInfo, nonSparseFieldInfo)));
     }
 
     @SneakyThrows
@@ -225,7 +227,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
     public void testAddBinary_WithSparseBinaryDocValues() {
         // Create new segmentInfo with higher maxDoc
         segmentInfo = TestsPrepareUtils.prepareSegmentInfo(100);
-        indexKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
+        cacheKey = new CacheKey(segmentInfo, sparseFieldInfo);
 
         // Create new SegmentWriteState with the updated segmentInfo
         segmentWriteState = TestsPrepareUtils.prepareSegmentWriteState(segmentInfo);
@@ -243,7 +245,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         sparseDocValuesConsumer.addBinaryField(sparseFieldInfo, docValuesProducer);
 
         // Verify forward index was created
-        InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(indexKey);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().get(cacheKey);
         assertNotNull(index);
 
         // Verify cached vector was used
