@@ -89,16 +89,6 @@ public class NeuralSparseIndexShard {
                                 continue;
                             }
 
-                            // Check if both caches already exist
-                            if (InMemorySparseVectorForwardIndex.get(key) != null && InMemoryClusteredPosting.get(key) != null) {
-                                log.info(
-                                    "[Neural Sparse] Cache already exists for field: {} in segment: {}, skipping",
-                                    fieldName,
-                                    segmentInfo.name
-                                );
-                                continue;
-                            }
-
                             warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
                         }
                     } catch (Exception e) {
@@ -155,14 +145,11 @@ public class NeuralSparseIndexShard {
         final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
         final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
         final int docCount = segmentInfo.maxDoc();
-
-        // Create SegmentReadState for SparseTermsLuceneReader
         final BinaryDocValues binaryDocValues = leafReader.getBinaryDocValues(fieldInfo.name);
         if (binaryDocValues == null) {
             log.warn("[Neural Sparse] No binary doc values found for field: {}", fieldInfo.name);
             return;
         }
-
         try {
             // Create SegmentReadState for SparseTermsLuceneReader
             final SegmentReadState readState = new SegmentReadState(
@@ -175,8 +162,6 @@ public class NeuralSparseIndexShard {
             // Create SparseTermsLuceneReader for inverted index
             final SparseTermsLuceneReader luceneReader = new SparseTermsLuceneReader(readState);
 
-            // Create CacheGated readers
-            final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
             final CacheGatedPostingsReader postingsReader = new CacheGatedPostingsReader(
                 fieldInfo.name,
                 InMemoryClusteredPosting.getOrCreate(key).getReader(),
@@ -184,40 +169,18 @@ public class NeuralSparseIndexShard {
                 luceneReader
             );
 
-            // Warm up forward index
-            int loadedDocs = 0;
-            int docId = binaryDocValues.nextDoc();
-            while (docId != DocIdSetIterator.NO_MORE_DOCS) {
-                try {
-                    if (forwardIndexReader.read(docId) != null) {
-                        loadedDocs++;
-                    }
-                } catch (IOException e) {
-                    log.warn("[Neural Sparse] Failed to read doc {} during warm up", docId, e);
-                }
-                docId = binaryDocValues.nextDoc();
-            }
-
-            // Warm up inverted index
-            final Set<BytesRef> terms = postingsReader.getTerms();
-            for (BytesRef term : terms) {
-                postingsReader.read(term);
-            }
-
-            log.info("[Neural Sparse] Warmed up {} docs and {} terms for field: {}", loadedDocs, terms.size(), fieldInfo.name);
+            warmUpInvertedIndex(postingsReader);
 
         } catch (Exception e) {
-            log.warn("[Neural Sparse] Failed to create lucene readers, using forward index only", e);
+            log.warn("[Neural Sparse] Failed to create Lucene reader for inverted index. Will only warm up forward index next", e);
+        }
 
-            // Fallback: only warm up forward index
+        try {
+            // Create CacheGated readers
             final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
-            int loadedDocs = 0;
-            for (int docId = 0; docId < docCount; docId++) {
-                if (forwardIndexReader.read(docId) != null) {
-                    loadedDocs++;
-                }
-            }
-            log.info("[Neural Sparse] Warmed up {} documents for field: {} (forward index only)", loadedDocs, fieldInfo.name);
+            warmUpForwardIndex(binaryDocValues, forwardIndexReader);
+        } catch (Exception e) {
+            log.warn("[Neural Sparse] Failed to warm up forward index", e);
         }
     }
 
@@ -255,6 +218,37 @@ public class NeuralSparseIndexShard {
             .filter(SparseTokensField::isSparseField)
             .map(FieldInfo::getName)
             .collect(Collectors.toSet());
+    }
+
+    private void warmUpForwardIndex(BinaryDocValues binaryDocValues, CacheGatedForwardIndexReader forwardIndexReader) throws IOException {
+        int loadedDocs = 0;
+        int docId = binaryDocValues.nextDoc();
+        while (docId != DocIdSetIterator.NO_MORE_DOCS) {
+            try {
+                if (forwardIndexReader.read(docId) != null) {
+                    loadedDocs++;
+                }
+            } catch (IOException e) {
+                log.warn("[Neural Sparse] Failed to read doc {} during warm up", docId, e);
+            }
+            docId = binaryDocValues.nextDoc();
+        }
+        log.info("[Neural Sparse] Warmed up {} docs in total", loadedDocs);
+    }
+
+    private void warmUpInvertedIndex(CacheGatedPostingsReader postingsReader) {
+        int loadedTerms = 0;
+        final Set<BytesRef> terms = postingsReader.getTerms();
+        for (BytesRef term : terms) {
+            try {
+                if (postingsReader.read(term) != null) {
+                    loadedTerms++;
+                }
+            } catch (IOException e) {
+                log.warn("[Neural Sparse] Failed to read term {} during warm up", term, e);
+            }
+        }
+        log.info("[Neural Sparse] Warmed up {} terms in total", loadedTerms);
     }
 
 }
