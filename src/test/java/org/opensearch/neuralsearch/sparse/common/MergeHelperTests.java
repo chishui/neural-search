@@ -37,7 +37,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
 
     @Before
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
 
         mergeStateFacade = mock(MergeStateFacade.class);

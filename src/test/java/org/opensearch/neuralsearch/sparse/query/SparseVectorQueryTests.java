@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -77,7 +78,9 @@ public class SparseVectorQueryTests extends AbstractSparseTestBase {
      * - Create query vector for testing
      */
     @Before
-    public void setUp() throws Exception {
+    @Override
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
         // Create query vector

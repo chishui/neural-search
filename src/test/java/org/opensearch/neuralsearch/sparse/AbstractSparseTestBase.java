@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
@@ -38,7 +39,10 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
     protected CircuitBreaker mockedCircuitBreaker = mock(CircuitBreaker.class);
 
     @Before
-    public void setup() {
+    @Override
+    @SneakyThrows
+    public void setUp() {
+        super.setUp();
         CircuitBreakerManager.setCircuitBreaker(mockedCircuitBreaker);
     }
 

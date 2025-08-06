@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexReader;
@@ -76,7 +77,9 @@ public class SparseQueryWeightTests extends AbstractSparseTestBase {
     private IndexReader indexReader;
 
     @Before
-    public void setUp() throws Exception {
+    @Override
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 

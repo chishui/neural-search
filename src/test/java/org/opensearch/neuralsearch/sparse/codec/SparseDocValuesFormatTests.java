@@ -25,7 +25,7 @@ public class SparseDocValuesFormatTests extends AbstractSparseTestBase {
     private SegmentReadState mockReadState;
 
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         mockDelegate = mock(DocValuesFormat.class);
         when(mockDelegate.getName()).thenReturn("TestFormat");

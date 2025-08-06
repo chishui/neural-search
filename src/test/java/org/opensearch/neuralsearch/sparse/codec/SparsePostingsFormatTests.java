@@ -27,7 +27,7 @@ public class SparsePostingsFormatTests extends AbstractSparseTestBase {
     private SegmentReadState mockReadState;
 
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         mockDelegate = mock(PostingsFormat.class);
         when(mockDelegate.getName()).thenReturn("TestPostingsFormat");

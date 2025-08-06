@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.index.MergeState;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
@@ -20,9 +21,10 @@ public class MergeStateFacadeTests extends AbstractSparseTestBase {
     /**
      * Setup method to initialize mocks before each test
      */
-    @Override
     @Before
-    public void setUp() throws Exception {
+    @Override
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         // Initialize mocks
         mergeState = TestsPrepareUtils.prepareMergeState(false);

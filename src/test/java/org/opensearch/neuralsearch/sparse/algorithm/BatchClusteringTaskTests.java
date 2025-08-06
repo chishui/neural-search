@@ -26,7 +26,8 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
 
     @Before
     @Override
-    public void setUp() throws Exception {
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 

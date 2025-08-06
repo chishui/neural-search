@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.index.DocIDMerger;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
@@ -30,7 +31,10 @@ public class SparseBinaryDocValuesTests extends AbstractSparseTestBase {
     private SparseBinaryDocValues sparseBinaryDocValues;
 
     @Before
-    public void setup() {
+    @Override
+    @SneakyThrows
+    public void setUp() {
+        super.setUp();
         docIDMerger = mock(DocIDMerger.class);
         binaryDocValuesSub = mock(BinaryDocValuesSub.class);
         binaryDocValues = mock(BinaryDocValues.class);

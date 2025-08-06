@@ -46,7 +46,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
     @Before
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
 
         delegate = mock(DocValuesConsumer.class);
