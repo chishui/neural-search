@@ -48,7 +48,7 @@ public class SparseDocValuesReaderTests extends OpenSearchTestCase {
         MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(false, true);
         sparseDocValuesReader = new SparseDocValuesReader(mergeState);
 
-        expectThrows(RuntimeException.class, () -> { BinaryDocValues result = sparseDocValuesReader.getBinary(fieldInfo); });
+        expectThrows(NullPointerException.class, () -> { BinaryDocValues result = sparseDocValuesReader.getBinary(fieldInfo); });
     }
 
     public void testGetBinary_WithLiveDocs() throws IOException {
