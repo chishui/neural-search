@@ -16,11 +16,12 @@ import org.apache.lucene.store.IOContext;
 import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -37,6 +38,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
     private FieldInfo sparseFieldInfo;
     private SegmentInfo segmentInfo;
     private FieldInfos fieldInfos;
+    private SparseTermsLuceneReader mockReader;
 
     @Before
     @Override
@@ -46,22 +48,27 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
         mockDelegate = mock(FieldsProducer.class);
 
         // Setup segment info
-        segmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+        segmentInfo = mock(SegmentInfo.class);
+        when(segmentInfo.maxDoc()).thenReturn(10);
 
         // Setup field infos using real FieldInfo objects
-        sparseFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-        sparseFieldInfo.putAttribute(SPARSE_FIELD, "true");
-        sparseFieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, "10");
+        sparseFieldInfo = mock(FieldInfo.class);
+        when(sparseFieldInfo.getName()).thenReturn(SPARSE_FIELD);
+        Map<String, String> sparseAttributes = new HashMap<>();
+        sparseAttributes.put(SPARSE_FIELD, "true");
+        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, "10");
+        when(sparseFieldInfo.attributes()).thenReturn(sparseAttributes);
 
         // Setup field infos
         fieldInfos = mock(FieldInfos.class);
-        when(fieldInfos.fieldInfo(sparseFieldInfo.name)).thenReturn(sparseFieldInfo);
+        when(fieldInfos.fieldInfo(sparseFieldInfo.getName())).thenReturn(sparseFieldInfo);
 
         // Setup segment read state
         Directory mockDir = mock(Directory.class);
         segmentReadState = new SegmentReadState(mockDir, segmentInfo, fieldInfos, IOContext.DEFAULT);
+        mockReader = mock(SparseTermsLuceneReader.class);
 
-        producer = new SparsePostingsProducer(mockDelegate, segmentReadState);
+        producer = new SparsePostingsProducer(mockDelegate, segmentReadState, mockReader);
     }
 
     @After
@@ -75,11 +82,10 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
 
     @SneakyThrows
     public void testConstructor() {
-        SparsePostingsProducer localProducer = new SparsePostingsProducer(mockDelegate, segmentReadState);
+        SparsePostingsProducer localProducer = new SparsePostingsProducer(mockDelegate, segmentReadState, mockReader);
         assertNotNull(localProducer);
         assertEquals(mockDelegate, localProducer.getDelegate());
         assertEquals(segmentReadState, localProducer.getState());
-        assertNull(localProducer.getReader());
     }
 
     @SneakyThrows
@@ -91,7 +97,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
 
     @SneakyThrows
     public void testClose_WithNullDelegate() {
-        SparsePostingsProducer producerWithNullDelegate = new SparsePostingsProducer(null, segmentReadState);
+        SparsePostingsProducer producerWithNullDelegate = new SparsePostingsProducer(null, segmentReadState, mockReader);
 
         // Should not throw exception
         producerWithNullDelegate.close();
@@ -101,9 +107,9 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
     public void testClose_WithReader() {
         // First call terms() to initialize reader
         Terms mockTerms = mock(Terms.class);
-        when(mockDelegate.terms(sparseFieldInfo.name)).thenReturn(mockTerms);
+        when(mockDelegate.terms(sparseFieldInfo.getName())).thenReturn(mockTerms);
 
-        producer.terms(sparseFieldInfo.name);
+        producer.terms(sparseFieldInfo.getName());
         assertNotNull(producer.getReader());
 
         producer.close();
@@ -132,20 +138,8 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void testTerms_SparseFieldBelowThreshold() {
         // Create segment info with low maxDoc
-        SegmentInfo lowThresholdSegmentInfo = new SegmentInfo(
-            segmentInfo.dir,
-            segmentInfo.getVersion(),
-            segmentInfo.getMinVersion(),
-            "low_threshold_segment",
-            3, // maxDoc below threshold (5)
-            segmentInfo.getUseCompoundFile(),
-            segmentInfo.getHasBlocks(),
-            segmentInfo.getCodec(),
-            segmentInfo.getDiagnostics(),
-            segmentInfo.getId(),
-            segmentInfo.getAttributes(),
-            segmentInfo.getIndexSort()
-        );
+        SegmentInfo lowThresholdSegmentInfo = mock(SegmentInfo.class);
+        when(lowThresholdSegmentInfo.maxDoc()).thenReturn(3);
 
         SegmentReadState lowThresholdState = new SegmentReadState(
             segmentReadState.directory,
@@ -154,23 +148,23 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
             segmentReadState.context
         );
 
-        SparsePostingsProducer lowThresholdProducer = new SparsePostingsProducer(mockDelegate, lowThresholdState);
+        SparsePostingsProducer lowThresholdProducer = new SparsePostingsProducer(mockDelegate, lowThresholdState, mockReader);
 
         Terms mockTerms = mock(Terms.class);
-        when(mockDelegate.terms(sparseFieldInfo.name)).thenReturn(mockTerms);
+        when(mockDelegate.terms(sparseFieldInfo.getName())).thenReturn(mockTerms);
 
-        Terms result = lowThresholdProducer.terms(sparseFieldInfo.name);
+        Terms result = lowThresholdProducer.terms(sparseFieldInfo.getName());
 
         assertEquals(mockTerms, result);
-        verify(mockDelegate, times(1)).terms(sparseFieldInfo.name);
-        assertNull(lowThresholdProducer.getReader());
+        verify(mockDelegate, times(1)).terms(sparseFieldInfo.getName());
+        assertNotNull(lowThresholdProducer.getReader());
 
         lowThresholdProducer.close();
     }
 
     @SneakyThrows
     public void testTerms_SparseFieldAboveThreshold() {
-        Terms result = producer.terms(sparseFieldInfo.name);
+        Terms result = producer.terms(sparseFieldInfo.getName());
 
         assertNotNull(result);
         assertTrue(result instanceof SparseTerms);
