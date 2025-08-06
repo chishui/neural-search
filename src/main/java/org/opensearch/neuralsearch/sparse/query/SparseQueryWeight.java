@@ -7,12 +7,9 @@ package org.opensearch.neuralsearch.sparse.query;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.FilterCodecReader;
-import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.search.BulkScorer;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Explanation;
@@ -26,6 +23,7 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
+import org.opensearch.common.lucene.Lucene;
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.codec.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
@@ -55,25 +53,10 @@ public class SparseQueryWeight extends Weight {
         return null;
     }
 
-    private SegmentInfo getSegmentInfo(LeafReader reader) {
-        LeafReader leafReader = reader;
-        while (leafReader != null && !(leafReader instanceof SegmentReader)) {
-            if (leafReader instanceof FilterLeafReader) {
-                leafReader = ((FilterLeafReader) leafReader).getDelegate();
-            } else if (leafReader instanceof FilterCodecReader) {
-                leafReader = ((FilterCodecReader) leafReader).getDelegate();
-            }
-        }
-        if (!(leafReader instanceof SegmentReader)) {
-            return null;
-        }
-        return ((SegmentReader) leafReader).getSegmentInfo().info;
-    }
-
     @Override
     public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
         final SparseVectorQuery query = (SparseVectorQuery) parentQuery;
-        SegmentInfo info = getSegmentInfo(context.reader());
+        SegmentInfo info = Lucene.segmentReader(context.reader()).getSegmentInfo().info;
         FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
         // fallback to plain neural sparse query
         if (!PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo)) {

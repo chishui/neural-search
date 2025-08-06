@@ -7,15 +7,19 @@ package org.opensearch.neuralsearch.sparse.codec;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.BlockTermState;
 import org.apache.lucene.codecs.CodecUtil;
+import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.NormsProducer;
 import org.apache.lucene.codecs.PushPostingsWriterBase;
 import org.apache.lucene.codecs.lucene101.Lucene101PostingsFormat;
+import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.NumericDocValues;
-import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.store.DataOutput;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
@@ -36,12 +40,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
 
 /**
  * ClusteredPostingTermsWriter is used to write postings for each segment.
@@ -55,9 +63,10 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     private BytesRef currentTerm;
     private PostingClustering postingClustering;
     private InMemoryKey.IndexKey key;
-    private SegmentInfo segmentInfo;
     private final int version;
     private final String codec_name;
+    private SegmentWriteState state;
+    private DocValuesProducer docValuesProducer;
 
     public ClusteredPostingTermsWriter(String codec_name, int version) {
         super();
@@ -77,22 +86,13 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         return state;
     }
 
-    public void setFieldAndMaxDoc(FieldInfo fieldInfo, int maxDoc) {
+    public void setFieldAndMaxDoc(FieldInfo fieldInfo, int maxDoc, boolean isMerge) {
         super.setField(fieldInfo);
-        key = new InMemoryKey.IndexKey(this.segmentInfo, fieldInfo);
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
-        float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-        int nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
-        float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
-        // TODO: attach a lucene reader in the following CacheGatedForwardIndexReader
-        this.postingClustering = new PostingClustering(
-            nPostings,
-            new RandomClustering(
-                summaryPruneRatio,
-                cluster_ratio,
-                new CacheGatedForwardIndexReader(index == null ? null : index.getReader(), null, null)
-            )
-        );
+        key = new InMemoryKey.IndexKey(this.state.segmentInfo, fieldInfo);
+
+        if (!isMerge) {
+            setPostingClustering(maxDoc);
+        }
     }
 
     @Override
@@ -103,6 +103,46 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     @Override
     public void startTerm(NumericDocValues norms) throws IOException {
         docWeights.clear();
+    }
+
+    private void setPostingClustering(int maxDoc) {
+        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
+
+        SparseBinaryDocValuesPassThrough luceneReader = null;
+        DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();
+        SegmentReadState readState = new SegmentReadState(
+            this.state.directory,
+            this.state.segmentInfo,
+            this.state.fieldInfos,
+            IOContext.DEFAULT
+        );
+        try {
+            this.docValuesProducer = fmt.fieldsProducer(readState);
+            BinaryDocValues binaryDocValues = this.docValuesProducer.getBinary(fieldInfo);
+            if (binaryDocValues != null) {
+                luceneReader = new SparseBinaryDocValuesPassThrough(binaryDocValues, this.state.segmentInfo);
+            }
+        } catch (Exception e) {
+            log.error(String.format(Locale.ROOT, "Failed to retrieve lucene reader due to exception: [%s]", e.getMessage()));
+        }
+
+        float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
+        int nPostings;
+        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
+            nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
+        } else {
+            nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+        }
+        float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
+
+        this.postingClustering = new PostingClustering(
+            nPostings,
+            new RandomClustering(
+                summaryPruneRatio,
+                cluster_ratio,
+                new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), luceneReader)
+            )
+        );
     }
 
     private void writePostingClusters(PostingClusters postingClusters, BlockTermState state) throws IOException {
@@ -162,7 +202,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     @Override
     public void init(IndexOutput termsOut, SegmentWriteState state) throws IOException {
         this.postingOut = termsOut;
-        this.segmentInfo = state.segmentInfo;
+        this.state = state;
         this.docsSeen = new FixedBitSet(state.segmentInfo.maxDoc());
         CodecUtil.writeIndexHeader(postingOut, this.codec_name, version, state.segmentInfo.getId(), state.segmentSuffix);
     }
@@ -175,10 +215,17 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     @Override
     public void close() throws IOException {
         CodecUtil.writeFooter(this.postingOut);
+        if (this.docValuesProducer != null) {
+            this.docValuesProducer.close();
+            this.docValuesProducer = null;
+        }
     }
 
     public void closeWithException() {
         IOUtils.closeWhileHandlingException(this.postingOut);
+        if (this.docValuesProducer != null) {
+            IOUtils.closeWhileHandlingException(this.docValuesProducer);
+        }
     }
 
     public void close(long startFp) throws IOException {

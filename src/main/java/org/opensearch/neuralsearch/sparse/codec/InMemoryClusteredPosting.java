@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.NonNull;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -37,6 +38,7 @@ public class InMemoryClusteredPosting implements ClusteredPosting, Accountable {
         return mem;
     }
 
+    @NonNull
     public static InMemoryClusteredPosting getOrCreate(InMemoryKey.IndexKey key) {
         if (key == null) {
             throw new IllegalArgumentException("Index key cannot be null");

@@ -99,6 +99,8 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
     private SparseAnnQueryBuilder sparseAnnQueryBuilder;
 
     private static final Version MINIMAL_SUPPORTED_VERSION_DEFAULT_MODEL_ID = Version.V_2_13_0;
+    // TODO: this needs to be changed to 3.2 when merge to main branch
+    private static final Version MINIMAL_SUPPORTED_VERSION_SEISMIC = Version.V_3_0_0;
 
     public static void initialize(MLCommonsClientAccessor mlClient) {
         NeuralSparseQueryBuilder.ML_CLIENT = mlClient;
@@ -132,7 +134,9 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (StringUtils.EMPTY.equals(this.modelId)) {
             this.modelId = null;
         }
-        this.sparseAnnQueryBuilder = new SparseAnnQueryBuilder(in);
+        if (isSeismicSupported() && in.readBoolean()) {
+            this.sparseAnnQueryBuilder = new SparseAnnQueryBuilder(in);
+        }
     }
 
     /**
@@ -182,8 +186,13 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         } else {
             out.writeBoolean(false);
         }
-        if (this.sparseAnnQueryBuilder != null) {
-            this.sparseAnnQueryBuilder.writeTo(out);
+        if (isSeismicSupported()) {
+            if (this.sparseAnnQueryBuilder != null) {
+                out.writeBoolean(true);
+                this.sparseAnnQueryBuilder.writeTo(out);
+            } else {
+                out.writeBoolean(false);
+            }
         }
     }
 
@@ -203,7 +212,7 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         if (Objects.nonNull(queryTokensSupplier) && Objects.nonNull(queryTokensSupplier.get())) {
             xContentBuilder.field(QUERY_TOKENS_FIELD.getPreferredName(), queryTokensSupplier.get());
         }
-        if (Objects.nonNull(sparseAnnQueryBuilder)) {
+        if (Objects.nonNull(sparseAnnQueryBuilder) && isSeismicSupported()) {
             xContentBuilder.field(METHOD_PARAMETERS_FIELD.getPreferredName(), sparseAnnQueryBuilder);
         }
         printBoostAndQueryName(xContentBuilder);
@@ -319,15 +328,16 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
             } else if (QUERY_TOKENS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
                 Map<String, Float> queryTokens = parser.map(HashMap::new, XContentParser::floatValue);
                 sparseEncodingQueryBuilder.queryTokensSupplier(() -> queryTokens);
-            } else if (METHOD_PARAMETERS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
-                SparseAnnQueryBuilder builder = SparseAnnQueryBuilder.fromXContent(parser);
-                sparseEncodingQueryBuilder.sparseAnnQueryBuilder(builder);
-            } else {
-                throw new ParsingException(
-                    parser.getTokenLocation(),
-                    String.format(Locale.ROOT, "[%s] unknown token [%s] after [%s]", NAME, token, currentFieldName)
-                );
-            }
+            } else if (METHOD_PARAMETERS_FIELD.match(currentFieldName, parser.getDeprecationHandler())
+                && sparseEncodingQueryBuilder.isSeismicSupported()) {
+                    SparseAnnQueryBuilder builder = SparseAnnQueryBuilder.fromXContent(parser);
+                    sparseEncodingQueryBuilder.sparseAnnQueryBuilder(builder);
+                } else {
+                    throw new ParsingException(
+                        parser.getTokenLocation(),
+                        String.format(Locale.ROOT, "[%s] unknown token [%s] after [%s]", NAME, token, currentFieldName)
+                    );
+                }
         }
     }
 
@@ -477,7 +487,11 @@ public class NeuralSparseQueryBuilder extends AbstractQueryBuilder<NeuralSparseQ
         return NeuralSearchClusterUtil.instance().getClusterMinVersion().onOrAfter(MINIMAL_SUPPORTED_VERSION_DEFAULT_MODEL_ID);
     }
 
+    private boolean isSeismicSupported() {
+        return NeuralSearchClusterUtil.instance().getClusterMinVersion().onOrAfter(MINIMAL_SUPPORTED_VERSION_SEISMIC);
+    }
+
     private boolean isSeismicFieldType(MappedFieldType fieldType) {
-        return Objects.nonNull(fieldType) && SparseTokensFieldMapper.CONTENT_TYPE.equals(fieldType.typeName());
+        return isSeismicSupported() && Objects.nonNull(fieldType) && SparseTokensFieldMapper.CONTENT_TYPE.equals(fieldType.typeName());
     }
 }

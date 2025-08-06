@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.FieldInfo;
@@ -70,6 +71,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         assertEquals("mergeState is marked non-null but is null", nullPointerException.getMessage());
     }
 
+    @SneakyThrows
     public void testGetWithNonNullMergeState() {
         // Test behavior with a not null merge state
         boolean isEmptyMaxDocs = false;
@@ -103,6 +105,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         }
     }
 
+    @SneakyThrows
     public void testGetWithNonNullMergeStateZeroMaxDocs() {
         // Test behavior with a not null merge state
         boolean isEmptyMaxDocs = true;

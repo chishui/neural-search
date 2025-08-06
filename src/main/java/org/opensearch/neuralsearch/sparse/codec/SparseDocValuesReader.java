@@ -34,33 +34,29 @@ public class SparseDocValuesReader extends EmptyDocValuesProducer {
     @Override
     public BinaryDocValues getBinary(FieldInfo field) throws IOException {
         long totalLiveDocs = 0;
-        try {
-            List<BinaryDocValuesSub> subs = new ArrayList<>(this.mergeState.docValuesProducers.length);
-            for (int i = 0; i < this.mergeState.docValuesProducers.length; i++) {
-                BinaryDocValues values = null;
-                DocValuesProducer docValuesProducer = mergeState.docValuesProducers[i];
-                if (docValuesProducer != null) {
-                    FieldInfo readerFieldInfo = mergeState.fieldInfos[i].fieldInfo(field.name);
-                    if (readerFieldInfo != null && readerFieldInfo.getDocValuesType() == DocValuesType.BINARY) {
-                        values = docValuesProducer.getBinary(readerFieldInfo);
+        List<BinaryDocValuesSub> subs = new ArrayList<>(this.mergeState.docValuesProducers.length);
+        for (int i = 0; i < this.mergeState.docValuesProducers.length; i++) {
+            BinaryDocValues values = null;
+            DocValuesProducer docValuesProducer = mergeState.docValuesProducers[i];
+            if (docValuesProducer != null) {
+                FieldInfo readerFieldInfo = mergeState.fieldInfos[i].fieldInfo(field.getName());
+                if (readerFieldInfo != null && readerFieldInfo.getDocValuesType() == DocValuesType.BINARY) {
+                    values = docValuesProducer.getBinary(readerFieldInfo);
+                }
+                if (values != null) {
+                    InMemoryKey.IndexKey key = null;
+                    if (values instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
+                        key = new InMemoryKey.IndexKey(sparseBinaryDocValuesPassThrough.getSegmentInfo(), field);
                     }
-                    if (values != null) {
-                        InMemoryKey.IndexKey key = null;
-                        if (values instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValuesPassThrough) {
-                            key = new InMemoryKey.IndexKey(sparseBinaryDocValuesPassThrough.getSegmentInfo(), field);
-                        }
-                        totalLiveDocs = totalLiveDocs + getLiveDocsCount(values, this.mergeState.liveDocs[i]);
-                        // docValues will be consumed when liveDocs are not null, hence resetting the docsValues
-                        // pointer.
-                        values = this.mergeState.liveDocs[i] != null ? docValuesProducer.getBinary(readerFieldInfo) : values;
-                        subs.add(new BinaryDocValuesSub(mergeState.docMaps[i], values, key));
-                    }
+                    totalLiveDocs = totalLiveDocs + getLiveDocsCount(values, this.mergeState.liveDocs[i]);
+                    // docValues will be consumed when liveDocs are not null, hence resetting the docsValues
+                    // pointer.
+                    values = this.mergeState.liveDocs[i] != null ? docValuesProducer.getBinary(readerFieldInfo) : values;
+                    subs.add(new BinaryDocValuesSub(mergeState.docMaps[i], values, key));
                 }
             }
-            return new SparseBinaryDocValues(DocIDMerger.of(subs, mergeState.needsIndexSort)).setTotalLiveDocs(totalLiveDocs);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
+        return new SparseBinaryDocValues(DocIDMerger.of(subs, mergeState.needsIndexSort)).setTotalLiveDocs(totalLiveDocs);
     }
 
     private long getLiveDocsCount(final BinaryDocValues binaryDocValues, final Bits liveDocsBits) throws IOException {

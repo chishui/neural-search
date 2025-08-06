@@ -38,6 +38,9 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIM
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
 
 /**
  * Merge sparse postings
@@ -74,7 +77,12 @@ public class SparsePostingsReader {
 
             InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(mergeState.segmentInfo, fieldInfo);
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
-            int nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+            int nPostings;
+            if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
+                nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * docCount), DEFAULT_POSTING_MINIMUM_LENGTH);
+            } else {
+                nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+            }
             float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
             int clusterUtilDocCountReach = Integer.parseInt(fieldInfo.attributes().get(APPROXIMATE_THRESHOLD_FIELD));
 
@@ -85,7 +93,7 @@ public class SparsePostingsReader {
             // get all terms of old segments from InMemoryClusteredPosting
             Set<BytesRef> allTerms = getAllTerms(fieldInfo);
             sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
-            clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount);
+            clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount, true);
 
             List<CompletableFuture<List<Pair<BytesRef, PostingClusters>>>> futures = new ArrayList<>(
                 Math.round((float) allTerms.size() / BATCH_SIZE)
@@ -198,7 +206,7 @@ public class SparsePostingsReader {
             PostingsEnum postings = termsEnum.postings(null);
             boolean isSparsePostings = postings instanceof SparsePostingsEnum;
             int docId = postings.nextDoc();
-            while (docId != PostingsEnum.NO_MORE_DOCS) {
+            for (; docId != PostingsEnum.NO_MORE_DOCS; docId = postings.nextDoc()) {
                 if (docId == -1) {
                     log.error("docId is -1");
                     continue;
@@ -206,6 +214,9 @@ public class SparsePostingsReader {
                 int newDocId = mergeState.docMaps[i].get(docId);
                 if (newDocId == -1) {
                     continue;
+                }
+                if (newDocId >= newIdToFieldProducerIndex.length) {
+                    throw new RuntimeException("newDocId is larger than array size!");
                 }
                 newIdToFieldProducerIndex[newDocId] = i;
                 newIdToOldId[newDocId] = docId;
@@ -219,7 +230,6 @@ public class SparsePostingsReader {
                     freqByte = ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq));
                 }
                 docWeights.add(new DocWeight(newDocId, freqByte));
-                docId = postings.nextDoc();
             }
         }
         return docWeights;
