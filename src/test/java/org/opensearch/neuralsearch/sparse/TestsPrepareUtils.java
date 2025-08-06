@@ -7,9 +7,17 @@ package org.opensearch.neuralsearch.sparse;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.FieldsProducer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.BinaryDocValues;
 
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.MergeState;
+import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.FieldInfo;
@@ -31,8 +39,10 @@ import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.store.IOContext;
+import org.apache.lucene.tests.analysis.MockAnalyzer;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.Version;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.ContentPath;
@@ -47,6 +57,8 @@ import java.util.concurrent.Executors;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import static org.apache.lucene.tests.util.LuceneTestCase.random;
 
 public class TestsPrepareUtils {
 
@@ -509,6 +521,34 @@ public class TestsPrepareUtils {
 
     public static ContentPath prepareContentPath() {
         return new ContentPath();
+    }
+
+    public static SegmentCommitInfo prepareSegmentCommitInfo() {
+        SegmentInfo segmentInfo = prepareSegmentInfo();
+        byte[] id = StringHelper.randomId();
+        return new SegmentCommitInfo(
+            segmentInfo,
+            0,      // delCount
+            0,      // softDelCount
+            -1,     // delGen
+            -1,     // fieldInfosGen
+            -1,     // docValuesGen
+            id
+        );
+    }
+
+    public static IndexReader prepareTestIndexReader() throws IOException {
+        ByteBuffersDirectory directory = new ByteBuffersDirectory();
+        IndexWriterConfig config = new IndexWriterConfig(new MockAnalyzer(random()));
+        IndexWriter writer = new IndexWriter(directory, config);
+
+        // Create document with test field
+        Document doc = new Document();
+        doc.add(new StringField(fieldName, "test_value", Field.Store.NO));
+
+        writer.addDocument(doc);
+        writer.close();
+        return DirectoryReader.open(directory);
     }
 
     public static SegmentWriteState prepareSegmentWriteState() {
