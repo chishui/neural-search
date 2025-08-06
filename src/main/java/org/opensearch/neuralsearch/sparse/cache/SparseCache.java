@@ -19,10 +19,11 @@ public abstract class SparseCache<T extends Accountable> implements Accountable 
      * Remove a specific index from cache.
      * This method delegates to the CacheSparseVectorForwardIndex implementation
      * to clean up resources associated with the specified cache key.
+     * This function is marked as synchronized for thread safety.
      *
      * @param key The CacheKey that identifies the index to be removed
      */
-    public void removeIndex(@NonNull CacheKey key) {
+    public synchronized void removeIndex(@NonNull CacheKey key) {
         T value = cacheMap.get(key);
         if (value == null) {
             return;

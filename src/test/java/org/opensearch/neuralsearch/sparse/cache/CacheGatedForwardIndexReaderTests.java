@@ -31,7 +31,7 @@ public class CacheGatedForwardIndexReaderTests extends AbstractSparseTestBase {
      * Verifies that the constructor successfully creates an instance
      * when provided with null parameters.
      */
-    public void testCacheGatedForwardIndexReaderConstructorWithNullParameters() {
+    public void test_constructor_withNullParameters() {
         CacheGatedForwardIndexReader reader = new CacheGatedForwardIndexReader(null, null, null);
         assertNotNull("CacheGatedForwardIndexReader should be created successfully", reader);
     }
@@ -41,7 +41,7 @@ public class CacheGatedForwardIndexReaderTests extends AbstractSparseTestBase {
      * Verifies that the constructor successfully creates an instance
      * when provided with valid non-null parameters.
      */
-    public void test_CacheGatedForwardIndexReader_ConstructorWithValidParameters() {
+    public void test_constructor_withValidParameters() {
         CacheGatedForwardIndexReader reader = new CacheGatedForwardIndexReader(cacheReader, cacheWriter, luceneReader);
         assertNotNull("CacheGatedForwardIndexReader should be created successfully", reader);
     }
@@ -50,7 +50,7 @@ public class CacheGatedForwardIndexReaderTests extends AbstractSparseTestBase {
      * Test case for the read method when the vector is found in the cache.
      * This test verifies that the method returns the vector from the cache without accessing Lucene storage.
      */
-    public void testReadVectorFromCache() throws IOException {
+    public void test_read_whenVectorInCache() throws IOException {
         when(cacheReader.read(anyInt())).thenReturn(testSparseVector);
 
         // Create the CacheGatedForwardIndexReader instance
@@ -71,7 +71,7 @@ public class CacheGatedForwardIndexReaderTests extends AbstractSparseTestBase {
      * This scenario verifies that the method correctly handles the case where the
      * requested vector does not exist in either storage.
      */
-    public void testReadWhenVectorDoesNotExist() throws IOException {
+    public void test_read_whenVectorNotInCacheAndLucene() throws IOException {
         when(cacheReader.read(anyInt())).thenReturn(null);
         when(luceneReader.read(anyInt())).thenReturn(null);
 

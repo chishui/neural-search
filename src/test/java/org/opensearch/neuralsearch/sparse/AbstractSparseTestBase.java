@@ -35,9 +35,11 @@ import static org.mockito.Mockito.when;
 
 public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
 
+    protected CircuitBreaker mockedCircuitBreaker = mock(CircuitBreaker.class);
+
     @Before
     public void setup() {
-        CircuitBreakerManager.setCircuitBreaker(mock(CircuitBreaker.class));
+        CircuitBreakerManager.setCircuitBreaker(mockedCircuitBreaker);
     }
 
     protected DocWeightIterator constructDocWeightIterator(Integer... docs) {
@@ -164,7 +166,7 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         when(cluster.getDisi()).thenReturn(docIterator);
     }
 
-    protected PostingClusters createTestPostingClusters() {
+    protected List<DocumentCluster> prepareClusterList() {
         List<DocumentCluster> clusters = new ArrayList<>();
         SparseVector documentSummary1 = createVector(1, 10, 2, 20);
         SparseVector documentSummary2 = createVector(1, 1, 2, 2);
@@ -178,6 +180,10 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         clusters.add(new DocumentCluster(documentSummary1, docWeights1, false));
         clusters.add(new DocumentCluster(documentSummary2, docWeights2, false));
 
-        return new PostingClusters(clusters);
+        return clusters;
+    }
+
+    protected PostingClusters preparePostingClusters() {
+        return new PostingClusters(prepareClusterList());
     }
 }

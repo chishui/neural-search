@@ -69,11 +69,11 @@ public class ClusteredPostingCacheItem implements Accountable {
                 return;
             }
 
+            // Clone a new BytesRef object to avoid offset change
             BytesRef clonedTerm = term.clone();
             PostingClusters postingClusters = new PostingClusters(clusters);
-            long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + (clonedTerm.bytes != null
-                ? clonedTerm.bytes.length
-                : 0);
+            // BytesRef.bytes is never null
+            long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
 
             if (CircuitBreakerManager.updateMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                 // TODO: cache eviction

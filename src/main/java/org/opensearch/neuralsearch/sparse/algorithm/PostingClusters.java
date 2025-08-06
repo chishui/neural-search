@@ -33,7 +33,7 @@ public class PostingClusters implements Accountable {
     }
 
     public IteratorWrapper<DocumentCluster> iterator() {
-        return new IteratorWrapper<DocumentCluster>(this.clusters.iterator());
+        return new IteratorWrapper<>(this.clusters.iterator());
     }
 
     @Override
