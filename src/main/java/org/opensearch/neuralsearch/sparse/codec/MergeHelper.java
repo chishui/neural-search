@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.common;
+package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.NonNull;
 import org.apache.lucene.codecs.DocValuesProducer;
@@ -11,7 +11,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.opensearch.common.Nullable;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
-import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
+import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 
 import java.io.IOException;
 import java.util.function.Consumer;

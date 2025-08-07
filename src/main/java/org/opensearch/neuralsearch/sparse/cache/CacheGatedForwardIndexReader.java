@@ -4,9 +4,9 @@
  */
 package org.opensearch.neuralsearch.sparse.cache;
 
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
 

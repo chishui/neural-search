@@ -2,12 +2,12 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.common;
+package org.opensearch.neuralsearch.sparse.data;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 
 /**
  * DocWeight class to store docID and weight

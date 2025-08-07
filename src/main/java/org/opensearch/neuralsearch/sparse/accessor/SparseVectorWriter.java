@@ -2,7 +2,9 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.common;
+package org.opensearch.neuralsearch.sparse.accessor;
+
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
 

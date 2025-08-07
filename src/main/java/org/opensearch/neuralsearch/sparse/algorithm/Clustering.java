@@ -4,7 +4,8 @@
  */
 package org.opensearch.neuralsearch.sparse.algorithm;
 
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 
 import java.io.IOException;
 import java.util.List;

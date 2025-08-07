@@ -21,7 +21,6 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
-import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 

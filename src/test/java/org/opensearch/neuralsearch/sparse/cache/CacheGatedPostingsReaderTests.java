@@ -6,10 +6,10 @@ package org.opensearch.neuralsearch.sparse.cache;
 
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
-import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
-import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.io.IOException;
 import java.util.HashSet;

@@ -2,12 +2,13 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.common;
+package org.opensearch.neuralsearch.sparse.data;
 
 import org.apache.lucene.util.BytesRef;
 import org.junit.Assert;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
+import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;

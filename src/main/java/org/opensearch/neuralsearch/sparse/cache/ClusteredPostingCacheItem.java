@@ -9,10 +9,10 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.ClusteredPostingReader;
-import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.util.List;
 import java.util.Map;

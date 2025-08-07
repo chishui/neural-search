@@ -2,10 +2,13 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.algorithm;
+package org.opensearch.neuralsearch.sparse.quantization;
 
 import org.apache.lucene.search.similarities.Similarity;
 
+/**
+ * Utility class for float -> byte quantization
+ */
 public final class ByteQuantizer {
 
     // The maximum float value to consider

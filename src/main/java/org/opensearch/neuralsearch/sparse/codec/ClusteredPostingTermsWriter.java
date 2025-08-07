@@ -25,17 +25,17 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusteringTask;
-import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import org.opensearch.neuralsearch.sparse.algorithm.RandomClustering;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClustering;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
 
 import java.io.IOException;
@@ -44,7 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
-import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;

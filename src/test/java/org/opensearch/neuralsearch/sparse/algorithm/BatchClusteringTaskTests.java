@@ -15,6 +15,7 @@ import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.util.Arrays;
 import java.util.List;

@@ -2,10 +2,10 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.common;
+package org.opensearch.neuralsearch.sparse.accessor;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.io.IOException;
 import java.util.Set;

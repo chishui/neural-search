@@ -8,10 +8,10 @@ import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
