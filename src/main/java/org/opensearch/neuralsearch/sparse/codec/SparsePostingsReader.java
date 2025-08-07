@@ -21,7 +21,7 @@ import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
 
@@ -75,7 +75,7 @@ public class SparsePostingsReader {
             log.debug("Merge field: {}", fieldInfo.name);
             sparseTermsLuceneWriter.writeFieldNumber(fieldInfo.number);
 
-            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(mergeState.segmentInfo, fieldInfo);
+            CacheKey key = new CacheKey(mergeState.segmentInfo, fieldInfo);
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
             int nPostings;
             if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
@@ -90,10 +90,10 @@ public class SparsePostingsReader {
                 clusterRatio = 0;
             }
 
-            // get all terms of old segments from InMemoryClusteredPosting
+            // get all terms of old segments from CacheClusteredPosting
             Set<BytesRef> allTerms = getAllTerms(fieldInfo);
             sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
-            clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount);
+            clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount, true);
 
             List<CompletableFuture<List<Pair<BytesRef, PostingClusters>>>> futures = new ArrayList<>(
                 Math.round((float) allTerms.size() / BATCH_SIZE)
@@ -141,7 +141,7 @@ public class SparsePostingsReader {
         }
     }
 
-    // get all terms of old segments from InMemoryClusteredPosting
+    // get all terms of old segments from CacheClusteredPosting
     private Set<BytesRef> getAllTerms(FieldInfo fieldInfo) throws IOException {
         Set<BytesRef> allTerms = new HashSet<>();
         for (int i = 0; i < this.mergeState.fieldsProducers.length; i++) {
@@ -154,8 +154,7 @@ public class SparsePostingsReader {
             }
 
             Terms terms = fieldsProducer.terms(fieldInfo.name);
-            if (terms instanceof SparseTerms) {
-                SparseTerms sparseTerms = (SparseTerms) terms;
+            if (terms instanceof SparseTerms sparseTerms) {
                 allTerms.addAll(sparseTerms.getReader().getTerms());
             } else {
                 // fieldsProducer could be a delegate one as we need to merge normal segments into seis segment
@@ -184,7 +183,7 @@ public class SparsePostingsReader {
             FieldsProducer fieldsProducer = mergeState.fieldsProducers[i];
             // we need this SparseBinaryDocValuesPassThrough to get segment info
             BinaryDocValues binaryDocValues = mergeState.docValuesProducers[i].getBinary(fieldInfo);
-            if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues)) {
+            if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough)) {
                 log.error("binaryDocValues is not SparseBinaryDocValuesPassThrough, {}", binaryDocValues.getClass().getName());
                 continue;
             }
@@ -206,7 +205,7 @@ public class SparsePostingsReader {
             PostingsEnum postings = termsEnum.postings(null);
             boolean isSparsePostings = postings instanceof SparsePostingsEnum;
             int docId = postings.nextDoc();
-            while (docId != PostingsEnum.NO_MORE_DOCS) {
+            for (; docId != PostingsEnum.NO_MORE_DOCS; docId = postings.nextDoc()) {
                 if (docId == -1) {
                     log.error("docId is -1");
                     continue;
@@ -214,6 +213,9 @@ public class SparsePostingsReader {
                 int newDocId = mergeState.docMaps[i].get(docId);
                 if (newDocId == -1) {
                     continue;
+                }
+                if (newDocId >= newIdToFieldProducerIndex.length) {
+                    throw new RuntimeException("newDocId is larger than array size!");
                 }
                 newIdToFieldProducerIndex[newDocId] = i;
                 newIdToOldId[newDocId] = docId;
@@ -227,7 +229,6 @@ public class SparsePostingsReader {
                     freqByte = ByteQuantizer.quantizeFloatToByte(ValueEncoder.decodeFeatureValue(freq));
                 }
                 docWeights.add(new DocWeight(newDocId, freqByte));
-                docId = postings.nextDoc();
             }
         }
         return docWeights;

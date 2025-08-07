@@ -4,14 +4,18 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
+import org.junit.Before;
+import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
@@ -31,6 +35,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
+
+    protected CircuitBreaker mockedCircuitBreaker = mock(CircuitBreaker.class);
+
+    @Before
+    @Override
+    @SneakyThrows
+    public void setUp() {
+        super.setUp();
+        CircuitBreakerManager.setCircuitBreaker(mockedCircuitBreaker);
+    }
 
     protected DocWeightIterator constructDocWeightIterator(Integer... docs) {
         return constructDocWeightIterator(Arrays.asList(docs), Arrays.asList(docs));
@@ -156,7 +170,7 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         when(cluster.getDisi()).thenReturn(docIterator);
     }
 
-    protected PostingClusters createTestPostingClusters() {
+    protected List<DocumentCluster> prepareClusterList() {
         List<DocumentCluster> clusters = new ArrayList<>();
         SparseVector documentSummary1 = createVector(1, 10, 2, 20);
         SparseVector documentSummary2 = createVector(1, 1, 2, 2);
@@ -170,6 +184,10 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         clusters.add(new DocumentCluster(documentSummary1, docWeights1, false));
         clusters.add(new DocumentCluster(documentSummary2, docWeights2, false));
 
-        return new PostingClusters(clusters);
+        return clusters;
+    }
+
+    protected PostingClusters preparePostingClusters() {
+        return new PostingClusters(prepareClusterList());
     }
 }

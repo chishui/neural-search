@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.PostingsEnum;
@@ -76,7 +77,9 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
     private SegmentInfo segmentInfo;
 
     @Before
-    public void setUp() throws Exception {
+    @Override
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         // Initialize mocks
         MockitoAnnotations.openMocks(this);

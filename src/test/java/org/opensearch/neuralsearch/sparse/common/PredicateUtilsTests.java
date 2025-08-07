@@ -19,7 +19,7 @@ public class PredicateUtilsTests extends AbstractSparseTestBase {
 
     @Before
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         segmentInfo = TestsPrepareUtils.prepareSegmentInfo(); // maxDoc = 10
         fieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();

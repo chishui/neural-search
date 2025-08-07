@@ -32,7 +32,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
 
     @Before
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 

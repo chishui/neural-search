@@ -4,8 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
-
 /**
  * Interface for sparse vector forward index.
  * A forward index provides direct mapping from document IDs to their corresponding sparse vector representations.
@@ -29,15 +27,4 @@ public interface SparseVectorForwardIndex {
      * @return A SparseVectorWriter instance for writing sparse vector data
      */
     SparseVectorWriter getWriter();  // covariant return type
-
-    /**
-     * Static utility method to remove a specific index from memory.
-     * This method delegates to the InMemorySparseVectorForwardIndex implementation
-     * to clean up resources associated with the specified index key.
-     *
-     * @param key The IndexKey that identifies the index to be removed
-     */
-    static void removeIndex(InMemoryKey.IndexKey key) {
-        InMemorySparseVectorForwardIndex.removeIndex(key);
-    }
 }

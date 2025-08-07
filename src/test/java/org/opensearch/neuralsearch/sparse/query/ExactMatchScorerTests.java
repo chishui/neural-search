@@ -39,7 +39,8 @@ public class ExactMatchScorerTests extends AbstractSparseTestBase {
      * - Configure mocks for reader and simScorer
      */
     @Before
-    public void setUp() throws Exception {
+    @Override
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
         // Create a BitSet with documents 0, 2, 5

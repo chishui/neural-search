@@ -28,7 +28,7 @@ import java.util.Set;
 
 /**
  * This class read terms and clustered posting from lucene index.
- * It stores the posting to in-memory data structure.
+ * It stores the posting to the cache data structure.
  */
 @Log4j2
 public class SparseTermsLuceneReader extends FieldsProducer {

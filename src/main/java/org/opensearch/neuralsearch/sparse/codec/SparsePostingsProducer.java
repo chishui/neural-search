@@ -10,7 +10,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.Terms;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 
 import java.io.IOException;
@@ -63,7 +63,7 @@ public class SparsePostingsProducer extends FieldsProducer {
         if (reader == null) {
             reader = new SparseTermsLuceneReader(state);
         }
-        InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, fieldInfo);
+        CacheKey key = new CacheKey(this.state.segmentInfo, fieldInfo);
         return new SparseTerms(key, reader, field);
     }
 

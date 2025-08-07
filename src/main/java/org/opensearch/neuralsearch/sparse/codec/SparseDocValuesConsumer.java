@@ -15,12 +15,12 @@ import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
 
 import java.io.IOException;
@@ -59,9 +59,9 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
             return;
         }
         BinaryDocValues binaryDocValues = valuesProducer.getBinary(field);
-        InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(this.state.segmentInfo, field);
+        CacheKey key = new CacheKey(this.state.segmentInfo, field);
         int docCount = this.state.segmentInfo.maxDoc();
-        SparseVectorWriter writer = InMemorySparseVectorForwardIndex.getOrCreate(key, docCount).getWriter();
+        SparseVectorWriter writer = ForwardIndexCache.getInstance().getOrCreate(key, docCount).getWriter();
         if (writer == null) {
             throw new IllegalStateException("Forward index writer is null");
         }
@@ -84,7 +84,11 @@ public class SparseDocValuesConsumer extends DocValuesConsumer {
         }
         if (isMerge) {
             if (valuesProducer instanceof SparseDocValuesReader reader) {
-                MergeHelper.clearInMemoryData(new MergeStateFacade(reader.getMergeState()), field, SparseVectorForwardIndex::removeIndex);
+                MergeHelper.clearCacheData(
+                    new MergeStateFacade(reader.getMergeState()),
+                    field,
+                    ForwardIndexCache.getInstance()::removeIndex
+                );
             }
         }
     }

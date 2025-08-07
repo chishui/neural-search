@@ -5,6 +5,8 @@
 package org.opensearch.neuralsearch;
 
 import java.io.IOException;
+import java.util.Locale;
+
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 
@@ -22,7 +24,7 @@ public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
 
     private Request createUpdateSettingRequest(int threadCount) {
         Request request = new Request("PUT", CLUSTER_SETTINGS_ENDPOINT);
-        request.setJsonEntity(String.format("{\"transient\":{\"" + THREAD_QTY_SETTING_KEY + "\":%d}}", threadCount));
+        request.setJsonEntity(String.format(Locale.ROOT, "{\"transient\":{\"" + THREAD_QTY_SETTING_KEY + "\":%d}}", threadCount));
         return request;
     }
 

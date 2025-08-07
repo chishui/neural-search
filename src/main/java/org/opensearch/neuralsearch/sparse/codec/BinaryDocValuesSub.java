@@ -8,7 +8,7 @@ import lombok.Getter;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DocIDMerger;
 import org.apache.lucene.index.MergeState;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 
 import java.io.IOException;
 
@@ -19,10 +19,10 @@ import java.io.IOException;
 public class BinaryDocValuesSub extends DocIDMerger.Sub {
 
     private final BinaryDocValues values;
-    private final InMemoryKey.IndexKey key;
+    private final CacheKey key;
     private int docId = 0;
 
-    public BinaryDocValuesSub(MergeState.DocMap docMap, BinaryDocValues values, InMemoryKey.IndexKey key) {
+    public BinaryDocValuesSub(MergeState.DocMap docMap, BinaryDocValues values, CacheKey key) {
         super(docMap);
         if (values == null || (values.docID() != -1)) {
             throw new IllegalStateException("Doc values is either null or docID is not -1 ");

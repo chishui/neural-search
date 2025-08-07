@@ -12,7 +12,10 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheItem;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheGatedPostingsReader;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -23,16 +26,16 @@ import java.util.Set;
  */
 @Getter
 public class SparseTerms extends Terms {
-    private final InMemoryKey.IndexKey indexKey;
+    private final CacheKey cacheKey;
     private final CacheGatedPostingsReader reader;
 
-    public SparseTerms(InMemoryKey.IndexKey indexKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
-        this.indexKey = indexKey;
-        InMemoryClusteredPosting inMemoryClusteredPosting = InMemoryClusteredPosting.getOrCreate(indexKey);
+    public SparseTerms(CacheKey cacheKey, SparseTermsLuceneReader sparseTermsLuceneReader, String field) {
+        this.cacheKey = cacheKey;
+        ClusteredPostingCacheItem clusteredPostingCacheItem = ClusteredPostingCache.getInstance().getOrCreate(cacheKey);
         this.reader = new CacheGatedPostingsReader(
             field,
-            inMemoryClusteredPosting.getReader(),
-            inMemoryClusteredPosting.getWriter(),
+            clusteredPostingCacheItem.getReader(),
+            clusteredPostingCacheItem.getWriter(),
             sparseTermsLuceneReader
         );
     }
@@ -84,12 +87,11 @@ public class SparseTerms extends Terms {
 
     class SparseTermsEnum extends BaseTermsEnum {
         private BytesRef currentTerm;
-        private final Set<BytesRef> terms;
         // iterator now only used for next()
         private Iterator<BytesRef> termIterator;
 
         SparseTermsEnum() throws IOException {
-            terms = reader.getTerms();
+            Set<BytesRef> terms = reader.getTerms();
             if (terms != null) {
                 termIterator = terms.iterator();
             }
@@ -136,7 +138,7 @@ public class SparseTerms extends Terms {
             }
             PostingClusters clusters = reader.read(currentTerm);
             if (clusters != null) {
-                return new SparsePostingsEnum(clusters, indexKey);
+                return new SparsePostingsEnum(clusters, cacheKey);
             }
             return null;
         }
