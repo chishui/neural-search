@@ -6,10 +6,10 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
-import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 

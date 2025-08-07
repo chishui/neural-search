@@ -6,11 +6,10 @@ package org.opensearch.neuralsearch.sparse.algorithm;
 
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
+import org.opensearch.common.Randomness;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
-import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
-
-import org.opensearch.common.Randomness;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 
 import java.io.IOException;
