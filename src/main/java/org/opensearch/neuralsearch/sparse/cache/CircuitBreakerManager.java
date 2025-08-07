@@ -29,13 +29,13 @@ public class CircuitBreakerManager {
     }
 
     /**
-     * Updates memory usage for neural search operations
+     * Adds memory usage for neural search operations
      *
      * @param bytes The number of bytes to add to the circuit breaker
      * @param label A label to identify the operation in case of circuit breaking
-     * @return whether the limit would be exceeded
+     * @return false when the limit would be exceeded
      */
-    public static boolean updateMemoryUsage(long bytes, String label) {
+    public static boolean addMemoryUsage(long bytes, String label) {
         try {
             circuitBreaker.addEstimateBytesAndMaybeBreak(bytes, label);
         } catch (CircuitBreakingException circuitBreakingException) {
@@ -46,9 +46,9 @@ public class CircuitBreakerManager {
                     circuitBreakingException.getMessage()
                 )
             );
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
 
     /**

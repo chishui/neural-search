@@ -92,31 +92,31 @@ public class CircuitBreakerManagerTests extends AbstractSparseTestBase {
     }
 
     /**
-     * Tests the updateMemoryUsage method when a CircuitBreakingException is thrown.
+     * Tests the addMemoryUsage method when a CircuitBreakingException is thrown.
      * This test verifies that the method returns true when the circuit breaker
      * throws an exception, indicating that the memory limit would be exceeded.
      */
-    public void test_updateMemoryUsage_returnsTrue_whenCircuitBreakingException() throws Exception {
+    public void test_addMemoryUsage_returnsFalse_whenCircuitBreakingException() throws Exception {
         doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
             .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
 
-        boolean result = CircuitBreakerManager.updateMemoryUsage(TEST_BYTE_SIZE, "test");
+        boolean result = CircuitBreakerManager.addMemoryUsage(TEST_BYTE_SIZE, "test");
 
         verify(mockedCircuitBreaker).addEstimateBytesAndMaybeBreak(TEST_BYTE_SIZE, "test");
-        assertTrue(result);
+        assertFalse(result);
     }
 
     /**
-     * Tests that updateMemoryUsage returns false when no exception is thrown.
+     * Tests that addMemoryUsage returns false when no exception is thrown.
      * This test mocks the CircuitBreaker does not throw an exception when addEstimateBytesAndMaybeBreak is called.
      */
-    public void test_updateMemoryUsage_returnsFalse_whenNoException() {
+    public void test_addMemoryUsage_returnsTrue_whenNoException() {
         when(mockedCircuitBreaker.addEstimateBytesAndMaybeBreak(anyLong(), anyString()))
             .thenReturn(0d);
 
-        boolean result = CircuitBreakerManager.updateMemoryUsage(TEST_BYTE_SIZE, "TestLabel");
+        boolean result = CircuitBreakerManager.addMemoryUsage(TEST_BYTE_SIZE, "TestLabel");
 
-        assertFalse(result);
+        assertTrue(result);
     }
 
 }

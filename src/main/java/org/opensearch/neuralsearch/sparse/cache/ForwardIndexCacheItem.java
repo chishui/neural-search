@@ -63,7 +63,7 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
 
             long ramBytesUsed = vector.ramBytesUsed();
 
-            if (CircuitBreakerManager.updateMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+            if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                 // TODO: cache eviction
                 return;
             }

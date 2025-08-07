@@ -75,7 +75,7 @@ public class ClusteredPostingCacheItem implements Accountable {
             // BytesRef.bytes is never null
             long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
 
-            if (CircuitBreakerManager.updateMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+            if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                 // TODO: cache eviction
                 return;
             }
