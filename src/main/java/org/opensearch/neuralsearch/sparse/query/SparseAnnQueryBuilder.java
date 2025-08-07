@@ -18,7 +18,7 @@ import org.opensearch.Version;
 import org.opensearch.core.common.ParsingException;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.core.xcontent.XContentParser.Token;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.io.stream.StreamInput;

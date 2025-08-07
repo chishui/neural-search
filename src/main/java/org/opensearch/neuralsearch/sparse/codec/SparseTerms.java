@@ -11,7 +11,7 @@ import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCacheItem;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;

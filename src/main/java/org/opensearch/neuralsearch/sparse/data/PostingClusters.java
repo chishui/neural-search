@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.algorithm;
+package org.opensearch.neuralsearch.sparse.data;
 
 import lombok.Getter;
 import org.apache.lucene.util.Accountable;

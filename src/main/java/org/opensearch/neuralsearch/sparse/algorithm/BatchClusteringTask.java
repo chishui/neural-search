@@ -19,10 +19,12 @@ import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsReader;
-import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.io.IOException;
 import java.util.ArrayList;

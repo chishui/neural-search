@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.algorithm;
+package org.opensearch.neuralsearch.sparse.data;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,9 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 public class DocumentClusterTests extends AbstractSparseTestBase {
 

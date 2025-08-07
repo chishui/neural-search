@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.algorithm;
+package org.opensearch.neuralsearch.sparse.data;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -11,10 +11,8 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.common.ArrayIterator;
 import org.opensearch.neuralsearch.sparse.common.CombinedIterator;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
 
 import java.util.ArrayList;
 import java.util.Collection;

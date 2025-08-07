@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.common;
+package org.opensearch.neuralsearch.sparse.accessor;
 
 /**
  * Interface for sparse vector forward index.

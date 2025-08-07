@@ -17,11 +17,10 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
-import org.opensearch.neuralsearch.sparse.common.MergeHelper;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorWriter;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
 
 import java.io.IOException;
 

@@ -15,8 +15,10 @@ import org.mockito.MockitoAnnotations;
 import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;

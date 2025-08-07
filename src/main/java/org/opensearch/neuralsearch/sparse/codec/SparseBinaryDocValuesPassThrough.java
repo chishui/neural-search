@@ -9,8 +9,8 @@ import lombok.Getter;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 
 import java.io.IOException;
 

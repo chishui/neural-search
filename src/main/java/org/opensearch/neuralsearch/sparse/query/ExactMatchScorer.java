@@ -9,8 +9,8 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.BitSetIterator;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 
 import java.io.IOException;
 

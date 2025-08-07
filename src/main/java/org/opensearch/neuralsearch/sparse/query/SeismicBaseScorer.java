@@ -17,12 +17,12 @@ import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LongBitSet;
-import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
