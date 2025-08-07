@@ -24,12 +24,11 @@ public abstract class SparseCache<T extends Accountable> implements Accountable 
      * @param key The CacheKey that identifies the index to be removed
      */
     public synchronized void removeIndex(@NonNull CacheKey key) {
-        T value = cacheMap.get(key);
+        T value = cacheMap.remove(key);
         if (value == null) {
             return;
         }
         long ramBytesUsed = value.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(key);
-        cacheMap.remove(key);
         CircuitBreakerManager.releaseBytes(ramBytesUsed);
     }
 
