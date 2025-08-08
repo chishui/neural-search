@@ -36,9 +36,9 @@ public class SparseIndexingIT extends SparseBaseIT {
     private static final String TEST_INDEX_NAME = "test-sparse-index";
     private static final String NON_SPARSE_TEST_INDEX_NAME = TEST_INDEX_NAME + "_non_sparse";
     private static final String INVALID_PARAM_TEST_INDEX_NAME = TEST_INDEX_NAME + "_invalid";
+    private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final List<String> TEST_TOKENS = List.of("hello", "world", "test", "sparse", "index");
-    private static final String TEST_TEXT_FIELD_NAME = "text";
 
     @Before
     public void setUp() throws Exception {

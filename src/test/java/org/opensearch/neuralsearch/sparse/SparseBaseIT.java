@@ -66,11 +66,6 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         return request;
     }
 
-    protected String makeDocument(Map<String, Float> tokens, String fieldName) {
-        String tokenText = convertTokensToText(tokens);
-        return String.format(Locale.ROOT, "{\n" + "\"passage_text\": \"apple tree\"," + "\"%s\": {%s}}", fieldName, tokenText);
-    }
-
     protected String convertTokensToText(Map<String, Float> tokens) {
         StringBuilder builder = new StringBuilder();
         boolean first = true;
