@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
-import lombok.SneakyThrows;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.Before;
@@ -17,7 +16,6 @@ import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
-import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
@@ -25,7 +23,6 @@ import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
