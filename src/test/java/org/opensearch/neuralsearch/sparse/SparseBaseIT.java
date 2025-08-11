@@ -15,10 +15,13 @@ import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
 import org.opensearch.neuralsearch.plugin.NeuralSearch;
+import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.io.IOException;
@@ -263,5 +266,42 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
             circuitBreakerStats.add(parseFractionalSize(stringValue));
         }
         return circuitBreakerStats;
+    }
+
+    protected List<String> getDocIDs(Map<String, Object> searchResults) {
+        Map<String, Object> hits1map = (Map<String, Object>) searchResults.get("hits");
+        List<String> actualIds = new ArrayList<>();
+        List<Object> hits1List = (List<Object>) hits1map.get("hits");
+        for (Object hits1Object : hits1List) {
+            Map<String, Object> mapObject = (Map<String, Object>) hits1Object;
+            String id = mapObject.get("_id").toString();
+            actualIds.add(id);
+        }
+        return actualIds;
+    }
+
+    protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
+        return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
+    }
+
+    protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(
+        String field,
+        int cut,
+        float hf,
+        int k,
+        Map<String, Float> query,
+        QueryBuilder filter
+    ) {
+        SparseAnnQueryBuilder annQueryBuilder = new SparseAnnQueryBuilder().queryCut(cut)
+            .fieldName(field)
+            .heapFactor(hf)
+            .k(k)
+            .queryTokens(query)
+            .filter(filter);
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
+            .fieldName(field)
+            .queryTokensSupplier(() -> query);
+        return neuralSparseQueryBuilder;
     }
 }

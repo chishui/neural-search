@@ -14,10 +14,8 @@ import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.MatchQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
-import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -641,42 +639,5 @@ public class SparseIndexingIT extends SparseBaseIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 20);
         assertNotNull(searchResults);
         assertTrue(getHitCount(searchResults) <= 15);
-    }
-
-    private List<String> getDocIDs(Map<String, Object> searchResults) {
-        Map<String, Object> hits1map = (Map<String, Object>) searchResults.get("hits");
-        List<String> actualIds = new ArrayList<>();
-        List<Object> hits1List = (List<Object>) hits1map.get("hits");
-        for (Object hits1Object : hits1List) {
-            Map<String, Object> mapObject = (Map<String, Object>) hits1Object;
-            String id = mapObject.get("_id").toString();
-            actualIds.add(id);
-        }
-        return actualIds;
-    }
-
-    private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
-        return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
-    }
-
-    private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(
-        String field,
-        int cut,
-        float hf,
-        int k,
-        Map<String, Float> query,
-        QueryBuilder filter
-    ) {
-        SparseAnnQueryBuilder annQueryBuilder = new SparseAnnQueryBuilder().queryCut(cut)
-            .fieldName(field)
-            .heapFactor(hf)
-            .k(k)
-            .queryTokens(query)
-            .filter(filter);
-
-        NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
-            .fieldName(field)
-            .queryTokensSupplier(() -> query);
-        return neuralSparseQueryBuilder;
     }
 }

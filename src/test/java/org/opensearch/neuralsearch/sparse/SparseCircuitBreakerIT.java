@@ -9,12 +9,15 @@ import org.junit.After;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.core.rest.RestStatus;
+import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.opensearch.neuralsearch.util.TestUtils.getTotalHits;
 
 public class SparseCircuitBreakerIT extends SparseBaseIT {
 
@@ -34,68 +37,60 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
     }
 
     /**
-     * Seismic features segment increases circuit breaker usage
+     * By setting circuit breaker limit to be zero, the cache will be disabled.
+     * Given the same index, the Seismic query should return the same results with an empty cache
      */
     @SneakyThrows
-    public void testMemoryStatsIncreaseWithSeismic() {
-        // Create Sparse Index
+    public void testQueryWithZeroCircuitBreakerLimit() {
+        // Create index and perform ingestion
         int docCount = 100;
         Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
         Response response = client().performRequest(request);
         assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
 
-        // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
 
-        // Fetch original circuit breaker stats
-        List<Long> originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-
-        // Ingest documents
-        List<Map<String, Float>> docs = new ArrayList<>();
-        for (int i = 0; i < docCount; ++i) {
-            Map<String, Float> tokens = new HashMap<>();
-            tokens.put("1000", randomFloat());
-            tokens.put("2000", randomFloat());
-            tokens.put("3000", randomFloat());
-            tokens.put("4000", randomFloat());
-            tokens.put("5000", randomFloat());
-            docs.add(tokens);
-        }
-
+        List<Map<String, Float>> docs = prepareIngestDocuments(docCount);
         ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
         waitForSegmentMerge(TEST_INDEX_NAME);
 
-        // Verify circuit breaker stats increase after ingesting documents
-        List<Long> currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f)
+        );
 
-        long originalCircuitBreakerMemoryStatsSum = originalCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
-        long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        Map<String, Object> expectedHits = getTotalHits(searchResults);
 
-        assertTrue(currentCircuitBreakerMemoryStatsSum > originalCircuitBreakerMemoryStatsSum);
-    }
+        // Delete index, disable cache and then ingest again
+        deleteIndex(TEST_INDEX_NAME);
+        updateClusterSettings(NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_LIMIT.getKey(), "0%");
 
-    /**
-     * Seismic features segment increases circuit breaker usage
-     */
-    @SneakyThrows
-    public void testMemoryStatsIncreaseWithSeismicAndMultiShard() {
-        // Create Sparse Index
-        int docCount = 100;
-        int shardNumber = 3;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shardNumber, 1);
-        Response response = client().performRequest(request);
+        request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
+        response = client().performRequest(request);
         assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
 
-        // Verify index exists
-        assertTrue(indexExists(TEST_INDEX_NAME));
+        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
-        // Fetch original memory stats
-        List<Long> originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        waitForSegmentMerge(TEST_INDEX_NAME);
 
-        // Ingest documents
+        // Verify that without cache, the search results remain the same
+        searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        Map<String, Object> actualHits = getTotalHits(searchResults);
+        assertEquals(expectedHits, actualHits);
+    }
+
+    @SneakyThrows
+    private List<Map<String, Float>> prepareIngestDocuments(int docCount) {
         List<Map<String, Float>> docs = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {
             Map<String, Float> tokens = new HashMap<>();
@@ -107,28 +102,6 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        for (int i = 0; i < shardNumber; ++i) {
-            ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-        }
-
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
-
-        // Verify memory stats increase after ingesting documents
-        List<Long> currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-
-        long originalCircuitBreakerMemoryStatsSum = originalCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
-        long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
-
-        assertTrue(currentCircuitBreakerMemoryStatsSum > originalCircuitBreakerMemoryStatsSum);
+        return docs;
     }
-    // ingest index circuit breaker increase size
-
-    // delete index circuit breaker release bytes
-
-    // with circuit breaker limit, the query result is the same as before
-
 }
