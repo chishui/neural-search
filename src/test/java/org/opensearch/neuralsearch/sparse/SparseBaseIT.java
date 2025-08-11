@@ -34,8 +34,6 @@ import java.util.Set;
 public abstract class SparseBaseIT extends BaseNeuralSearchIT {
 
     protected static final String ALGO_NAME = SparseConstants.SEISMIC;
-    protected static final String SPARSE_MEMORY_USAGE_METRIC_NAME = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getNameString();
-    protected static final String SPARSE_MEMORY_USAGE_METRIC_PATH = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getFullPath();
 
     @Before
     @Override

@@ -15,6 +15,7 @@ import org.opensearch.core.rest.RestStatus;
 import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,6 +33,8 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     private static final String TEST_INDEX_NAME = "test-sparse-index";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
+    private static final String SPARSE_MEMORY_USAGE_METRIC_NAME = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getNameString();
+    private static final String SPARSE_MEMORY_USAGE_METRIC_PATH = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getFullPath();
 
     /**
      * Enable neural stats
