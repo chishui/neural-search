@@ -21,7 +21,7 @@ import static org.opensearch.neuralsearch.util.TestUtils.getTotalHits;
 
 public class SparseCircuitBreakerIT extends SparseBaseIT {
 
-    private static final String TEST_INDEX_NAME = "test-sparse-index";
+    private static final String TEST_INDEX_NAME = "test-sparse-circuit-breaker";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
 

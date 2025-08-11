@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
  */
 public class SparseMemoryStatsIT extends SparseBaseIT {
 
-    private static final String TEST_INDEX_NAME = "test-sparse-index";
+    private static final String TEST_INDEX_NAME = "test-sparse-memory-stats";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final String SPARSE_MEMORY_USAGE_METRIC_NAME = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getNameString();
