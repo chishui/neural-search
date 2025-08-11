@@ -640,4 +640,16 @@ public class SparseIndexingIT extends SparseBaseIT {
         assertNotNull(searchResults);
         assertTrue(getHitCount(searchResults) <= 15);
     }
+
+    private List<String> getDocIDs(Map<String, Object> searchResults) {
+        Map<String, Object> hits1map = (Map<String, Object>) searchResults.get("hits");
+        List<String> actualIds = new ArrayList<>();
+        List<Object> hits1List = (List<Object>) hits1map.get("hits");
+        for (Object hits1Object : hits1List) {
+            Map<String, Object> mapObject = (Map<String, Object>) hits1Object;
+            String id = mapObject.get("_id").toString();
+            actualIds.add(id);
+        }
+        return actualIds;
+    }
 }
