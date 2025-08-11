@@ -22,6 +22,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Base Integration tests for seismic feature
+ */
 public abstract class SparseBaseIT extends BaseNeuralSearchIT {
 
     protected static final String ALGO_NAME = SparseConstants.SEISMIC;
