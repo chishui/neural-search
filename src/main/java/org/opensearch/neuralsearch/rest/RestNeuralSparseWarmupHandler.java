@@ -28,7 +28,7 @@ import static org.opensearch.action.support.IndicesOptions.strictExpandOpen;
 import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
 /**
- * RestHandler for neural-sparse index warmup API. API provides the ability for a user to load specific indices' neural-sparse index
+ * RestHandler for neural-sparse index warmup API. API provides the ability for a user to load specific indices' SEISMIC index
  * into memory.
  */
 public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
@@ -56,7 +56,7 @@ public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         return ImmutableList.of(
-            new Route(RestRequest.Method.GET, String.format(Locale.ROOT, "%s%s", NeuralSearch.NEURAL_BASE_URI, URL_PATH))
+            new Route(RestRequest.Method.POST, String.format(Locale.ROOT, "%s%s", NeuralSearch.NEURAL_BASE_URI, URL_PATH))
         );
     }
 
@@ -74,7 +74,6 @@ public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
         String[] indexNames = StringUtils.split(request.param("index"), ",");
         Index[] indices = indexNameExpressionResolver.concreteIndices(clusterService.state(), strictExpandOpen(), indexNames);
         RestNeuralSparseClearCacheHandler.validateIndices(indices, clusterService, SPARSE_INDEX, "warm up cache");
-        ;
 
         return new NeuralSparseWarmupRequest(indexNames);
     }

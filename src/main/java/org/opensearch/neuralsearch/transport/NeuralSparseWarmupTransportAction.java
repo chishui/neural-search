@@ -5,8 +5,6 @@
 package org.opensearch.neuralsearch.transport;
 
 import org.opensearch.neuralsearch.sparse.NeuralSparseIndexShard; // This to change
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.core.action.support.DefaultShardOperationFailedException;
 import org.opensearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
@@ -35,10 +33,18 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
     NeuralSparseWarmupRequest,
     NeuralSparseWarmupResponse,
     TransportBroadcastByNodeAction.EmptyResult> {
-    public static Logger logger = LogManager.getLogger(NeuralSparseWarmupTransportAction.class);
 
     private IndicesService indicesService;
 
+    /**
+     * Constructor
+     *
+     * @param clusterService Service providing access to cluster state and updates
+     * @param transportService Service for handling transport-level operations
+     * @param indicesService Service for accessing and managing indices
+     * @param actionFilters Filters for pre and post processing of actions
+     * @param indexNameExpressionResolver Resolver for index expressions to concrete indices
+     */
     @Inject
     public NeuralSparseWarmupTransportAction(
         ClusterService clusterService,
@@ -59,11 +65,26 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
         this.indicesService = indicesService;
     }
 
+    /**
+     * @param in Input stream to read the serialized result from
+     * @return Empty result object read from the input stream
+     * @throws IOException
+     */
     @Override
     protected EmptyResult readShardResult(StreamInput in) throws IOException {
         return EmptyResult.readEmptyResultFrom(in);
     }
 
+    /**
+     * @param request WarmupRequest
+     * @param totalShards total number of shards on which Warmup was performed
+     * @param successfulShards number of shards that succeeded
+     * @param failedShards number of shards that failed
+     * @param emptyResults List of EmptyResult
+     * @param shardFailures list of shard failure exceptions
+     * @param clusterState ClusterState
+     * @return {@link NeuralSparseWarmupResponse} Response containing results of the warmup operation
+     */
     @Override
     protected NeuralSparseWarmupResponse newResponse(
         NeuralSparseWarmupRequest request,
@@ -77,11 +98,24 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
         return new NeuralSparseWarmupResponse(totalShards, successfulShards, failedShards, shardFailures);
     }
 
+    /**
+     * @param in Input stream to read the serialized request from
+     * @return {@link NeuralSparseWarmupRequest} Warmup request deserialized from the input stream
+     * @throws IOException
+     */
     @Override
     protected NeuralSparseWarmupRequest readRequestFrom(StreamInput in) throws IOException {
         return new NeuralSparseWarmupRequest(in);
     }
 
+    /**
+     * Operation performed at a shard level on all the shards of given index where the index is warmed up.
+     *
+     * @param request Request containing parameters for the warmup operation
+     * @param shardRouting Routing information for the current shard
+     * @return Empty result object indicating operation completion
+     * @throws IOException
+     */
     @Override
     protected EmptyResult shardOperation(NeuralSparseWarmupRequest request, ShardRouting shardRouting) throws IOException {
         NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
@@ -91,16 +125,33 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
         return EmptyResult.INSTANCE;
     }
 
+    /**
+     * @param state ClusterState
+     * @param request NeuralSparseWarmupRequest
+     * @param concreteIndices Indices in the request
+     * @return ShardsIterator with all the shards for given concrete indices
+     */
     @Override
     protected ShardsIterator shards(ClusterState state, NeuralSparseWarmupRequest request, String[] concreteIndices) {
         return state.routingTable().allShards(concreteIndices);
     }
 
+    /**
+     * @param state  ClusterState
+     * @param request NeuralSparseWarmupRequest
+     * @return ClusterBlockException if there is any global cluster block at a cluster block level of "METADATA_READ"
+     */
     @Override
     protected ClusterBlockException checkGlobalBlock(ClusterState state, NeuralSparseWarmupRequest request) {
         return state.blocks().globalBlockedException(ClusterBlockLevel.METADATA_READ);
     }
 
+    /**
+     * @param state ClusterState
+     * @param request NeuralSparseWarmupRequest
+     * @param concreteIndices Indices in the request
+     * @return ClusterBlockException if there is any cluster block on any of the given indices at a cluster block level of "METADATA_READ"
+     */
     @Override
     protected ClusterBlockException checkRequestBlock(ClusterState state, NeuralSparseWarmupRequest request, String[] concreteIndices) {
         return state.blocks().indicesBlockedException(ClusterBlockLevel.METADATA_READ, concreteIndices);

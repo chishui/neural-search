@@ -41,11 +41,11 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     /**
      * Constructor
      *
-     * @param clusterService ClusterService
-     * @param transportService TransportService
-     * @param actionFilters ActionFilters
-     * @param indexNameExpressionResolver IndexNameExpressionResolver
-     * @param indicesService IndicesService
+     * @param clusterService Service providing access to cluster state and updates
+     * @param transportService Service for handling transport-level operations
+     * @param actionFilters Filters for pre and post processing of actions
+     * @param indexNameExpressionResolver Resolver for index expressions to concrete indices
+     * @param indicesService Service for accessing and managing indices
      */
     @Inject
     public NeuralSparseClearCacheTransportAction(
@@ -68,8 +68,8 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     }
 
     /**
-     * @param streamInput StreamInput
-     * @return EmptyResult
+     * @param streamInput Input stream to read the serialized result from
+     * @return Empty result object read from the input stream
      * @throws IOException
      */
     @Override
@@ -85,7 +85,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
      * @param emptyResults List of EmptyResult
      * @param shardFailures list of shard failure exceptions
      * @param clusterState ClusterState
-     * @return {@link NeuralSparseClearCacheResponse}
+     * @return {@link NeuralSparseClearCacheResponse} Response containing results of the cache clear operation
      */
     @Override
     protected NeuralSparseClearCacheResponse newResponse(
@@ -101,8 +101,8 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     }
 
     /**
-     * @param streamInput StreamInput
-     * @return {@link NeuralSparseClearCacheRequest}
+     * @param streamInput Input stream to read the serialized request from
+     * @return {@link NeuralSparseClearCacheRequest} Cache clear request deserialized from the input stream
      * @throws IOException
      */
     @Override
@@ -113,9 +113,9 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     /**
      * Operation performed at a shard level on all the shards of given index where the index is removed from the cache.
      *
-     * @param request NeuralSparseClearCacheRequest
-     * @param shardRouting ShardRouting of given shard
-     * @return EmptyResult
+     * @param request Request containing parameters for the cache clear operation
+     * @param shardRouting Routing information for the current shard
+     * @return Empty result object indicating operation completion
      * @throws IOException
      */
     @Override

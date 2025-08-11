@@ -9,6 +9,7 @@ import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.BinaryDocValues;
 
@@ -47,6 +48,7 @@ import org.apache.lucene.util.Version;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.ContentPath;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -586,5 +588,35 @@ public class TestsPrepareUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static DirectoryReader prepareIndexReaderWithSparseField(int docNumbers) throws IOException {
+        Directory directory = new ByteBuffersDirectory();
+        IndexWriterConfig config = new IndexWriterConfig(new MockAnalyzer(random()));
+        IndexWriter writer = new IndexWriter(directory, config);
+
+        // Create custom field type for sparse field
+        FieldType sparseFieldType = new FieldType();
+        sparseFieldType.setStored(false);
+        sparseFieldType.setTokenized(false);
+        sparseFieldType.setIndexOptions(IndexOptions.DOCS);
+        sparseFieldType.setDocValuesType(DocValuesType.BINARY);
+
+        // Add required attributes for sparse field
+        sparseFieldType.putAttribute(SparseTokensField.SPARSE_FIELD, "true");
+        sparseFieldType.putAttribute(SparseConstants.APPROXIMATE_THRESHOLD_FIELD, "10");
+        sparseFieldType.freeze();
+
+        // Create documents with sparse field
+        for (int i = 0; i < docNumbers; i++) {
+            Document doc = new Document();
+            BytesRef sparseValue = TestsPrepareUtils.prepareValidSparseVectorBytes();
+            Field sparseField = new Field("sparse_field", sparseValue, sparseFieldType);
+            doc.add(sparseField);
+            writer.addDocument(doc);
+        }
+
+        writer.close();
+        return DirectoryReader.open(directory);
     }
 }
