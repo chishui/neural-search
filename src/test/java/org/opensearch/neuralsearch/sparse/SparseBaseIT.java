@@ -4,10 +4,8 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
-import lombok.SneakyThrows;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.junit.After;
 import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
@@ -40,16 +38,6 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-    }
-
-    /**
-     * Wait for 1 second so that cache finish clearing up registries
-     */
-    @After
-    @Override
-    @SneakyThrows
-    public void tearDown() {
-        super.tearDown();
     }
 
     protected Request configureSparseIndex(
