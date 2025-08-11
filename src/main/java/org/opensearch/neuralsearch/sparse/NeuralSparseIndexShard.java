@@ -237,7 +237,7 @@ public class NeuralSparseIndexShard {
 
     private SegmentReadState createSegmentReadState(SegmentInfo segmentInfo) throws IOException {
         final Codec codec = segmentInfo.getCodec();
-        final Directory cfsDir; // confusing name: if (cfs) it's the cfsdir, otherwise it's the segment's directory.
+        final Directory cfsDir;
         final FieldInfos coreFieldInfos;
 
         if (segmentInfo.getUseCompoundFile()) {
