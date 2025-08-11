@@ -26,9 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
- * Integration tests for memory related features for Seismic
+ * Integration tests for memory stats related features for Seismic algorithm
  */
-public class SparseMemoryIT extends SparseBaseIT {
+public class SparseMemoryStatsIT extends SparseBaseIT {
 
     private static final String TEST_INDEX_NAME = "test-sparse-index";
     private static final String TEST_TEXT_FIELD_NAME = "text";
@@ -36,6 +36,9 @@ public class SparseMemoryIT extends SparseBaseIT {
     private static final String SPARSE_MEMORY_USAGE_METRIC_NAME = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getNameString();
     private static final String SPARSE_MEMORY_USAGE_METRIC_PATH = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getFullPath();
 
+    /**
+     * Enable neural stats
+     */
     @Before
     @Override
     @SneakyThrows
@@ -46,7 +49,7 @@ public class SparseMemoryIT extends SparseBaseIT {
     }
 
     /**
-     * Resets circuit breaker to default settings
+     * Resets circuit breaker and neural stats to default settings
      */
     @After
     @Override
