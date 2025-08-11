@@ -20,6 +20,7 @@ import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -277,7 +278,7 @@ public class SparseMemoryIT extends SparseBaseIT {
     }
 
     private static long parseFractionalSize(String value) {
-        value = value.trim().toLowerCase();
+        value = value.trim().toLowerCase(Locale.ROOT);
         double number;
         long multiplier;
 
