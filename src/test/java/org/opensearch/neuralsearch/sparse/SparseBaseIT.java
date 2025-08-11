@@ -4,8 +4,10 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import lombok.SneakyThrows;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
@@ -17,6 +19,7 @@ import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
+import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
@@ -38,6 +41,17 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     @Override
     public void setUp() throws Exception {
         super.setUp();
+    }
+
+    /**
+     * Wait for 1 second so that cache finish clearing up registries
+     */
+    @After
+    @Override
+    @SneakyThrows
+    public void tearDown() {
+        Thread.sleep(1000);
+        super.tearDown();
     }
 
     protected Request configureSparseIndex(
