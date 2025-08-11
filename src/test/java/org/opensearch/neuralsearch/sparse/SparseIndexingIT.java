@@ -433,10 +433,7 @@ public class SparseIndexingIT extends SparseBaseIT {
         );
         searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, docCount);
         assertNotNull(searchResults);
-        List<String> actualDocIds = getDocIDs(searchResults);
-        List<Integer> docIdList = new ArrayList<>(actualDocIds.stream().map(Integer::parseInt).toList());
-        docIdList.sort(Integer::compare);
-        assertEquals(docCount, docIdList.size());
+        assertEquals(docCount, getHitCount(searchResults));
     }
 
     public void testIngestDocumentsAllSeismicWithPreFiltering() throws Exception {
