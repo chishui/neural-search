@@ -226,7 +226,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         return routingIds;
     }
 
-        protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
+    protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
         return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
     }
 
