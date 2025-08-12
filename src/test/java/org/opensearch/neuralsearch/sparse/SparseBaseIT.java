@@ -145,7 +145,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         int maxRetry = 5;
         for (int i = 0; i < maxRetry; ++i) {
             if (shards == getSegmentCount(index)) {
-                break;
+                return;
             }
             Thread.sleep(1000);
         }
