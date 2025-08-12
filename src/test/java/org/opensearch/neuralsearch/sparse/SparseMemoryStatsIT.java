@@ -154,7 +154,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
                 TEST_TEXT_FIELD_NAME,
                 TEST_SPARSE_FIELD_NAME,
                 docs,
-                Collections.EMPTY_LIST,
+                Collections.emptyList(),
                 i * docCount + 1,
                 routingIds.get(i)
             );
