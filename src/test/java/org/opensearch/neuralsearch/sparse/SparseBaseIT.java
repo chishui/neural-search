@@ -149,6 +149,9 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
             }
             Thread.sleep(1000);
         }
+        throw new RuntimeException(
+            String.format(Locale.ROOT, "Current segment count %s is different than the shard count %s", getSegmentCount(index), shards)
+        );
     }
 
     protected int getSegmentCount(String index) {
@@ -159,7 +162,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
             String[] lines = str.split("\n");
             return lines.length;
         } catch (IOException | ParseException e) {
-            throw new RuntimeException(e);
+            return 0;
         }
     }
 
