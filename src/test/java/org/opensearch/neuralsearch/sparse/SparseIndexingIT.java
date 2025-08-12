@@ -616,16 +616,9 @@ public class SparseIndexingIT extends SparseBaseIT {
                 text.add("tree");
             }
         }
+        List<String> routingIds = generateUniqueRoutingIds(shards);
         for (int i = 0; i < shards; ++i) {
-            ingestDocuments(
-                TEST_INDEX_NAME,
-                TEST_TEXT_FIELD_NAME,
-                TEST_SPARSE_FIELD_NAME,
-                docs,
-                text,
-                i * docCount + 1,
-                String.valueOf(i + 1)
-            );
+            ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs, text, i * docCount + 1, routingIds.get(i));
         }
 
         forceMerge(TEST_INDEX_NAME);

@@ -9,6 +9,7 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
+import org.opensearch.cluster.routing.Murmur3HashFunction;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.core.rest.RestStatus;
@@ -18,9 +19,12 @@ import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Base Integration tests for seismic feature
@@ -193,5 +197,29 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
             payloadBuilder.append(System.lineSeparator());
         }
         bulkIngest(payloadBuilder.toString(), null, routing);
+    }
+
+    /**
+     * Iterate from number 0 to 10000 and find num routing ids which can result in different shard id.
+     *
+     * @param num number of routing ids, should be <= shard number.
+     * @return a list of routing ids
+     */
+    protected List<String> generateUniqueRoutingIds(int num) {
+        List<String> routingIds = new ArrayList<>();
+        Set<Integer> uniqueHash = new HashSet<>();
+        for (int i = 0; i < 10000; ++i) {
+            String candidate = String.valueOf(i);
+            int hash = Murmur3HashFunction.hash(candidate);
+            if (uniqueHash.contains(hash)) {
+                continue;
+            }
+            uniqueHash.add(hash);
+            routingIds.add(candidate);
+            if (routingIds.size() == num) {
+                break;
+            }
+        }
+        return routingIds;
     }
 }
