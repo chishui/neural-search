@@ -19,6 +19,7 @@ import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -128,9 +129,9 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     @SneakyThrows
     public void testMemoryStatsIncreaseWithSeismicAndMultiShard() {
         // Create Sparse Index
+        int shards = 3;
         int docCount = 100;
-        int shardNumber = 3;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shardNumber, 1);
+        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, shards);
         Response response = client().performRequest(request);
         assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
 
@@ -154,11 +155,18 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        for (int i = 0; i < shardNumber; ++i) {
-            ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
+        List<String> routingIds = generateUniqueRoutingIds(shards);
+        for (int i = 0; i < shards; ++i) {
+            ingestDocuments(
+                TEST_INDEX_NAME,
+                TEST_TEXT_FIELD_NAME,
+                TEST_SPARSE_FIELD_NAME,
+                docs,
+                Collections.EMPTY_LIST,
+                i * docCount + 1,
+                routingIds.get(i)
+            );
         }
-
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
