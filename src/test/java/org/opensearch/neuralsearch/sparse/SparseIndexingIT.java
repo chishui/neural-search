@@ -47,9 +47,7 @@ public class SparseIndexingIT extends SparseBaseIT {
      * Test creating an index with sparse index setting enabled
      */
     public void testCreateSparseIndex() throws IOException {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, 8);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
@@ -159,27 +157,31 @@ public class SparseIndexingIT extends SparseBaseIT {
      * Test error handling when creating a sparse tokens field with invalid parameters
      */
     public void testSparseTokensFieldWithInvalidParameters() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, -1, 0.4f, 0.1f, 8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, -1, 0.4f, 0.1f, 8); }
+        );
     }
 
     public void testSparseTokensFieldWithInvalidParameters2() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, -0.4f, 0.1f, 8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, -0.4f, 0.1f, 8); }
+        );
     }
 
     public void testSparseTokensFieldWithInvalidParameters3() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, -0.1f, 8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, -0.1f, 8); }
+        );
     }
 
     public void testSparseTokensFieldWithInvalidParameters4() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, -8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, -8); }
+        );
     }
 
     /**
@@ -220,9 +222,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicPostingPruning() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -260,9 +260,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsMixSeismicWithRankFeatures() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -303,9 +301,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsWithAllRankFeatures() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 100);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 100);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -349,9 +345,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicWithCut() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -391,9 +385,7 @@ public class SparseIndexingIT extends SparseBaseIT {
 
     public void testIngestDocumentsSeismicHeapFactor() throws Exception {
         final int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, docCount, 0.4f, 0.5f, docCount);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, docCount, 0.4f, 0.5f, docCount);
 
         List<Map<String, Float>> docs = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {
@@ -437,9 +429,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicWithPreFiltering() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -501,9 +491,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicWithPostFiltering() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -550,9 +538,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsRankFeaturesWithFiltering() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 1, 0.4f, 0.5f, 100);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 1, 0.4f, 0.5f, 100);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -594,10 +580,10 @@ public class SparseIndexingIT extends SparseBaseIT {
 
     public void testIngestDocumentsMultipleShards() throws Exception {
         int shards = 3;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 5, 0.4f, 0.5f, 20, shards, 3);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
         int docCount = 20;
+
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 5, 0.4f, 0.5f, docCount, shards, 3);
+
         List<Map<String, Float>> docs = new ArrayList<>();
         List<String> text = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {

@@ -6,9 +6,6 @@ package org.opensearch.neuralsearch.sparse;
 
 import lombok.SneakyThrows;
 import org.junit.After;
-import org.opensearch.client.Request;
-import org.opensearch.client.Response;
-import org.opensearch.core.rest.RestStatus;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 
@@ -44,9 +41,7 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
     public void testQueryWithZeroCircuitBreakerLimit() {
         // Create index and perform ingestion
         int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
 
         assertTrue(indexExists(TEST_INDEX_NAME));
 
@@ -72,9 +67,7 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
         deleteIndex(TEST_INDEX_NAME);
         updateClusterSettings(NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_LIMIT.getKey(), "0%");
 
-        request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-        response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
 
         ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 

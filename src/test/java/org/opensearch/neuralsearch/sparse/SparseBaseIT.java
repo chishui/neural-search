@@ -42,7 +42,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         super.setUp();
     }
 
-    protected Request configureSparseIndex(
+    protected void createSparseIndex(
         String indexName,
         String fieldName,
         int nPostings,
@@ -50,10 +50,34 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         float clusterRatio,
         int approximateThreshold
     ) throws IOException {
-        return configureSparseIndex(indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
+        createSparseIndex(indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
     }
 
-    protected Request configureSparseIndex(
+    protected void createSparseIndex(
+        String indexName,
+        String fieldName,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold,
+        int shards,
+        int replicas
+    ) throws IOException {
+        Request request = configureSparseIndex(
+            indexName,
+            fieldName,
+            nPostings,
+            alpha,
+            clusterRatio,
+            approximateThreshold,
+            shards,
+            replicas
+        );
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+    }
+
+    private Request configureSparseIndex(
         String indexName,
         String fieldName,
         int nPostings,

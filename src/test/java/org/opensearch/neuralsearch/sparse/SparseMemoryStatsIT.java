@@ -69,9 +69,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     public void testMemoryStatsIncreaseWithSeismic() {
         // Create Sparse Index
         int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
@@ -131,9 +129,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         // Create Sparse Index
         int shards = 3;
         int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, shards);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, shards);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
@@ -203,9 +199,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     public void testMemoryStatsDoNotIncreaseWithAllRankFeatures() {
         // Create Sparse Index
         int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount * 2);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount * 2);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
@@ -267,9 +261,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
 
         // Create Sparse Index
         int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
