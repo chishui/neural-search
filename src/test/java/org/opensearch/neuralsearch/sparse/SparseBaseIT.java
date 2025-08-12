@@ -216,7 +216,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         Set<Integer> uniqueHash = new HashSet<>();
         for (int i = 0; i < 10000; ++i) {
             String candidate = String.valueOf(i);
-            int hash = Murmur3HashFunction.hash(candidate);
+            int hash = Murmur3HashFunction.hash(candidate) % num;
             if (uniqueHash.contains(hash)) {
                 continue;
             }
