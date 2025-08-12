@@ -26,6 +26,10 @@ public class SparseTokensFieldType extends MappedFieldType {
     protected boolean stored;
     protected boolean hasDocValues;
 
+    public static boolean isSparseTokensType(String type) {
+        return SparseTokensFieldMapper.CONTENT_TYPE.equals(type);
+    }
+
     public SparseTokensFieldType(String name, SparseMethodContext sparseMethodContext, boolean stored, boolean hasDocValues) {
         super(name, false, stored, hasDocValues, TextSearchInfo.NONE, Map.of());
         this.sparseMethodContext = sparseMethodContext;
