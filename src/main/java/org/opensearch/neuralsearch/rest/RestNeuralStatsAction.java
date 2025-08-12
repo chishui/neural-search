@@ -73,6 +73,12 @@ public class RestNeuralStatsAction extends BaseRestHandler {
         .map(str -> str.toLowerCase(Locale.ROOT))
         .collect(Collectors.toSet());
 
+    private static final Set<String> METRIC_STAT_NAMES = EnumSet.allOf(MetricStatName.class)
+        .stream()
+        .map(MetricStatName::getNameString)
+        .map(str -> str.toLowerCase(Locale.ROOT))
+        .collect(Collectors.toSet());
+
     private static final List<Route> ROUTES = ImmutableList.of(
         new Route(RestRequest.Method.GET, NEURAL_BASE_URI + "/{nodeId}/stats/"),
         new Route(RestRequest.Method.GET, NEURAL_BASE_URI + "/{nodeId}/stats/{stat}"),
@@ -194,6 +200,9 @@ public class RestNeuralStatsAction extends BaseRestHandler {
                 statAdded = true;
             } else if (STATE_STAT_NAMES.contains(normalizedStat)) {
                 neuralStatsInput.getInfoStatNames().add(InfoStatName.from(normalizedStat));
+                statAdded = true;
+            } else if (METRIC_STAT_NAMES.contains(normalizedStat)) {
+                neuralStatsInput.getMetricStatNames().add(MetricStatName.from(normalizedStat));
                 statAdded = true;
             }
             log.info("Non-existent stat name parsed: {}", normalizedStat);

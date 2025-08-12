@@ -4,7 +4,7 @@
  */
 package org.opensearch.neuralsearch.stats.metrics;
 
-import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 
@@ -54,7 +54,7 @@ public class MemoryStat implements MetricStat {
             long heapMaxBytes = memoryMXBean.getHeapMemoryUsage().getMax();
             return String.format(Locale.ROOT, "%.2f%%", (double) this.byteSize.get() / heapMaxBytes * 100);
         }
-        return RamUsageEstimator.humanReadableUnits(this.byteSize.get());
+        return new ByteSizeValue(this.byteSize.get()).toString();
     }
 
     @Override

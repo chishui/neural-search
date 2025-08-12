@@ -7,10 +7,10 @@ package org.opensearch.neuralsearch.stats.metrics;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.neuralsearch.stats.common.StatSnapshot;
 
@@ -90,7 +90,7 @@ public class MemoryStatSnapshot implements Writeable, StatSnapshot<String> {
             // The value is summed
             totalByteSize += stat.getByteSize();
         }
-        String totalValue = RamUsageEstimator.humanReadableUnits(totalByteSize);
+        String totalValue = new ByteSizeValue(totalByteSize).toString();
 
         return MemoryStatSnapshot.builder().statName(name).value(totalValue).build();
     }

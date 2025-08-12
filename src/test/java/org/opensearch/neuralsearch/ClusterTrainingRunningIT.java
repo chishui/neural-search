@@ -9,11 +9,11 @@ import java.util.Locale;
 
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 
 public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
 
-    private static final int TEST_THREAD_COUNT = 8;
-    private static final int MAX_REASONABLE_THREADS = 10;
     private static final int INVALID_THREAD_COUNT = -5;
     private static final String THREAD_QTY_SETTING_KEY = "neural.sparse.algo_param.index_thread_qty";
     private static final String BAD_REQUEST_ERROR = "400";
@@ -34,8 +34,14 @@ public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
         return request;
     }
 
+    private Settings settings() {
+        return Settings.EMPTY;
+    }
+
     public void testThreadPoolSettingUpdate() throws IOException {
-        Request updateRequest = createUpdateSettingRequest(TEST_THREAD_COUNT);
+        // Use half of available processors to ensure it's within limits
+        int testThreadCount = Math.max(OpenSearchExecutors.allocatedProcessors(settings()) / 2, 1);
+        Request updateRequest = createUpdateSettingRequest(testThreadCount);
         Response updateResponse = client().performRequest(updateRequest);
         assertOK(updateResponse);
     }
@@ -67,7 +73,9 @@ public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
     }
 
     public void testThreadPoolSettingBoundaries() throws IOException {
-        Request updateRequest = createUpdateSettingRequest(MAX_REASONABLE_THREADS);
+        // Use the maximum allowed processors for this environment
+        int maxAllowedThreads = OpenSearchExecutors.allocatedProcessors(settings());
+        Request updateRequest = createUpdateSettingRequest(maxAllowedThreads);
         Response updateResponse = client().performRequest(updateRequest);
         assertOK(updateResponse);
     }
