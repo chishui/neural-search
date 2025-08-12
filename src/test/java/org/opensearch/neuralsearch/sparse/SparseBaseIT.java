@@ -100,6 +100,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         XContentBuilder settingBuilder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("index")
+            .field("number_of_routing_shards", shards) // Shard routing setting
             .field("sparse", true)
             .field("number_of_shards", shards)
             .field("number_of_replicas", replicas)
@@ -213,17 +214,15 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
      */
     protected List<String> generateUniqueRoutingIds(int num) {
         List<String> routingIds = new ArrayList<>();
-        Set<Integer> uniqueHash = new HashSet<>();
+        Set<Integer> uniqueShardIds = new HashSet<>();
         for (int i = 0; i < 10000; ++i) {
             String candidate = String.valueOf(i);
-            int hash = Murmur3HashFunction.hash(candidate) % num;
-            if (hash < 0) {
-                hash += num;
-            }
-            if (uniqueHash.contains(hash)) {
+            int hash = Murmur3HashFunction.hash(candidate);
+            int shardId = Math.floorMod(hash, num);
+            if (uniqueShardIds.contains(shardId)) {
                 continue;
             }
-            uniqueHash.add(hash);
+            uniqueShardIds.add(shardId);
             routingIds.add(candidate);
             if (routingIds.size() == num) {
                 break;
