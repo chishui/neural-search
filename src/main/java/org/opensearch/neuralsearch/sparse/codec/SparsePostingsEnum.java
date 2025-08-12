@@ -8,11 +8,11 @@ import lombok.Getter;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
-import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
 
 import java.io.IOException;
@@ -24,13 +24,13 @@ public class SparsePostingsEnum extends PostingsEnum {
     @Getter
     private final PostingClusters clusters;
     @Getter
-    private final InMemoryKey.IndexKey indexKey;
+    private final CacheKey cacheKey;
     private IteratorWrapper<DocumentCluster> currentCluster;
     private DocWeightIterator currentDocWeight;
 
-    public SparsePostingsEnum(PostingClusters clusters, InMemoryKey.IndexKey indexKey) throws IOException {
+    public SparsePostingsEnum(PostingClusters clusters, CacheKey cacheKey) throws IOException {
         this.clusters = clusters;
-        this.indexKey = indexKey;
+        this.cacheKey = cacheKey;
         currentCluster = clusterIterator();
         currentDocWeight = currentCluster.next().getDisi();
     }

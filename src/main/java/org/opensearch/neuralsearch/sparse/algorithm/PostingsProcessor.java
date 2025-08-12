@@ -5,11 +5,13 @@
 package org.opensearch.neuralsearch.sparse.algorithm;
 
 import org.apache.lucene.search.DocIdSetIterator;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 
 import java.io.IOException;
 import java.util.ArrayList;

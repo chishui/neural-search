@@ -10,6 +10,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
+import org.opensearch.core.common.unit.ByteSizeValue;
 
 /**
  * Class defines settings specific to neural-search plugin
@@ -18,10 +19,25 @@ import org.opensearch.common.util.concurrent.OpenSearchExecutors;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NeuralSearchSettings {
+
     public static final int DEFAULT_INDEX_THREAD_QTY = -1;
     public static int MAX_INDEX_THREAD_QTY = 1024;
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "neural.sparse.algo_param.index_thread_qty";
     public static Integer SPARSE_DEFAULT_ALGO_PARAM_INDEX_THREAD_QTY = DEFAULT_INDEX_THREAD_QTY;
+    public static final String NEURAL_CIRCUIT_BREAKER_NAME = "neural_search";
+
+    /**
+     * Specifies the initial memory limit for the parent circuit breaker.
+     * Defaults to 95% of the JVM heap.
+     */
+    private static final String DEFAULT_CIRCUIT_BREAKER_LIMIT = "50%";
+    /**
+     * A constant by which the neural data estimations are multiplied to determine the final estimation.
+     * Default is 1.0 while minimum is 0.0.
+     */
+    private static final double DEFAULT_CIRCUIT_BREAKER_OVERHEAD = 1.0d;
+    private static final double MINIMUM_CIRCUIT_BREAKER_OVERHEAD = 0.0d;
+
     /**
      * Gates the functionality of hybrid search
      * Currently query phase searcher added with hybrid search will conflict with concurrent search in core.
@@ -82,4 +98,24 @@ public final class NeuralSearchSettings {
         return threadQty;
     }
 
+    /**
+     * A constant by which the neural memory estimations are multiplied to determine the final estimation. Default is 1.
+     */
+    public static final Setting<Double> NEURAL_CIRCUIT_BREAKER_OVERHEAD = Setting.doubleSetting(
+        "plugins.neural_search.circuit_breaker.overhead",
+        DEFAULT_CIRCUIT_BREAKER_OVERHEAD,
+        MINIMUM_CIRCUIT_BREAKER_OVERHEAD,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
+
+    /**
+     * The memory limit for neural circuit breaker. Default is 50% of the JVM heap.
+     */
+    public static final Setting<ByteSizeValue> NEURAL_CIRCUIT_BREAKER_LIMIT = Setting.memorySizeSetting(
+        "plugins.neural_search.circuit_breaker.limit",
+        DEFAULT_CIRCUIT_BREAKER_LIMIT,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
 }

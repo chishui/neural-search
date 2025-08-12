@@ -17,17 +17,18 @@ import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LongBitSet;
-import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.PriorityQueue;
 
@@ -65,7 +66,10 @@ public abstract class SeismicBaseScorer extends Scorer {
 
     protected void initialize(LeafReader leafReader) throws IOException {
         Terms terms = Terms.getTerms(leafReader, fieldName);
-        assert terms != null : "Terms must not be null";
+        if (terms == null) {
+            log.error(String.format(Locale.ROOT, "Terms in field %s is null!", fieldName));
+            return;
+        }
 
         for (String token : sparseQueryContext.getTokens()) {
             TermsEnum termsEnum = terms.iterator();

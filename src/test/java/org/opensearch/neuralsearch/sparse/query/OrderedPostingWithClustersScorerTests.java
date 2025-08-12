@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.PostingsEnum;
@@ -22,13 +23,13 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.algorithm.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
 import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 import org.opensearch.neuralsearch.sparse.common.IteratorWrapper;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -76,7 +77,9 @@ public class OrderedPostingWithClustersScorerTests extends AbstractSparseTestBas
     private SegmentInfo segmentInfo;
 
     @Before
-    public void setUp() throws Exception {
+    @Override
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         // Initialize mocks
         MockitoAnnotations.openMocks(this);

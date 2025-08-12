@@ -12,8 +12,8 @@ import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
 
@@ -39,7 +39,8 @@ public class ExactMatchScorerTests extends AbstractSparseTestBase {
      * - Configure mocks for reader and simScorer
      */
     @Before
-    public void setUp() throws Exception {
+    @Override
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
         // Create a BitSet with documents 0, 2, 5

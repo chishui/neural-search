@@ -17,11 +17,11 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.algorithm.BatchClusteringTask;
-import org.opensearch.neuralsearch.sparse.algorithm.ByteQuantizer;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
 
@@ -75,7 +75,7 @@ public class SparsePostingsReader {
             log.debug("Merge field: {}", fieldInfo.name);
             sparseTermsLuceneWriter.writeFieldNumber(fieldInfo.number);
 
-            InMemoryKey.IndexKey key = new InMemoryKey.IndexKey(mergeState.segmentInfo, fieldInfo);
+            CacheKey key = new CacheKey(mergeState.segmentInfo, fieldInfo);
             float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
             int nPostings;
             if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
@@ -90,7 +90,7 @@ public class SparsePostingsReader {
                 clusterRatio = 0;
             }
 
-            // get all terms of old segments from InMemoryClusteredPosting
+            // get all terms of old segments from CacheClusteredPosting
             Set<BytesRef> allTerms = getAllTerms(fieldInfo);
             sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
             clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount, true);
@@ -141,7 +141,7 @@ public class SparsePostingsReader {
         }
     }
 
-    // get all terms of old segments from InMemoryClusteredPosting
+    // get all terms of old segments from CacheClusteredPosting
     private Set<BytesRef> getAllTerms(FieldInfo fieldInfo) throws IOException {
         Set<BytesRef> allTerms = new HashSet<>();
         for (int i = 0; i < this.mergeState.fieldsProducers.length; i++) {
@@ -154,8 +154,7 @@ public class SparsePostingsReader {
             }
 
             Terms terms = fieldsProducer.terms(fieldInfo.name);
-            if (terms instanceof SparseTerms) {
-                SparseTerms sparseTerms = (SparseTerms) terms;
+            if (terms instanceof SparseTerms sparseTerms) {
                 allTerms.addAll(sparseTerms.getReader().getTerms());
             } else {
                 // fieldsProducer could be a delegate one as we need to merge normal segments into seis segment
@@ -184,7 +183,7 @@ public class SparsePostingsReader {
             FieldsProducer fieldsProducer = mergeState.fieldsProducers[i];
             // we need this SparseBinaryDocValuesPassThrough to get segment info
             BinaryDocValues binaryDocValues = mergeState.docValuesProducers[i].getBinary(fieldInfo);
-            if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues)) {
+            if (!(binaryDocValues instanceof SparseBinaryDocValuesPassThrough)) {
                 log.error("binaryDocValues is not SparseBinaryDocValuesPassThrough, {}", binaryDocValues.getClass().getName());
                 continue;
             }

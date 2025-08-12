@@ -13,15 +13,18 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.codec.CacheGatedForwardIndexReader;
-import org.opensearch.neuralsearch.sparse.common.ClusteredPostingWriter;
-import org.opensearch.neuralsearch.sparse.codec.InMemoryClusteredPosting;
-import org.opensearch.neuralsearch.sparse.codec.InMemorySparseVectorForwardIndex;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
+import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsReader;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +35,7 @@ import java.util.function.Supplier;
 public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, PostingClusters>>> {
     @Getter
     private final List<BytesRef> terms;
-    private final InMemoryKey.IndexKey key;
+    private final CacheKey key;
     private final float summaryPruneRatio;
     private final float clusterRatio;
     private final int nPostings;
@@ -41,7 +44,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
 
     public BatchClusteringTask(
         List<BytesRef> terms,
-        InMemoryKey.IndexKey key,
+        CacheKey key,
         float summaryPruneRatio,
         float clusterRatio,
         int nPostings,
@@ -87,7 +90,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                 );
                 List<DocumentCluster> clusters = postingClustering.cluster(docWeights);
                 postingClusters.add(Pair.of(term, new PostingClusters(clusters)));
-                ClusteredPostingWriter writer = InMemoryClusteredPosting.getOrCreate(key).getWriter();
+                ClusteredPostingWriter writer = ClusteredPostingCache.getInstance().getOrCreate(key).getWriter();
                 writer.insert(term, clusters);
             }
         } catch (IOException e) {
@@ -114,8 +117,8 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
     private CacheGatedForwardIndexReader getCacheGatedForwardIndexReader(BinaryDocValues binaryDocValues) {
         if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues) {
             SegmentInfo segmentInfo = sparseBinaryDocValues.getSegmentInfo();
-            InMemoryKey.IndexKey indexKey = new InMemoryKey.IndexKey(segmentInfo, fieldInfo);
-            InMemorySparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.get(indexKey);
+            CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
+            ForwardIndexCacheItem index = ForwardIndexCache.getInstance().get(cacheKey);
             if (index == null) {
                 return new CacheGatedForwardIndexReader(null, null, sparseBinaryDocValues);
             }

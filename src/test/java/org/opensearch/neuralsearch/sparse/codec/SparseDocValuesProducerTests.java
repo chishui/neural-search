@@ -35,7 +35,7 @@ public class SparseDocValuesProducerTests extends AbstractSparseTestBase {
     private SegmentInfo segmentInfo;
 
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         mockDelegate = mock(DocValuesProducer.class);
 

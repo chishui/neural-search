@@ -8,9 +8,10 @@ import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocWeight;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ public class RandomClusteringTests extends AbstractSparseTestBase {
 
     @Before
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 

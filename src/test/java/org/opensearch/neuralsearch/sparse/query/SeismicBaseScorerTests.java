@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.query;
 
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.Terms;
@@ -14,9 +15,9 @@ import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.codec.SparsePostingsEnum;
-import org.opensearch.neuralsearch.sparse.common.SparseVector;
-import org.opensearch.neuralsearch.sparse.common.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -64,7 +65,9 @@ public class SeismicBaseScorerTests extends AbstractSparseTestBase {
     private SparseVector queryVector;
 
     @Before
-    public void setUp() throws Exception {
+    @Override
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
         // Initialize mocks
         MockitoAnnotations.openMocks(this);
