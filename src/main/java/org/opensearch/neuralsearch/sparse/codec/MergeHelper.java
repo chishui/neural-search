@@ -25,8 +25,8 @@ public class MergeHelper {
         for (DocValuesProducer producer : mergeState.getDocValuesProducers()) {
             for (FieldInfo field : mergeState.getMergeFieldInfos()) {
                 boolean isNotSparse = !SparseTokensField.isSparseField(field);
-                boolean fieldInfoMatched = fieldInfo == null || field == fieldInfo;
-                if (isNotSparse || fieldInfoMatched) {
+                boolean fieldInfoMisMatched = fieldInfo != null && field != fieldInfo;
+                if (isNotSparse || fieldInfoMisMatched) {
                     continue;
                 }
                 BinaryDocValues binaryDocValues = producer.getBinary(field);
