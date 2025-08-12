@@ -11,6 +11,7 @@ import org.opensearch.core.rest.RestStatus;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.opensearch.neuralsearch.util.TestUtils.createRandomTokenWeightMap;
@@ -208,7 +209,7 @@ public class NeuralSparseCacheIT extends BaseNeuralSearchIT {
                 java.util.List.of("token1", "token2", "token3", "token4", "token5")
             );
 
-            String docJson = String.format("""
+            String docJson = String.format(Locale.ROOT, """
                 {
                     "%s": %s
                 }

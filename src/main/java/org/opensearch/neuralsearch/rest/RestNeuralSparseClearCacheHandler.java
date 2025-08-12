@@ -96,7 +96,7 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
         if (!invalidIndexNames.isEmpty()) {
             throw new NeuralSparseInvalidIndicesException(
                 invalidIndexNames,
-                String.format("Request rejected. Indices %s don't support %s operation.", invalidIndexNames, apiOperation)
+                String.format(Locale.ROOT, "Request rejected. Indices %s don't support %s operation.", invalidIndexNames, apiOperation)
             );
         }
     }
