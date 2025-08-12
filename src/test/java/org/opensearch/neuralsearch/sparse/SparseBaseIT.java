@@ -22,6 +22,8 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -200,7 +202,31 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         bulkIngest(payloadBuilder.toString(), null, routing);
     }
 
-    protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
+    /**
+     * Iterate from number 0 to 10000 and find num routing ids which can result in different shard id.
+     *
+     * @param num number of routing ids, should be <= shard number.
+     * @return a list of routing ids
+     */
+    protected List<String> generateUniqueRoutingIds(int num) {
+        List<String> routingIds = new ArrayList<>();
+        Set<Integer> uniqueHash = new HashSet<>();
+        for (int i = 0; i < 10000; ++i) {
+            String candidate = String.valueOf(i);
+            int hash = Murmur3HashFunction.hash(candidate);
+            if (uniqueHash.contains(hash)) {
+                continue;
+            }
+            uniqueHash.add(hash);
+            routingIds.add(candidate);
+            if (routingIds.size() == num) {
+                break;
+            }
+        }
+        return routingIds;
+    }
+
+        protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
         return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
     }
 
