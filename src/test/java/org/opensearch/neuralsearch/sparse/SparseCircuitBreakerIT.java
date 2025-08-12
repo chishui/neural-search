@@ -46,11 +46,7 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
         assertTrue(indexExists(TEST_INDEX_NAME));
 
         List<Map<String, Float>> docs = prepareIngestDocuments(docCount);
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -66,14 +62,8 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
         // Delete index, disable cache and then ingest again
         deleteIndex(TEST_INDEX_NAME);
         updateClusterSettings(NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_LIMIT.getKey(), "0%");
-
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         // Verify that without cache, the search results remain the same
         searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);

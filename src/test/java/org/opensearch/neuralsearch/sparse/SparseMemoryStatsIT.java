@@ -91,11 +91,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         // Verify memory stats increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
@@ -221,11 +217,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
-
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         // Verify memory stats do not increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
@@ -283,11 +275,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         // Verify memory stats only increase by cache registry size
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();

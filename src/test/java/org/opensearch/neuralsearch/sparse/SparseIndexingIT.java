@@ -224,7 +224,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     public void testIngestDocumentsAllSeismicPostingPruning() throws Exception {
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -239,10 +239,6 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("1000", 0.8f, "2000", 0.8f)
             )
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -347,7 +343,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     public void testIngestDocumentsAllSeismicWithCut() throws Exception {
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -363,10 +359,6 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("3000", 0.0001f)
             )
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -398,11 +390,7 @@ public class SparseIndexingIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -431,7 +419,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     public void testIngestDocumentsAllSeismicWithPreFiltering() throws Exception {
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -445,13 +433,8 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("1000", 0.7f, "2000", 0.7f),
                 Map.of("1000", 0.8f, "2000", 0.8f)
             ),
-            List.of("apple", "tree", "apple", "tree", "apple", "tree", "apple", "tree"),
-            1
+            List.of("apple", "tree", "apple", "tree", "apple", "tree", "apple", "tree")
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();
@@ -493,7 +476,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     public void testIngestDocumentsAllSeismicWithPostFiltering() throws Exception {
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -507,13 +490,8 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("1000", 0.7f, "2000", 0.7f),
                 Map.of("1000", 0.8f, "2000", 0.8f)
             ),
-            List.of("apple", "apple", "apple", "apple", "apple", "apple", "apple", "tree"),
-            1
+            List.of("apple", "apple", "apple", "apple", "apple", "apple", "apple", "tree")
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();

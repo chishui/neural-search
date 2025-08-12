@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import lombok.SneakyThrows;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.Before;
@@ -191,8 +192,24 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         }
     }
 
-    protected void ingestDocuments(String index, String textField, String sparseField, List<Map<String, Float>> docTokens) {
-        ingestDocuments(index, textField, sparseField, docTokens, null, 1);
+    @SneakyThrows
+    protected void ingestDocumentsAndForceMerge(String index, String textField, String sparseField, List<Map<String, Float>> docTokens) {
+        ingestDocumentsAndForceMerge(index, textField, sparseField, docTokens, null);
+    }
+
+    @SneakyThrows
+    protected void ingestDocumentsAndForceMerge(
+        String index,
+        String textField,
+        String sparseField,
+        List<Map<String, Float>> docTokens,
+        List<String> docTexts
+    ) {
+        ingestDocuments(index, textField, sparseField, docTokens, docTexts, 1);
+
+        forceMerge(index);
+        // wait until force merge complete
+        waitForSegmentMerge(index);
     }
 
     protected void ingestDocuments(
