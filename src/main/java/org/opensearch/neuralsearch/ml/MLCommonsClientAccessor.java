@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.opensearch.common.Nullable;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.ml.client.MachineLearningNodeClient;
@@ -30,6 +31,7 @@ import org.opensearch.ml.common.dataset.TextSimilarityInputDataSet;
 import org.opensearch.ml.common.dataset.remote.RemoteInferenceInputDataSet;
 import org.opensearch.ml.common.input.MLInput;
 import org.opensearch.ml.common.input.execute.agent.AgentMLInput;
+import org.opensearch.ml.common.input.parameter.MLAlgoParams;
 import org.opensearch.ml.common.output.MLOutput;
 import org.opensearch.ml.common.output.model.ModelResultFilter;
 import org.opensearch.ml.common.output.model.ModelTensor;
@@ -107,7 +109,15 @@ public class MLCommonsClientAccessor {
         @NonNull final TextInferenceRequest inferenceRequest,
         @NonNull final ActionListener<List<Map<String, ?>>> listener
     ) {
-        retryableInferenceSentencesWithMapResult(inferenceRequest, 0, listener);
+        inferenceSentencesWithMapResult(inferenceRequest, null, listener);
+    }
+
+    public void inferenceSentencesWithMapResult(
+        @NonNull final TextInferenceRequest inferenceRequest,
+        @Nullable final MLAlgoParams additionalParameters,
+        @NonNull final ActionListener<List<Map<String, ?>>> listener
+    ) {
+        retryableInferenceSentencesWithMapResult(inferenceRequest, additionalParameters, 0, listener);
     }
 
     /**
@@ -139,10 +149,14 @@ public class MLCommonsClientAccessor {
 
     private void retryableInferenceSentencesWithMapResult(
         final TextInferenceRequest inferenceRequest,
+        final MLAlgoParams additionalParams,
         final int retryTime,
         final ActionListener<List<Map<String, ?>>> listener
     ) {
         MLInput mlInput = createMLTextInput(null, inferenceRequest.getInputTexts());
+        if (additionalParams != null) {
+            mlInput.setParameters(additionalParams);
+        }
         mlClient.predict(inferenceRequest.getModelId(), mlInput, ActionListener.wrap(mlOutput -> {
             final List<Map<String, ?>> result = buildMapResultFromResponse(mlOutput);
             listener.onResponse(result);
@@ -150,7 +164,7 @@ public class MLCommonsClientAccessor {
             e -> RetryUtil.handleRetryOrFailure(
                 e,
                 retryTime,
-                () -> retryableInferenceSentencesWithMapResult(inferenceRequest, retryTime + 1, listener),
+                () -> retryableInferenceSentencesWithMapResult(inferenceRequest, additionalParams, retryTime + 1, listener),
                 listener
             )
         ));

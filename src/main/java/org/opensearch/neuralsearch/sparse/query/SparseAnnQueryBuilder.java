@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +38,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 
 /**
  * SparseEncodingQueryBuilder is responsible for handling "neural_sparse" query types. It uses an ML NEURAL_SPARSE model
@@ -188,16 +190,28 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
             filterQuery = filter.toQuery(context);
         }
 
-        return new SparseVectorQuery.SparseVectorQueryBuilder().fieldName(fieldName)
-            .queryContext(sparseQueryContext)
-            .queryVector(new SparseVector(queryTokens))
-            .originalQuery(fallbackQuery)
-            .filter(filterQuery)
-            .build();
+        try {
+            Map<Integer, Float> integerTokens = new HashMap<>();
+            for (Map.Entry<String, Float> entry : queryTokens.entrySet()) {
+                int token = Integer.parseInt(entry.getKey());
+                if (token < 0) {
+                    throw new IllegalArgumentException("Query tokens should be non-negative integer!");
+                }
+                integerTokens.put(token, entry.getValue());
+            }
+            return new SparseVectorQuery.SparseVectorQueryBuilder().fieldName(fieldName)
+                .queryContext(sparseQueryContext)
+                .queryVector(new SparseVector(integerTokens))
+                .originalQuery(fallbackQuery)
+                .filter(filterQuery)
+                .build();
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Query tokens should be valid integer");
+        }
     }
 
     public static void validateFieldType(MappedFieldType fieldType) {
-        if (Objects.isNull(fieldType) || !fieldType.typeName().equals(SparseTokensFieldMapper.CONTENT_TYPE)) {
+        if (Objects.isNull(fieldType) || !SparseTokensFieldType.isSparseTokensType(fieldType.typeName())) {
             throw new IllegalArgumentException("[" + NAME + "] query only works on [" + SparseTokensFieldMapper.CONTENT_TYPE + "] fields");
         }
     }
