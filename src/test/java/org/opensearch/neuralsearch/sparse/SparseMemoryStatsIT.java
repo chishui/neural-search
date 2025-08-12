@@ -314,8 +314,8 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
 
         long registrySize = cacheKeySize * 2 + emptyClusteredPostingSize + emptyForwardIndexSize;
 
-        assertTrue(registrySize >= currentSparseMemoryUsageSum - originalSparseMemoryUsageSum);
-        assertTrue(registrySize >= currentCircuitBreakerMemoryStatsSum - originalCircuitBreakerMemoryStatsSum);
+        assertEquals(registrySize, currentSparseMemoryUsageSum - originalSparseMemoryUsageSum);
+        assertEquals(registrySize, currentCircuitBreakerMemoryStatsSum - originalCircuitBreakerMemoryStatsSum);
         assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
 
         // Verify memory stats are the same as the original after index deletion
