@@ -16,8 +16,9 @@ import org.apache.lucene.store.IOContext;
 import org.junit.After;
 import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.InMemoryKey;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,9 +42,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
     private SparseTermsLuceneReader mockReader;
 
     @Before
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
+    public void init() throws IOException {
 
         mockDelegate = mock(FieldsProducer.class);
 
@@ -171,8 +170,8 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
         assertNotNull(producer.getReader());
 
         SparseTerms sparseTerms = (SparseTerms) result;
-        InMemoryKey.IndexKey expectedKey = new InMemoryKey.IndexKey(segmentInfo, sparseFieldInfo);
-        assertEquals(expectedKey, sparseTerms.getIndexKey());
+        CacheKey expectedKey = new CacheKey(segmentInfo, sparseFieldInfo);
+        assertEquals(expectedKey, sparseTerms.getCacheKey());
     }
 
     @SneakyThrows
