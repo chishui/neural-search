@@ -7,7 +7,6 @@ package org.opensearch.neuralsearch.sparse.data;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
@@ -18,7 +17,6 @@ import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -33,7 +31,7 @@ import java.util.stream.Collectors;
 public class SparseVector implements Accountable {
     // tokens will be stored in order
     private final short[] tokens;
-    private final byte[] freqs;
+    private final byte[] weights;
 
     public SparseVector(BytesRef bytesRef) throws IOException {
         this(readToMap(bytesRef));
@@ -43,32 +41,28 @@ public class SparseVector implements Accountable {
         return tokens == null ? 0 : tokens.length;
     }
 
-    public SparseVector(Map<String, Float> pairs) {
+    public SparseVector(Map<Integer, Float> pairs) {
         this(
             pairs.entrySet()
                 .stream()
-                .map(t -> new Item(convertStringToInteger(t.getKey()), ByteQuantizer.quantizeFloatToByte(t.getValue())))
+                .map(t -> new Item(t.getKey(), ByteQuantizer.quantizeFloatToByte(t.getValue())))
                 .collect(Collectors.toList())
         );
-    }
-
-    private static Integer convertStringToInteger(String value) {
-        return NumberUtils.createInteger(value);
     }
 
     public SparseVector(List<Item> items) {
         items.sort(Comparator.comparingInt(Item::getToken));
         int size = items.size();
         this.tokens = new short[size];
-        this.freqs = new byte[size];
+        this.weights = new byte[size];
         for (int i = 0; i < size; ++i) {
             this.tokens[i] = (short) items.get(i).getToken();
-            this.freqs[i] = items.get(i).getFreq();
+            this.weights[i] = items.get(i).getFreq();
         }
     }
 
-    private static Map<String, Float> readToMap(BytesRef bytesRef) {
-        Map<String, Float> map = new HashMap<>();
+    private static Map<Integer, Float> readToMap(BytesRef bytesRef) {
+        Map<Integer, Float> map = new HashMap<>();
         try (
             ByteArrayInputStream bais = new ByteArrayInputStream(
                 ArrayUtil.copyOfSubArray(bytesRef.bytes, bytesRef.offset, bytesRef.length)
@@ -76,10 +70,7 @@ public class SparseVector implements Accountable {
             DataInputStream dis = new DataInputStream(bais)
         ) {
             while (bais.available() > 0) {
-                int stringLength = dis.readInt();
-                byte[] stringBytes = new byte[stringLength];
-                dis.readFully(stringBytes);
-                String key = new String(stringBytes, StandardCharsets.UTF_8);
+                int key = dis.readInt();
                 float value = dis.readFloat();
                 map.put(key, value);
             }
@@ -97,7 +88,7 @@ public class SparseVector implements Accountable {
         int maxToken = this.tokens[size - 1];
         byte[] denseVector = new byte[maxToken + 1];
         for (int i = 0; i < size; ++i) {
-            denseVector[this.tokens[i]] = this.freqs[i];
+            denseVector[this.tokens[i]] = this.weights[i];
         }
         return denseVector;
     }
@@ -119,25 +110,25 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i], denseVector[this.tokens[i]]);
 
             if (this.tokens[i + 1] >= denseVector.length) {
                 ++i;
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 1], denseVector[this.tokens[i + 1]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i + 1], denseVector[this.tokens[i + 1]]);
 
             if (this.tokens[i + 2] >= denseVector.length) {
                 i += 2;
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 2], denseVector[this.tokens[i + 2]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i + 2], denseVector[this.tokens[i + 2]]);
 
             if (this.tokens[i + 3] >= denseVector.length) {
                 i += 3;
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 3], denseVector[this.tokens[i + 3]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i + 3], denseVector[this.tokens[i + 3]]);
         }
 
         // Handle remaining elements
@@ -145,7 +136,7 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i], denseVector[this.tokens[i]]);
         }
 
         return score;
@@ -167,7 +158,7 @@ public class SparseVector implements Accountable {
                     return null;
                 }
                 ++current;
-                return new Item(tokens[current], freqs[current]);
+                return new Item(tokens[current], weights[current]);
             }
         });
     }
@@ -175,7 +166,7 @@ public class SparseVector implements Accountable {
     @Override
     public long ramBytesUsed() {
         return RamUsageEstimator.shallowSizeOfInstance(SparseVector.class) + RamUsageEstimator.sizeOf(tokens) + RamUsageEstimator.sizeOf(
-            freqs
+            weights
         );
     }
 

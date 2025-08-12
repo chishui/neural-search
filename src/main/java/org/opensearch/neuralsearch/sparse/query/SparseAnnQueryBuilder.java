@@ -188,9 +188,13 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
             filterQuery = filter.toQuery(context);
         }
 
+        Map<Integer, Float> integerTokens = queryTokens.entrySet()
+            .stream()
+            .collect(java.util.stream.Collectors.toMap(entry -> Integer.parseInt(entry.getKey()), Map.Entry::getValue));
+
         return new SparseVectorQuery.SparseVectorQueryBuilder().fieldName(fieldName)
             .queryContext(sparseQueryContext)
-            .queryVector(new SparseVector(queryTokens))
+            .queryVector(new SparseVector(integerTokens))
             .originalQuery(fallbackQuery)
             .filter(filterQuery)
             .build();

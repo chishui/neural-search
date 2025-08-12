@@ -25,7 +25,6 @@ import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgoType;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -187,10 +186,17 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                     setFieldTypeAttributes((FieldType) featureField.fieldType(), sparseMethodContext);
 
                     context.doc().addWithKey(key, featureField);
-                    byte[] featureBytes = feature.getBytes(StandardCharsets.UTF_8);
-                    dos.writeInt(featureBytes.length);
-                    dos.write(featureBytes);
-                    dos.writeFloat(value);
+
+                    try {
+                        int tokenIndex = Integer.parseInt(feature);
+                        if (tokenIndex < 0) {
+                            throw new NumberFormatException();
+                        }
+                        dos.writeInt(tokenIndex);
+                        dos.writeFloat(value);
+                    } catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("[" + CONTENT_TYPE + "]" + " fields should be text of non-negative integer");
+                    }
                 } else {
                     throw new IllegalArgumentException(
                         "["
