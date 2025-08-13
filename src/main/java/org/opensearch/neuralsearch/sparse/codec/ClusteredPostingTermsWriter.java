@@ -110,7 +110,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
 
     @VisibleForTesting
     void setPostingClustering(int maxDoc) {
-        SparseVectorForwardIndex index = InMemorySparseVectorForwardIndex.getOrCreate(key, maxDoc);
+        SparseVectorForwardIndex index = ForwardIndexCache.getInstance().getOrCreate(key, maxDoc);
 
         SparseBinaryDocValuesPassThrough luceneReader = null;
         DocValuesFormat fmt = this.state.segmentInfo.getCodec().docValuesFormat();
