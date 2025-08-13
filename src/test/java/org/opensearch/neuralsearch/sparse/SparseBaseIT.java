@@ -207,6 +207,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         forceMerge(index);
         // wait until force merge complete
         waitForSegmentMerge(index);
+        assertEquals(1, getSegmentCount(index));
     }
 
     protected void ingestDocuments(

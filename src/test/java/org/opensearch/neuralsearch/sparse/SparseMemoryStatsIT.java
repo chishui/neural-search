@@ -163,6 +163,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
         waitForSegmentMerge(TEST_INDEX_NAME, shards);
+        assertEquals(shards, getSegmentCount(TEST_INDEX_NAME));
 
         // Verify memory stats increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();

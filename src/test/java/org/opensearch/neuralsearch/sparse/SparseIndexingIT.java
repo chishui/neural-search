@@ -586,6 +586,7 @@ public class SparseIndexingIT extends SparseBaseIT {
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
         waitForSegmentMerge(TEST_INDEX_NAME, shards);
+        assertEquals(shards, getSegmentCount(TEST_INDEX_NAME));
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();
