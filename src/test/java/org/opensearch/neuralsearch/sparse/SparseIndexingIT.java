@@ -560,8 +560,8 @@ public class SparseIndexingIT extends SparseBaseIT {
         int shards = 3;
         int docCount = 20;
         // effective number of replica is capped by the number of OpenSearch nodes minus 1
-        int replicaCount = Math.min(3, getNodeCount() - 1);
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 5, 0.4f, 0.5f, docCount, shards, replicaCount);
+        int replicas = Math.min(3, getNodeCount() - 1);
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 5, 0.4f, 0.5f, docCount, shards, replicas);
 
         List<Map<String, Float>> docs = new ArrayList<>();
         List<String> text = new ArrayList<>();
@@ -586,9 +586,9 @@ public class SparseIndexingIT extends SparseBaseIT {
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME, shards);
+        waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
         // there are replica segments
-        assertEquals(shards * (replicaCount + 1), getSegmentCount(TEST_INDEX_NAME));
+        assertEquals(shards * (replicas + 1), getSegmentCount(TEST_INDEX_NAME));
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();

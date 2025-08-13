@@ -164,13 +164,13 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     }
 
     protected void waitForSegmentMerge(String index) throws InterruptedException {
-        waitForSegmentMerge(index, 1);
+        waitForSegmentMerge(index, 1, 0);
     }
 
-    protected void waitForSegmentMerge(String index, int shards) throws InterruptedException {
+    protected void waitForSegmentMerge(String index, int shards, int replicas) throws InterruptedException {
         int maxRetry = 30;
         for (int i = 0; i < maxRetry; ++i) {
-            if (shards == getSegmentCount(index)) {
+            if (shards * (1 + replicas) == getSegmentCount(index)) {
                 return;
             }
             Thread.sleep(1000);
