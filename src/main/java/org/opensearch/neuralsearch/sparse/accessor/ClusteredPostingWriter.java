@@ -14,7 +14,6 @@ import java.util.List;
  * This interface provides a mechanism to write term-based clustered documents
  * to the underlying storage format used by the clustered posting implementation.
  */
-@FunctionalInterface
 public interface ClusteredPostingWriter {
 
     /**
@@ -26,4 +25,6 @@ public interface ClusteredPostingWriter {
      *                data that are relevant for this term
      */
     void insert(BytesRef term, List<DocumentCluster> clusters);
+
+    void erase(BytesRef term);
 }

@@ -72,5 +72,24 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
                 usedRamBytes.addAndGet(ramBytesUsed);
             }
         }
+
+        @Override
+        public void erase(int docId) {
+            if (docId >= sparseVectors.length()) {
+                return;
+            }
+
+            SparseVector vector = sparseVectors.get(docId);
+            if (vector == null) {
+                return;
+            }
+
+            long ramBytesUsed = vector.ramBytesUsed();
+
+            if (sparseVectors.compareAndSet(docId, vector, null)) {
+                usedRamBytes.addAndGet(-ramBytesUsed);
+                CircuitBreakerManager.releaseBytes(ramBytesUsed);
+            }
+        }
     }
 }

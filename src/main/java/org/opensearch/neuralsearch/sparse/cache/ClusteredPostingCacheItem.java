@@ -64,6 +64,8 @@ public class ClusteredPostingCacheItem implements Accountable {
     }
 
     private class CacheClusteredPostingWriter implements ClusteredPostingWriter {
+
+        @Override
         public void insert(BytesRef term, List<DocumentCluster> clusters) {
             if (clusters == null || clusters.isEmpty() || term == null) {
                 return;
@@ -86,6 +88,25 @@ public class ClusteredPostingCacheItem implements Accountable {
             // Only update memory usage if we actually inserted a new entry
             if (existingClusters == null) {
                 usedRamBytes.addAndGet(ramBytesUsed);
+            }
+        }
+
+        @Override
+        public void erase(BytesRef term) {
+            if (term == null) {
+                return;
+            }
+            PostingClusters postingClusters = clusteredPostings.get(term);
+            if (postingClusters == null) {
+                return;
+            }
+            // Clone a new BytesRef object to avoid offset change
+            BytesRef clonedTerm = term.clone();
+            long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
+            PostingClusters removedClusters = clusteredPostings.remove(term);
+            if (removedClusters != null) {
+                usedRamBytes.addAndGet(-ramBytesUsed);
+                CircuitBreakerManager.releaseBytes(ramBytesUsed);
             }
         }
     }
