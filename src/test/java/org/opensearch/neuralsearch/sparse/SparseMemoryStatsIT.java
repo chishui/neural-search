@@ -125,7 +125,9 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         // Create Sparse Index
         int shards = 3;
         int docCount = 100;
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, shards);
+        // effective number of replica is capped by the number of OpenSearch nodes minus 1
+        int replicaCount = Math.min(3, getNodeCount() - 1);
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, replicaCount);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
@@ -163,7 +165,8 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
         waitForSegmentMerge(TEST_INDEX_NAME, shards);
-        assertEquals(shards, getSegmentCount(TEST_INDEX_NAME));
+        // there are replica segments
+        assertEquals(shards * (replicaCount + 1), getSegmentCount(TEST_INDEX_NAME));
 
         // Verify memory stats increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();

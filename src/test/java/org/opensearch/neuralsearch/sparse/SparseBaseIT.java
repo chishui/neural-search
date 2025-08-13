@@ -189,6 +189,18 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         }
     }
 
+    protected int getNodeCount() {
+        Request request = new Request("GET", "/_cat/nodes/");
+        try {
+            Response response = client().performRequest(request);
+            String str = EntityUtils.toString(response.getEntity());
+            String[] lines = str.split("\n");
+            return lines.length;
+        } catch (IOException | ParseException e) {
+            return 0;
+        }
+    }
+
     @SneakyThrows
     protected void ingestDocumentsAndForceMerge(String index, String textField, String sparseField, List<Map<String, Float>> docTokens) {
         ingestDocumentsAndForceMerge(index, textField, sparseField, docTokens, null);
