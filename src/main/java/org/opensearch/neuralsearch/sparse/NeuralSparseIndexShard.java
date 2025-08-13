@@ -8,6 +8,10 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.BinaryDocValues;
@@ -36,6 +40,7 @@ import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.apache.lucene.index.SegmentReadState;
+
 import java.util.Set;
 
 import java.io.IOException;
@@ -52,6 +57,10 @@ public class NeuralSparseIndexShard {
     @NonNull
     private final IndexShard indexShard;
 
+    private static final ConcurrentHashMap<String, ReadWriteLock> shardLocks = new ConcurrentHashMap<>();
+
+    private static final ConcurrentHashMap<String, Boolean> warmupStatus = new ConcurrentHashMap<>();
+
     private static final String warmUpSearcherSource = "warm-up-searcher-source";
     private static final String clearCacheSearcherSource = "clear-cache-searcher-source";
 
@@ -67,79 +76,108 @@ public class NeuralSparseIndexShard {
     /**
      * Load all the neural-sparse segments for this shard into the cache.
      * Preloads sparse field data to improve query performance.
+     * Uses read lock to allow concurrent warmup operations but prevent conflicts with clear cache.
+     * Early stop to save resources if this is a repeated request
      */
     public void warmUp() {
-        log.info("[Neural Sparse] Warming up index: [{}]", getIndexName());
+        String shardKey = indexShard.shardId().toString();
+        if (warmupStatus.putIfAbsent(shardKey, true) != null) {
+            log.info("[Neural Sparse] Warmup already in progress");
+            return;
+        }
+        ReadWriteLock shardLock = getShardLock();
+        shardLock.readLock().lock();
+        try {
+            log.info("[Neural Sparse] Warming up index: [{}]", getIndexName());
 
-        try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
-            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
-                final LeafReader leafReader = leafReaderContext.reader();
+            try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
+                for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
+                    final LeafReader leafReader = leafReaderContext.reader();
 
-                // Find all sparse token fields in this segment
-                final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
+                    // Find all sparse FieldInfos in this segment
+                    final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
 
-                // Use CacheGated readers to automatically populate cache on read
-                for (FieldInfo fieldInfo : sparseFieldInfos) {
-                    try {
-                        if (fieldInfo != null) { // && fieldInfo.getDocValuesType() == DocValuesType.BINARY
-                            final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-                            final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
-                            final CacheKey key = new CacheKey(segmentInfo, fieldInfo);
+                    // Use CacheGated readers to automatically populate cache on read
+                    for (FieldInfo fieldInfo : sparseFieldInfos) {
+                        try {
+                            if (fieldInfo != null) {
+                                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+                                final CacheKey key = new CacheKey(segmentInfo, fieldInfo);
 
-                            if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
-                                continue;
+                                if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
+                                    continue;
+                                }
+
+                                warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
                             }
-
-                            warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
+                        } catch (Exception e) {
+                            log.error("[Neural Sparse] Failed to warm up field: {}", fieldInfo.getName(), e);
                         }
-                    } catch (Exception e) {
-                        log.error("[Neural Sparse] Failed to warm up field: {}", fieldInfo.getName(), e);
                     }
                 }
+            } catch (Exception e) {
+                log.error("[Neural Sparse] Failed to acquire searcher", e);
+                throw new RuntimeException(e);
             }
+            log.info("[Neural Sparse] Completed warming up cache for index: [{}]", getIndexName());
+        } finally {
+            warmupStatus.remove(shardKey);
+            shardLock.readLock().unlock();
         }
-        log.info("[Neural Sparse] Completed warming up cache for index: [{}]", getIndexName());
     }
 
     /**
      * Clear all cached neural-sparse data for this shard.
      * Removes sparse field data from memory to free up resources.
+     * Uses write lock to ensure exclusive access during cache clearing.
      */
     public void clearCache() {
-        log.info("[Neural Sparse] Clearing cache for index: [{}]", getIndexName());
+        String shardKey = indexShard.shardId().toString();
+        ReadWriteLock shardLock = getShardLock();
+        shardLock.writeLock().lock();
+        try {
+            log.info("[Neural Sparse] Clearing cache for index: [{}]", getIndexName());
 
-        try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
-            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
-                final LeafReader leafReader = leafReaderContext.reader();
+            try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
+                for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
+                    final LeafReader leafReader = leafReaderContext.reader();
 
-                // Find all sparse token fields in this segment
-                final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
+                    // Find all sparse token fields in this segment
+                    final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
 
-                // Get segment info for creating cache keys
-                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+                    // Get segment info for creating cache keys
+                    final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                    final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
 
-                // Clear in-memory cache for each sparse field
-                for (FieldInfo fieldInfo : sparseFieldInfos) {
-                    if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
-                        continue;
-                    }
-                    try {
-                        CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
-                        ClusteredPostingCache.getInstance().removeIndex(cacheKey);
-                        ForwardIndexCache.getInstance().removeIndex(cacheKey);
-                    } catch (Exception e) {
-                        log.error(
-                            "[Neural Sparse] Failed to clear cache for field: {} in segment: {}",
-                            fieldInfo.getName(),
-                            segmentInfo.name,
-                            e
-                        );
+                    // Clear in-memory cache for each sparse field
+                    for (FieldInfo fieldInfo : sparseFieldInfos) {
+                        if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
+                            continue;
+                        }
+                        try {
+                            CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
+                            ClusteredPostingCache.getInstance().removeIndex(cacheKey);
+                            ForwardIndexCache.getInstance().removeIndex(cacheKey);
+                        } catch (Exception e) {
+                            log.error(
+                                "[Neural Sparse] Failed to clear cache for field: {} in segment: {}",
+                                fieldInfo.getName(),
+                                segmentInfo.name,
+                                e
+                            );
+                        }
                     }
                 }
+            } catch (Exception e) {
+                log.error("[Neural Sparse] Failed to acquire searcher", e);
+                throw new RuntimeException(e);
             }
+            log.info("[Neural Sparse] Completed clearing cache for index: [{}]", getIndexName());
+        } finally {
+            warmupStatus.remove(shardKey);
+            shardLock.writeLock().unlock();
         }
-        log.info("[Neural Sparse] Completed clearing cache for index: [{}]", getIndexName());
     }
 
     /**
@@ -241,13 +279,19 @@ public class NeuralSparseIndexShard {
         final FieldInfos coreFieldInfos;
 
         if (segmentInfo.getUseCompoundFile()) {
-            cfsDir = codec.compoundFormat().getCompoundReader(segmentInfo.dir, segmentInfo);
+            cfsDir = codec.compoundFormat().getCompoundReader(segmentInfo.dir, segmentInfo); // If we get compound file, we will set
+                                                                                             // directory as csf file
         } else {
-            cfsDir = segmentInfo.dir;
+            cfsDir = segmentInfo.dir; // Otherwise, we set directory as dir coming from segmentInfo
         }
         coreFieldInfos = codec.fieldInfosFormat().read(cfsDir, segmentInfo, "", IOContext.DEFAULT);
 
         return new SegmentReadState(cfsDir, segmentInfo, coreFieldInfos, IOContext.DEFAULT);
+    }
+
+    private ReadWriteLock getShardLock() {
+        String shardKey = indexShard.shardId().toString();
+        return shardLocks.computeIfAbsent(shardKey, k -> new ReentrantReadWriteLock());
     }
 
 }

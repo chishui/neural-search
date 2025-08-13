@@ -216,8 +216,6 @@ public class NeuralSearch extends Plugin
     ) {
         RestNeuralStatsAction restNeuralStatsAction = new RestNeuralStatsAction(settingsAccessor);
         RestNeuralSparseWarmupHandler restNeuralSparseWarmupCacheHandler = new RestNeuralSparseWarmupHandler(
-            settings,
-            restController,
             clusterService,
             indexNameExpressionResolver
         );

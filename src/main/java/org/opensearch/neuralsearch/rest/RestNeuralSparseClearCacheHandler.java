@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableList;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.neuralsearch.plugin.NeuralSearch;
-import org.opensearch.neuralsearch.sparse.common.exception.NeuralSparseInvalidIndicesException;
 import org.opensearch.neuralsearch.transport.NeuralSparseClearCacheAction;
 import org.opensearch.neuralsearch.transport.NeuralSparseClearCacheRequest;
 import org.opensearch.transport.client.node.NodeClient;
@@ -20,17 +19,14 @@ import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestToXContentListener;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.opensearch.action.support.IndicesOptions.strictExpandOpen;
 import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
 /**
- * RestHandler for neural-sparse Clear Cache API. API provides the ability for a user to evict those indices from Cache.
+ * RestHandler for SEISMIC Clear Cache API. API provides the ability for a user to evict those indices from Cache.
  */
 @Log4j2
 @AllArgsConstructor
@@ -73,31 +69,8 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     private NeuralSparseClearCacheRequest createClearCacheRequest(RestRequest request) {
         String[] indexNames = Strings.splitStringByCommaToArray(request.param("index"));
         Index[] indices = indexNameExpressionResolver.concreteIndices(clusterService.state(), strictExpandOpen(), indexNames);
-        validateIndices(indices, clusterService, SPARSE_INDEX, "clear cache");
+        RestUtils.validateIndices(indices, clusterService, SPARSE_INDEX, NAME);
 
         return new NeuralSparseClearCacheRequest(indexNames);
-    }
-
-    // Validate if the given indices are SEISMIC indices or not. If there are any invalid indices,
-    // the request is rejected and an exception is thrown.
-    public static void validateIndices(Index[] indices, ClusterService clusterService, String sparse_index, String apiOperation) {
-        List<String> invalidIndexNames = Arrays.stream(indices).filter(index -> {
-            String sparseIndexSetting = Optional.ofNullable(clusterService)
-                .map(cs -> cs.state())
-                .map(state -> state.metadata())
-                .map(metadata -> metadata.getIndexSafe(index))
-                .map(indexMetadata -> indexMetadata.getSettings())
-                .map(settings -> settings.get(sparse_index))
-                .orElse(null);
-
-            return !"true".equals(sparseIndexSetting);
-        }).map(Index::getName).collect(Collectors.toList());
-
-        if (!invalidIndexNames.isEmpty()) {
-            throw new NeuralSparseInvalidIndicesException(
-                invalidIndexNames,
-                String.format(Locale.ROOT, "Request rejected. Indices %s don't support %s operation.", invalidIndexNames, apiOperation)
-            );
-        }
     }
 }
