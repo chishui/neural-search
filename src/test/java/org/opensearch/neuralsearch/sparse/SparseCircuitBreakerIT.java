@@ -41,13 +41,7 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
     public void testQueryWithZeroCircuitBreakerLimit() {
         // Create index and perform ingestion
         int docCount = 100;
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-
-        assertTrue(indexExists(TEST_INDEX_NAME));
-
         List<Map<String, Float>> docs = prepareIngestDocuments(docCount);
-        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
             2,
@@ -56,20 +50,53 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
             Map.of("1000", 0.1f, "2000", 0.2f)
         );
 
-        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
-        Map<String, Object> expectedHits = getTotalHits(searchResults);
+        Map<String, Object> expectedHits = ingestSparseIndexAndSearch(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            100,
+            0.4f,
+            0.1f,
+            100,
+            docs,
+            neuralSparseQueryBuilder
+        );
 
         // Delete index, disable cache and then ingest again
         deleteIndex(TEST_INDEX_NAME);
         updateClusterSettings(NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_LIMIT.getKey(), "0%");
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount);
-        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
+        Map<String, Object> hits = ingestSparseIndexAndSearch(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            100,
+            0.4f,
+            0.1f,
+            100,
+            docs,
+            neuralSparseQueryBuilder
+        );
+
+        assertEquals(expectedHits, hits);
+    }
+
+    @SneakyThrows
+    private Map<String, Object> ingestSparseIndexAndSearch(
+        String indexName,
+        String textField,
+        String sparseField,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold,
+        List<Map<String, Float>> docs,
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder
+    ) {
+        createSparseIndex(indexName, sparseField, nPostings, alpha, clusterRatio, approximateThreshold);
+        ingestDocumentsAndForceMerge(indexName, textField, sparseField, docs);
 
         // Verify that without cache, the search results remain the same
-        searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
-        assertNotNull(searchResults);
-        Map<String, Object> actualHits = getTotalHits(searchResults);
-        assertEquals(expectedHits, actualHits);
+        return getTotalHits(search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
     }
 
     @SneakyThrows
