@@ -31,7 +31,17 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      * Used as a fallback when a null writer is provided to the constructor.
      * This follows the Null Object pattern to avoid null checks in the code.
      */
-    private static final SparseVectorWriter emptySparseVectorWriter = (docId, vector) -> {};
+    private static final SparseVectorWriter emptySparseVectorWriter = new SparseVectorWriter() {
+        @Override
+        public void insert(int docId, SparseVector vector) throws IOException {
+            return;
+        }
+
+        @Override
+        public void erase(int docId) {
+            return;
+        }
+    };
 
     /** Cache reader for fast cache lookups */
     private final SparseVectorReader cacheReader;
