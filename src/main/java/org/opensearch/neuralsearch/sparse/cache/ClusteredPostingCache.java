@@ -27,7 +27,7 @@ public class ClusteredPostingCache extends SparseCache<ClusteredPostingCacheItem
     @NonNull
     public ClusteredPostingCacheItem getOrCreate(@NonNull CacheKey key) {
         return cacheMap.computeIfAbsent(key, k -> {
-            ClusteredPostingCacheItem clusteredPostingCacheItem = new ClusteredPostingCacheItem();
+            ClusteredPostingCacheItem clusteredPostingCacheItem = new ClusteredPostingCacheItem(key);
             CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(key));
             return clusteredPostingCacheItem;
         });

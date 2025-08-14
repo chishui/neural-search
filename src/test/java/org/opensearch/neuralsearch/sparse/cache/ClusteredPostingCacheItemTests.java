@@ -11,6 +11,7 @@ import org.junit.Before;
 import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
@@ -42,7 +43,8 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
     public void setUp() {
         super.setUp();
         testClusters = prepareClusterList();
-        cacheItem = new ClusteredPostingCacheItem();
+        CacheKey cacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), TestsPrepareUtils.prepareKeyFieldInfo());
+        cacheItem = new ClusteredPostingCacheItem(cacheKey);
     }
 
     /**

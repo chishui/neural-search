@@ -32,5 +32,11 @@ public interface SparseVectorWriter {
      */
     void insert(int docId, SparseVector vector) throws IOException;
 
-    void erase(int docId);
+    /**
+     * Removes a sparse vector from the forward index.
+     *
+     * @param docId The document ID of the sparse vector to be removed from the forward index
+     * @return The number of RAM bytes freed by removing this sparse vector
+     */
+    long erase(int docId);
 }
