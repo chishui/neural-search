@@ -14,9 +14,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
-
 public class DocumentClusterTests extends AbstractSparseTestBase {
 
     public void testConstructor_withValidInputs_createsCluster() {
