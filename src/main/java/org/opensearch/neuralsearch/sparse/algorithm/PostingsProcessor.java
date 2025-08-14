@@ -51,9 +51,9 @@ public class PostingsProcessor {
                 while (vectorIterator.hasNext()) {
                     SparseVector.Item item = vectorIterator.next();
                     if (!summary.containsKey(item.getToken())) {
-                        summary.put(item.getToken(), item.getIntFreq());
+                        summary.put(item.getToken(), item.getIntWeight());
                     } else {
-                        summary.put(item.getToken(), Math.max(summary.get(item.getToken()), item.getIntFreq()));
+                        summary.put(item.getToken(), Math.max(summary.get(item.getToken()), item.getIntWeight()));
                     }
                 }
             }
@@ -62,16 +62,16 @@ public class PostingsProcessor {
         List<SparseVector.Item> items = summary.entrySet()
             .stream()
             .map(entry -> new SparseVector.Item(entry.getKey(), (byte) entry.getValue().intValue()))
-            .sorted((o1, o2) -> ByteQuantizer.compareUnsignedByte(o2.getFreq(), o1.getFreq()))
+            .sorted((o1, o2) -> ByteQuantizer.compareUnsignedByte(o2.getWeight(), o1.getWeight()))
             .collect(Collectors.toList());
         // count total freq of items
-        double totalFreq = items.stream().mapToDouble(SparseVector.Item::getIntFreq).sum();
+        double totalFreq = items.stream().mapToDouble(SparseVector.Item::getIntWeight).sum();
         int freqThreshold = (int) Math.floor(totalFreq * summaryPruneRatio);
         int freqSum = 0;
         int idx = 0;
         for (SparseVector.Item item : items) {
             ++idx;
-            freqSum += item.getIntFreq();
+            freqSum += item.getIntWeight();
             if (freqSum > freqThreshold) {
                 break;
             }

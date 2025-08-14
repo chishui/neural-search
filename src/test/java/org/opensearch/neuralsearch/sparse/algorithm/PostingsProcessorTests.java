@@ -120,9 +120,9 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
             boolean hasToken3WithFreq25 = false;
 
             for (SparseVector.Item item : summaryItems) {
-                if (item.getToken() == 1 && item.getIntFreq() == 10) hasToken1WithFreq10 = true;
-                if (item.getToken() == 2 && item.getIntFreq() == 20) hasToken2WithFreq20 = true;
-                if (item.getToken() == 3 && item.getIntFreq() == 35) hasToken3WithFreq25 = true;
+                if (item.getToken() == 1 && item.getIntWeight() == 10) hasToken1WithFreq10 = true;
+                if (item.getToken() == 2 && item.getIntWeight() == 20) hasToken2WithFreq20 = true;
+                if (item.getToken() == 3 && item.getIntWeight() == 35) hasToken3WithFreq25 = true;
             }
 
             return hasToken1WithFreq10 && hasToken2WithFreq20 && hasToken3WithFreq25;
@@ -153,7 +153,7 @@ public class PostingsProcessorTests extends AbstractSparseTestBase {
             if (summaryItems.size() != 1) return false;
 
             // Check that the item has token 1 with frequency 50
-            return summaryItems.get(0).getToken() == 1 && summaryItems.get(0).getIntFreq() == 50;
+            return summaryItems.get(0).getToken() == 1 && summaryItems.get(0).getIntWeight() == 50;
         }));
     }
 
