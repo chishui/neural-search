@@ -19,12 +19,15 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.MODULUS_FOR_SHORT;
 
 /**
  * Sparse vector implementation, which is a list of (token, freq) pairs
@@ -33,7 +36,7 @@ import java.util.stream.Collectors;
 public class SparseVector implements Accountable {
     // tokens will be stored in order
     private final short[] tokens;
-    private final byte[] freqs;
+    private final byte[] weights;
 
     public SparseVector(BytesRef bytesRef) throws IOException {
         this(readToMap(bytesRef));
@@ -57,17 +60,43 @@ public class SparseVector implements Accountable {
     }
 
     public SparseVector(List<Item> items) {
-        items.sort(Comparator.comparingInt(Item::getToken));
-        int size = items.size();
+        List<Item> processedItems = processListItems(items);
+        int size = processedItems.size();
         this.tokens = new short[size];
-        this.freqs = new byte[size];
+        this.weights = new byte[size];
         for (int i = 0; i < size; ++i) {
-            this.tokens[i] = (short) items.get(i).getToken();
-            this.freqs[i] = items.get(i).getFreq();
+            this.tokens[i] = (short) processedItems.get(i).getToken();
+            this.weights[i] = processedItems.get(i).getWeight();
         }
     }
 
-    private static Map<String, Float> readToMap(BytesRef bytesRef) {
+    private List<Item> processListItems(List<Item> items) {
+        // processItems contains token already mod by MODULUS_FOR_SHORT and max weight
+        List<Item> processedItems = new ArrayList<>();
+        if (items.isEmpty()) {
+            return processedItems;
+        }
+        items.sort(Comparator.comparingInt(item -> prepareTokenForShortType(item.getToken())));
+        processedItems.add(new Item(prepareTokenForShortType(items.getFirst().getToken()), items.getFirst().getWeight()));
+        for (int i = 1; i < items.size(); ++i) {
+            int token = prepareTokenForShortType(items.get(i).getToken());
+            if (token == processedItems.getLast().getToken()) {
+                if (ByteQuantizer.compareUnsignedByte(processedItems.getLast().weight, items.get(i).getWeight()) < 0) {
+                    // merge by taking the maximum value
+                    processedItems.getLast().weight = items.get(i).getWeight();
+                }
+            } else {
+                processedItems.add(new Item(token, items.get(i).getWeight()));
+            }
+        }
+        return processedItems;
+    }
+
+    public static int prepareTokenForShortType(int token) {
+        return token % MODULUS_FOR_SHORT;
+    }
+
+    private static Map<String, Float> readToMap(BytesRef bytesRef) throws IOException {
         Map<String, Float> map = new HashMap<>();
         try (
             ByteArrayInputStream bais = new ByteArrayInputStream(
@@ -83,8 +112,6 @@ public class SparseVector implements Accountable {
                 float value = dis.readFloat();
                 map.put(key, value);
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
         return map;
     }
@@ -97,7 +124,7 @@ public class SparseVector implements Accountable {
         int maxToken = this.tokens[size - 1];
         byte[] denseVector = new byte[maxToken + 1];
         for (int i = 0; i < size; ++i) {
-            denseVector[this.tokens[i]] = this.freqs[i];
+            denseVector[this.tokens[i]] = this.weights[i];
         }
         return denseVector;
     }
@@ -107,7 +134,7 @@ public class SparseVector implements Accountable {
         int size = getSize();
 
         // Early exit for empty vectors
-        if (size == 0 || denseVector.length == 0) return 0;
+        if (size == 0 || denseVector == null || denseVector.length == 0) return 0;
 
         // Loop unrolling for better performance
         final int unrollFactor = 4;
@@ -119,25 +146,25 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i], denseVector[this.tokens[i]]);
 
             if (this.tokens[i + 1] >= denseVector.length) {
                 ++i;
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 1], denseVector[this.tokens[i + 1]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i + 1], denseVector[this.tokens[i + 1]]);
 
             if (this.tokens[i + 2] >= denseVector.length) {
                 i += 2;
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 2], denseVector[this.tokens[i + 2]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i + 2], denseVector[this.tokens[i + 2]]);
 
             if (this.tokens[i + 3] >= denseVector.length) {
                 i += 3;
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i + 3], denseVector[this.tokens[i + 3]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i + 3], denseVector[this.tokens[i + 3]]);
         }
 
         // Handle remaining elements
@@ -145,7 +172,7 @@ public class SparseVector implements Accountable {
             if (this.tokens[i] >= denseVector.length) {
                 break;
             }
-            score += ByteQuantizer.multiplyUnsignedByte(this.freqs[i], denseVector[this.tokens[i]]);
+            score += ByteQuantizer.multiplyUnsignedByte(this.weights[i], denseVector[this.tokens[i]]);
         }
 
         return score;
@@ -167,7 +194,7 @@ public class SparseVector implements Accountable {
                     return null;
                 }
                 ++current;
-                return new Item(tokens[current], freqs[current]);
+                return new Item(tokens[current], weights[current]);
             }
         });
     }
@@ -175,7 +202,7 @@ public class SparseVector implements Accountable {
     @Override
     public long ramBytesUsed() {
         return RamUsageEstimator.shallowSizeOfInstance(SparseVector.class) + RamUsageEstimator.sizeOf(tokens) + RamUsageEstimator.sizeOf(
-            freqs
+            weights
         );
     }
 
@@ -184,14 +211,14 @@ public class SparseVector implements Accountable {
     @EqualsAndHashCode
     public static class Item {
         int token;
-        byte freq;
+        byte weight;
 
-        static Item of(int token, byte freq) {
-            return new Item(token, freq);
+        static Item of(int token, byte weight) {
+            return new Item(token, weight);
         }
 
-        public int getIntFreq() {
-            return ByteQuantizer.getUnsignedByte(freq);
+        public int getIntWeight() {
+            return ByteQuantizer.getUnsignedByte(weight);
         }
     }
 }

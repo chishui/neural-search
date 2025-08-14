@@ -4,6 +4,9 @@
  */
 package org.opensearch.neuralsearch.sparse.data;
 
+import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
