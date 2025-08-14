@@ -30,6 +30,7 @@ public abstract class SparseCache<T extends Accountable> implements Accountable 
         }
         long ramBytesUsed = value.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(key);
         CircuitBreakerManager.releaseBytes(ramBytesUsed);
+        LRUCache.getInstance().removeIndex(key);
     }
 
     /**

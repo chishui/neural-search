@@ -38,7 +38,8 @@ public class ClusteredPostingCacheTests extends AbstractSparseTestBase {
         clusteredPostingCache = ClusteredPostingCache.getInstance();
 
         emptyClusteredPostingCacheSize = clusteredPostingCache.ramBytesUsed();
-        emptyClusteredPostingCacheItemSize = new ClusteredPostingCacheItem().ramBytesUsed();
+        CacheKey cacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), TestsPrepareUtils.prepareKeyFieldInfo());
+        emptyClusteredPostingCacheItemSize = new ClusteredPostingCacheItem(cacheKey).ramBytesUsed();
     }
 
     /**

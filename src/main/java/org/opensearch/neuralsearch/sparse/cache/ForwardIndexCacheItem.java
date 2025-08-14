@@ -87,11 +87,19 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
             long ramBytesUsed = vector.ramBytesUsed();
 
             if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
-                // TODO: cache eviction
                 if (circuitBreakerTriggerHandler != null) {
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
+                    return;
                 }
-                return;
+                
+                // Perform cache eviction when memory limit is reached
+                LRUCache.getInstance().evict(ramBytesUsed);
+
+                // Try again after eviction
+                if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+                    log.warn("Failed to add to cache even after eviction, vector will not be cached");
+                    return;
+                }
             }
 
             if (sparseVectors.compareAndSet(docId, null, vector)) {
@@ -100,22 +108,25 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
         }
 
         @Override
-        public void erase(int docId) {
+        public long erase(int docId) {
             if (docId >= sparseVectors.length()) {
-                return;
+                return 0;
             }
 
             SparseVector vector = sparseVectors.get(docId);
             if (vector == null) {
-                return;
+                return 0;
             }
 
-            long ramBytesUsed = vector.ramBytesUsed();
+            long ramBytesReleased = vector.ramBytesUsed();
 
             if (sparseVectors.compareAndSet(docId, vector, null)) {
-                usedRamBytes.addAndGet(-ramBytesUsed);
-                CircuitBreakerManager.releaseBytes(ramBytesUsed);
+                usedRamBytes.addAndGet(-ramBytesReleased);
+                CircuitBreakerManager.releaseBytes(ramBytesReleased);
+                return ramBytesReleased;
             }
+
+            return 0;
         }
     }
 }

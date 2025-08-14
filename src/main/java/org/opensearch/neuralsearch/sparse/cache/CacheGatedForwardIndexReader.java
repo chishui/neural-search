@@ -38,8 +38,8 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
         }
 
         @Override
-        public void erase(int docId) {
-            return;
+        public long erase(int docId) {
+            return 0;
         }
     };
 

@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
@@ -29,6 +30,7 @@ import java.util.function.Consumer;
 public class ClusteredPostingCacheItem implements Accountable {
 
     private static final String CIRCUIT_BREAKER_LABEL = "Cache Clustered Posting";
+    private final CacheKey cacheKey;
     private final Map<BytesRef, PostingClusters> clusteredPostings = new ConcurrentHashMap<>();
     private final AtomicLong usedRamBytes = new AtomicLong(RamUsageEstimator.shallowSizeOf(clusteredPostings));
     @Getter
@@ -36,6 +38,7 @@ public class ClusteredPostingCacheItem implements Accountable {
     @Getter
     private final ClusteredPostingWriter writer = new CacheClusteredPostingWriter();
 
+<<<<<<< HEAD
     /**
      * Returns the writer instance.
      * @param circuitBreakerHandler A consumer to handle circuit breaker triggering differently
@@ -46,6 +49,11 @@ public class ClusteredPostingCacheItem implements Accountable {
     }
 
     public ClusteredPostingCacheItem() {
+=======
+    public ClusteredPostingCacheItem(@NonNull CacheKey cachekey) {
+        cacheKey = cachekey;
+        usedRamBytes.addAndGet(RamUsageEstimator.shallowSizeOf(cachekey));
+>>>>>>> 3ae4ffe2 (Feat: Implement LRU cache)
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 
@@ -57,7 +65,12 @@ public class ClusteredPostingCacheItem implements Accountable {
     private class CacheClusteredPostingReader implements ClusteredPostingReader {
         @Override
         public PostingClusters read(BytesRef term) {
-            return clusteredPostings.get(term);
+            PostingClusters clusters = clusteredPostings.get(term);
+            if (clusters != null) {
+                // Record access to update LRU status
+                LRUCache.getInstance().updateAccess(cacheKey, term);
+            }
+            return clusters;
         }
 
         @Override
@@ -99,11 +112,19 @@ public class ClusteredPostingCacheItem implements Accountable {
             long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
 
             if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
-                // TODO: cache eviction
                 if (circuitBreakerTriggerHandler != null) {
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
+                    return;
                 }
-                return;
+                
+                // Perform cache eviction when memory limit is reached
+                LRUCache.getInstance().evict(ramBytesUsed);
+
+                // Try again after eviction
+                if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+                    log.warn("Failed to add to cache even after eviction, term will not be cached");
+                    return;
+                }
             }
 
             // Update the clusters with putIfAbsent for thread safety
@@ -112,26 +133,30 @@ public class ClusteredPostingCacheItem implements Accountable {
             // Only update memory usage if we actually inserted a new entry
             if (existingClusters == null) {
                 usedRamBytes.addAndGet(ramBytesUsed);
+                // Record access to update LRU status
+                LRUCache.getInstance().updateAccess(cacheKey, clonedTerm);
             }
         }
 
         @Override
-        public void erase(BytesRef term) {
+        public long erase(BytesRef term) {
             if (term == null) {
-                return;
+                return 0;
             }
             PostingClusters postingClusters = clusteredPostings.get(term);
             if (postingClusters == null) {
-                return;
+                return 0;
             }
             // Clone a new BytesRef object to avoid offset change
             BytesRef clonedTerm = term.clone();
-            long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
+            long ramBytesReleased = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
             PostingClusters removedClusters = clusteredPostings.remove(term);
             if (removedClusters != null) {
-                usedRamBytes.addAndGet(-ramBytesUsed);
-                CircuitBreakerManager.releaseBytes(ramBytesUsed);
+                usedRamBytes.addAndGet(-ramBytesReleased);
+                CircuitBreakerManager.releaseBytes(ramBytesReleased);
+                return ramBytesReleased;
             }
+            return 0;
         }
     }
 }
