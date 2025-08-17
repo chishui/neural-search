@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import lombok.SneakyThrows;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.Before;
@@ -14,9 +15,12 @@ import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.common.util.CollectionUtils;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.BaseNeuralSearchIT;
+import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,7 +43,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         super.setUp();
     }
 
-    protected Request configureSparseIndex(
+    protected void createSparseIndex(
         String indexName,
         String fieldName,
         int nPostings,
@@ -47,10 +51,34 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         float clusterRatio,
         int approximateThreshold
     ) throws IOException {
-        return configureSparseIndex(indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
+        createSparseIndex(indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
     }
 
-    protected Request configureSparseIndex(
+    protected void createSparseIndex(
+        String indexName,
+        String fieldName,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold,
+        int shards,
+        int replicas
+    ) throws IOException {
+        Request request = configureSparseIndex(
+            indexName,
+            fieldName,
+            nPostings,
+            alpha,
+            clusterRatio,
+            approximateThreshold,
+            shards,
+            replicas
+        );
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+    }
+
+    private Request configureSparseIndex(
         String indexName,
         String fieldName,
         int nPostings,
@@ -97,6 +125,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         XContentBuilder settingBuilder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("index")
+            .field("number_of_routing_shards", shards) // Shard routing setting
             .field("sparse", true)
             .field("number_of_shards", shards)
             .field("number_of_replicas", replicas)
@@ -135,14 +164,14 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     }
 
     protected void waitForSegmentMerge(String index) throws InterruptedException {
-        waitForSegmentMerge(index, 1);
+        waitForSegmentMerge(index, 1, 0);
     }
 
-    protected void waitForSegmentMerge(String index, int shards) throws InterruptedException {
-        int maxRetry = 5;
+    protected void waitForSegmentMerge(String index, int shards, int replicas) throws InterruptedException {
+        int maxRetry = 30;
         for (int i = 0; i < maxRetry; ++i) {
-            if (shards == getSegmentCount(index)) {
-                break;
+            if (shards * (1 + replicas) == getSegmentCount(index)) {
+                return;
             }
             Thread.sleep(1000);
         }
@@ -156,12 +185,41 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
             String[] lines = str.split("\n");
             return lines.length;
         } catch (IOException | ParseException e) {
-            throw new RuntimeException(e);
+            return 0;
         }
     }
 
-    protected void ingestDocuments(String index, String textField, String sparseField, List<Map<String, Float>> docTokens) {
-        ingestDocuments(index, textField, sparseField, docTokens, null, 1);
+    protected int getNodeCount() {
+        Request request = new Request("GET", "/_cat/nodes/");
+        try {
+            Response response = client().performRequest(request);
+            String str = EntityUtils.toString(response.getEntity());
+            String[] lines = str.split("\n");
+            return lines.length;
+        } catch (IOException | ParseException e) {
+            return 0;
+        }
+    }
+
+    @SneakyThrows
+    protected void ingestDocumentsAndForceMerge(String index, String textField, String sparseField, List<Map<String, Float>> docTokens) {
+        ingestDocumentsAndForceMerge(index, textField, sparseField, docTokens, null);
+    }
+
+    @SneakyThrows
+    protected void ingestDocumentsAndForceMerge(
+        String index,
+        String textField,
+        String sparseField,
+        List<Map<String, Float>> docTokens,
+        List<String> docTexts
+    ) {
+        ingestDocuments(index, textField, sparseField, docTokens, docTexts, 1);
+
+        forceMerge(index);
+        // wait until force merge complete
+        waitForSegmentMerge(index);
+        assertEquals(1, getSegmentCount(index));
     }
 
     protected void ingestDocuments(
@@ -207,19 +265,45 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
      */
     protected List<String> generateUniqueRoutingIds(int num) {
         List<String> routingIds = new ArrayList<>();
-        Set<Integer> uniqueHash = new HashSet<>();
+        Set<Integer> uniqueShardIds = new HashSet<>();
         for (int i = 0; i < 10000; ++i) {
             String candidate = String.valueOf(i);
             int hash = Murmur3HashFunction.hash(candidate);
-            if (uniqueHash.contains(hash)) {
+            int shardId = Math.floorMod(hash, num);
+            if (uniqueShardIds.contains(shardId)) {
                 continue;
             }
-            uniqueHash.add(hash);
+            uniqueShardIds.add(shardId);
             routingIds.add(candidate);
             if (routingIds.size() == num) {
                 break;
             }
         }
         return routingIds;
+    }
+
+    protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
+        return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
+    }
+
+    protected NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(
+        String field,
+        int cut,
+        float hf,
+        int k,
+        Map<String, Float> query,
+        QueryBuilder filter
+    ) {
+        SparseAnnQueryBuilder annQueryBuilder = new SparseAnnQueryBuilder().queryCut(cut)
+            .fieldName(field)
+            .heapFactor(hf)
+            .k(k)
+            .queryTokens(query)
+            .filter(filter);
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
+            .fieldName(field)
+            .queryTokensSupplier(() -> query);
+        return neuralSparseQueryBuilder;
     }
 }

@@ -4,15 +4,15 @@
  */
 package org.opensearch.neuralsearch.sparse.data;
 
+import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.common.DocWeightIterator;
 
 public class DocumentClusterTests extends AbstractSparseTestBase {
 

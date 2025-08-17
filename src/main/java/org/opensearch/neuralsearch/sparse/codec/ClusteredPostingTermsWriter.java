@@ -169,7 +169,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
                 while (iter.hasNext()) {
                     SparseVector.Item item = iter.next();
                     postingOut.writeVInt(item.getToken());
-                    postingOut.writeByte(item.getFreq());
+                    postingOut.writeByte(item.getWeight());
                 }
             }
         }

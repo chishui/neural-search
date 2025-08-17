@@ -14,10 +14,8 @@ import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.MatchQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
-import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,9 +47,7 @@ public class SparseIndexingIT extends SparseBaseIT {
      * Test creating an index with sparse index setting enabled
      */
     public void testCreateSparseIndex() throws IOException {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, 8);
 
         // Verify index exists
         assertTrue(indexExists(TEST_INDEX_NAME));
@@ -161,27 +157,31 @@ public class SparseIndexingIT extends SparseBaseIT {
      * Test error handling when creating a sparse tokens field with invalid parameters
      */
     public void testSparseTokensFieldWithInvalidParameters() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, -1, 0.4f, 0.1f, 8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, -1, 0.4f, 0.1f, 8); }
+        );
     }
 
     public void testSparseTokensFieldWithInvalidParameters2() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, -0.4f, 0.1f, 8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, -0.4f, 0.1f, 8); }
+        );
     }
 
     public void testSparseTokensFieldWithInvalidParameters3() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, -0.1f, 8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, -0.1f, 8); }
+        );
     }
 
     public void testSparseTokensFieldWithInvalidParameters4() throws IOException {
-        expectThrows(IOException.class, () -> {
-            client().performRequest(configureSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, -8));
-        });
+        expectThrows(
+            IOException.class,
+            () -> { createSparseIndex(INVALID_PARAM_TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, -8); }
+        );
     }
 
     /**
@@ -222,11 +222,9 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicPostingPruning() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -241,10 +239,6 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("1000", 0.8f, "2000", 0.8f)
             )
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -262,9 +256,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsMixSeismicWithRankFeatures() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -305,9 +297,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsWithAllRankFeatures() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 100);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 100);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -351,11 +341,9 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicWithCut() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -371,10 +359,6 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("3000", 0.0001f)
             )
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -393,9 +377,7 @@ public class SparseIndexingIT extends SparseBaseIT {
 
     public void testIngestDocumentsSeismicHeapFactor() throws Exception {
         final int docCount = 100;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, docCount, 0.4f, 0.5f, docCount);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, docCount, 0.4f, 0.5f, docCount);
 
         List<Map<String, Float>> docs = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {
@@ -408,11 +390,7 @@ public class SparseIndexingIT extends SparseBaseIT {
             docs.add(tokens);
         }
 
-        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
+        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
             TEST_SPARSE_FIELD_NAME,
@@ -439,11 +417,9 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicWithPreFiltering() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -457,13 +433,8 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("1000", 0.7f, "2000", 0.7f),
                 Map.of("1000", 0.8f, "2000", 0.8f)
             ),
-            List.of("apple", "tree", "apple", "tree", "apple", "tree", "apple", "tree"),
-            1
+            List.of("apple", "tree", "apple", "tree", "apple", "tree", "apple", "tree")
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();
@@ -503,11 +474,9 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsAllSeismicWithPostFiltering() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
@@ -521,13 +490,8 @@ public class SparseIndexingIT extends SparseBaseIT {
                 Map.of("1000", 0.7f, "2000", 0.7f),
                 Map.of("1000", 0.8f, "2000", 0.8f)
             ),
-            List.of("apple", "apple", "apple", "apple", "apple", "apple", "apple", "tree"),
-            1
+            List.of("apple", "apple", "apple", "apple", "apple", "apple", "apple", "tree")
         );
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME);
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();
@@ -552,9 +516,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     }
 
     public void testIngestDocumentsRankFeaturesWithFiltering() throws Exception {
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 1, 0.4f, 0.5f, 100);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 1, 0.4f, 0.5f, 100);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -596,10 +558,11 @@ public class SparseIndexingIT extends SparseBaseIT {
 
     public void testIngestDocumentsMultipleShards() throws Exception {
         int shards = 3;
-        Request request = configureSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 5, 0.4f, 0.5f, 20, shards, 3);
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
         int docCount = 20;
+        // effective number of replica is capped by the number of OpenSearch nodes minus 1
+        int replicas = Math.min(3, getNodeCount() - 1);
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 5, 0.4f, 0.5f, docCount, shards, replicas);
+
         List<Map<String, Float>> docs = new ArrayList<>();
         List<String> text = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {
@@ -623,7 +586,9 @@ public class SparseIndexingIT extends SparseBaseIT {
 
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME, shards);
+        waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
+        // there are replica segments
+        assertEquals(shards * (replicas + 1), getSegmentCount(TEST_INDEX_NAME));
 
         // filter apple
         BoolQueryBuilder filter = new BoolQueryBuilder();
@@ -653,30 +618,5 @@ public class SparseIndexingIT extends SparseBaseIT {
             actualIds.add(id);
         }
         return actualIds;
-    }
-
-    private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(String field, int cut, float hf, int k, Map<String, Float> query) {
-        return getNeuralSparseQueryBuilder(field, cut, hf, k, query, null);
-    }
-
-    private NeuralSparseQueryBuilder getNeuralSparseQueryBuilder(
-        String field,
-        int cut,
-        float hf,
-        int k,
-        Map<String, Float> query,
-        QueryBuilder filter
-    ) {
-        SparseAnnQueryBuilder annQueryBuilder = new SparseAnnQueryBuilder().queryCut(cut)
-            .fieldName(field)
-            .heapFactor(hf)
-            .k(k)
-            .queryTokens(query)
-            .filter(filter);
-
-        NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
-            .fieldName(field)
-            .queryTokensSupplier(() -> query);
-        return neuralSparseQueryBuilder;
     }
 }

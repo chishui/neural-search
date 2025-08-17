@@ -4,11 +4,11 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-
-import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 
 public class IteratorWrapperTests extends AbstractSparseTestBase {
 

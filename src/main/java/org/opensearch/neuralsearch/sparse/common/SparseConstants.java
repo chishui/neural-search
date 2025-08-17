@@ -4,6 +4,10 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+/**
+ * Constants used throughout the sparse vector search implementation.
+ * Contains field names, configuration parameters, and default values for SEISMIC algorithm.
+ */
 public final class SparseConstants {
     public static final String NAME_FIELD = "name";
     public static final String PARAMETERS_FIELD = "parameters";
@@ -13,12 +17,10 @@ public final class SparseConstants {
     public static final String CLUSTER_RATIO_FIELD = "cluster_ratio";
     public static final String APPROXIMATE_THRESHOLD_FIELD = "approximate_threshold";
     public static final String INDEX_THREAD_QTY = "indexThreadQty";
+    public static final int MODULUS_FOR_SHORT = 65536;
 
     /**
-     * DEFAULT_APPROXIMATE_THRESHOLD: Minimum document collection number to trigger Seismic
-     * DEFAULT_POSTING_MINIMUM_LENGTH: Minimum posting length when operating with a Seismic segments
-     * SEISMIC is generally only recommended for collections at least 100K documents, where 160 is a good value for the posting length
-     * If N_POSTINGS is not provided, each posting list will be automatically pruned with DEFAULT_POSTING_PRUNE_RATIO
+     * SEISMIC algorithm configuration constants and default values.
      */
     public static final class Seismic {
         public static final int DEFAULT_N_POSTINGS = -1;

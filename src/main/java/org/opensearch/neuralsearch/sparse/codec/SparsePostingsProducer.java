@@ -25,13 +25,13 @@ public class SparsePostingsProducer extends FieldsProducer {
 
     private final FieldsProducer delegate;
     private final SegmentReadState state;
-    private SparseTermsLuceneReader reader;
+    private final SparseTermsLuceneReader reader;
 
-    public SparsePostingsProducer(FieldsProducer delegate, SegmentReadState state) throws IOException {
+    public SparsePostingsProducer(FieldsProducer delegate, SegmentReadState state, SparseTermsLuceneReader reader) throws IOException {
         super();
         this.delegate = delegate;
         this.state = state;
-        this.reader = null;
+        this.reader = reader;
     }
 
     @Override
@@ -59,9 +59,6 @@ public class SparsePostingsProducer extends FieldsProducer {
         FieldInfo fieldInfo = this.state.fieldInfos.fieldInfo(field);
         if (!SparseTokensField.isSparseField(fieldInfo) || !PredicateUtils.shouldRunSeisPredicate.test(this.state.segmentInfo, fieldInfo)) {
             return delegate.terms(field);
-        }
-        if (reader == null) {
-            reader = new SparseTermsLuceneReader(state);
         }
         CacheKey key = new CacheKey(this.state.segmentInfo, fieldInfo);
         return new SparseTerms(key, reader, field);
