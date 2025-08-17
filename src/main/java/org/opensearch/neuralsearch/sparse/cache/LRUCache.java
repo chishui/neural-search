@@ -34,7 +34,6 @@ public class LRUCache {
 
     // Map to track term access with LRU ordering
     private final Map<TermKey, Boolean> accessRecencyMap;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     /**
      * The default initial capacity - MUST be a power of two.
@@ -66,11 +65,8 @@ public class LRUCache {
         }
 
         TermKey termKey = new TermKey(cacheKey, term.clone());
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             accessRecencyMap.put(termKey, true);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
@@ -81,8 +77,7 @@ public class LRUCache {
      * @return The least recently used TermKey, or null if the cache is empty
      */
     private TermKey getLeastRecentlyUsedItem() {
-        lock.readLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             if (accessRecencyMap.isEmpty()) {
                 return null;
             }
@@ -93,8 +88,6 @@ public class LRUCache {
                 return iterator.next().getKey();
             }
             return null;
-        } finally {
-            lock.readLock().unlock();
         }
     }
 
@@ -145,54 +138,51 @@ public class LRUCache {
      * @return number of bytes freed, or 0 if the term was not evicted
      */
     private long evictTerm(TermKey termKey) {
-        lock.writeLock().lock();
-        try {
-            // Remove from access tracking
+        // Remove from access tracking
+        synchronized (accessRecencyMap) {
             if (accessRecencyMap.remove(termKey) == null) {
                 return 0;
             }
-
-            CacheKey cacheKey = termKey.getCacheKey();
-            BytesRef term = termKey.getTerm();
-
-            // Get the caches
-            ForwardIndexCacheItem forwardIndexCache = ForwardIndexCache.getInstance().get(cacheKey);
-            ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
-            SparseVectorWriter forwardIndexWriter = forwardIndexCache.getWriter();
-
-            PostingClusters postingClusters = null;
-            try {
-                postingClusters = clusteredPostingCache.getReader().read(term);
-            } catch (IOException e) {
-                log.error("Error while reading posting clusters for term {} from cache for index {}", term, cacheKey, e);
-                return 0;
-            }
-
-            if (postingClusters == null) {
-                return 0;
-            }
-
-            // Track bytes released
-            long ramBytesReleased = 0;
-
-            // Evict from forward index cache
-            List<DocumentCluster> clusters = postingClusters.getClusters();
-            for (DocumentCluster cluster : clusters) {
-                Iterator<DocWeight> iterator = cluster.iterator();
-                while (iterator.hasNext()) {
-                    DocWeight docWeight = iterator.next();
-                    ramBytesReleased += forwardIndexWriter.erase(docWeight.getDocID());
-                }
-            }
-
-            // Evict from clustered posting cache
-            ramBytesReleased += clusteredPostingCache.getWriter().erase(term);
-
-            log.debug("Evicted term {} from cache for index {}", term, cacheKey);
-            return ramBytesReleased;
-        } finally {
-            lock.writeLock().unlock();
         }
+
+        CacheKey cacheKey = termKey.getCacheKey();
+        BytesRef term = termKey.getTerm();
+
+        // Get the caches
+        ForwardIndexCacheItem forwardIndexCache = ForwardIndexCache.getInstance().get(cacheKey);
+        ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
+        SparseVectorWriter forwardIndexWriter = forwardIndexCache.getWriter();
+
+        PostingClusters postingClusters = null;
+        try {
+            postingClusters = clusteredPostingCache.getReader().read(term);
+        } catch (IOException e) {
+            log.error("Error while reading posting clusters for term {} from cache for index {}", term, cacheKey, e);
+            return 0;
+        }
+
+        if (postingClusters == null) {
+            return 0;
+        }
+
+        // Track bytes released
+        long ramBytesReleased = 0;
+
+        // Evict from forward index cache
+        List<DocumentCluster> clusters = postingClusters.getClusters();
+        for (DocumentCluster cluster : clusters) {
+            Iterator<DocWeight> iterator = cluster.iterator();
+            while (iterator.hasNext()) {
+                DocWeight docWeight = iterator.next();
+                ramBytesReleased += forwardIndexWriter.erase(docWeight.getDocID());
+            }
+        }
+
+        // Evict from clustered posting cache
+        ramBytesReleased += clusteredPostingCache.getWriter().erase(term);
+
+        log.debug("Evicted term {} from cache for index {}", term, cacheKey);
+        return ramBytesReleased;
     }
 
     /**
@@ -201,11 +191,8 @@ public class LRUCache {
      * @param cacheKey The cache key to remove
      */
     public void removeIndex(@NonNull CacheKey cacheKey) {
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             accessRecencyMap.keySet().removeIf(key -> key.getCacheKey().equals(cacheKey));
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
