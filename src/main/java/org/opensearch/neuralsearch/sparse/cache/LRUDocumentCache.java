@@ -28,7 +28,6 @@ public class LRUDocumentCache {
 
     // Map to track document access with LRU ordering
     private final Map<DocumentKey, Boolean> accessRecencyMap;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     /**
      * The default initial capacity - MUST be a power of two.
@@ -60,11 +59,8 @@ public class LRUDocumentCache {
         }
 
         DocumentKey documentKey = new DocumentKey(cacheKey, docId);
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             accessRecencyMap.put(documentKey, true);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
@@ -75,8 +71,7 @@ public class LRUDocumentCache {
      * @return The least recently used TermKey, or null if the cache is empty
      */
     private DocumentKey getLeastRecentlyUsedItem() {
-        lock.readLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             if (accessRecencyMap.isEmpty()) {
                 return null;
             }
@@ -87,8 +82,6 @@ public class LRUDocumentCache {
                 return iterator.next().getKey();
             }
             return null;
-        } finally {
-            lock.readLock().unlock();
         }
     }
 
@@ -139,30 +132,23 @@ public class LRUDocumentCache {
      * @return number of bytes freed, or 0 if the term was not evicted
      */
     private long evictDocument(DocumentKey documentKey) {
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             // Remove from access tracking
             if (accessRecencyMap.remove(documentKey) == null) {
                 return 0;
             }
-
-            CacheKey cacheKey = documentKey.getCacheKey();
-            int docId = documentKey.getDocId();
-
-            // Get the caches
-            ForwardIndexCacheItem forwardIndexCache = ForwardIndexCache.getInstance().get(cacheKey);
-            ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
-            SparseVectorWriter forwardIndexWriter = forwardIndexCache.getWriter();
-
-            // Track bytes released
-            long ramBytesReleased = forwardIndexWriter.erase(docId);
-
-            log.debug("Evicted document {} from cache for index {}", docId, cacheKey);
-
-            return ramBytesReleased;
-        } finally {
-            lock.writeLock().unlock();
         }
+
+        CacheKey cacheKey = documentKey.getCacheKey();
+        int docId = documentKey.getDocId();
+
+        // Get the caches
+        ForwardIndexCacheItem forwardIndexCache = ForwardIndexCache.getInstance().get(cacheKey);
+        SparseVectorWriter forwardIndexWriter = forwardIndexCache.getWriter();
+
+        // Track bytes released
+        log.debug("Evicted document {} from cache for index {}", docId, cacheKey);
+        return forwardIndexWriter.erase(docId);
     }
 
     /**
@@ -171,11 +157,8 @@ public class LRUDocumentCache {
      * @param cacheKey The cache key to remove
      */
     public void removeIndex(@NonNull CacheKey cacheKey) {
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             accessRecencyMap.keySet().removeIf(key -> key.getCacheKey().equals(cacheKey));
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 

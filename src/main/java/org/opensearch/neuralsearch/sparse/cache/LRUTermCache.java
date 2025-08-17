@@ -9,15 +9,9 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
-import org.opensearch.neuralsearch.sparse.data.DocWeight;
-import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
-import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -34,7 +28,6 @@ public class LRUTermCache {
 
     // Map to track term access with LRU ordering
     private final Map<TermKey, Boolean> accessRecencyMap;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     /**
      * The default initial capacity - MUST be a power of two.
@@ -66,11 +59,8 @@ public class LRUTermCache {
         }
 
         TermKey termKey = new TermKey(cacheKey, term.clone());
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             accessRecencyMap.put(termKey, true);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
@@ -81,8 +71,7 @@ public class LRUTermCache {
      * @return The least recently used TermKey, or null if the cache is empty
      */
     private TermKey getLeastRecentlyUsedItem() {
-        lock.readLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             if (accessRecencyMap.isEmpty()) {
                 return null;
             }
@@ -93,8 +82,6 @@ public class LRUTermCache {
                 return iterator.next().getKey();
             }
             return null;
-        } finally {
-            lock.readLock().unlock();
         }
     }
 
@@ -145,22 +132,19 @@ public class LRUTermCache {
      * @return number of bytes freed, or 0 if the term was not evicted
      */
     private long evictTerm(TermKey termKey) {
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             // Remove from access tracking
             if (accessRecencyMap.remove(termKey) == null) {
                 return 0;
             }
-
-            CacheKey cacheKey = termKey.getCacheKey();
-            BytesRef term = termKey.getTerm();
-
-            ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
-            log.debug("Evicted term {} from cache for index {}", term, cacheKey);
-            return clusteredPostingCache.getWriter().erase(term);
-        } finally {
-            lock.writeLock().unlock();
         }
+
+        CacheKey cacheKey = termKey.getCacheKey();
+        BytesRef term = termKey.getTerm();
+
+        ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
+        log.debug("Evicted term {} from cache for index {}", term, cacheKey);
+        return clusteredPostingCache.getWriter().erase(term);
     }
 
     /**
@@ -169,11 +153,8 @@ public class LRUTermCache {
      * @param cacheKey The cache key to remove
      */
     public void removeIndex(@NonNull CacheKey cacheKey) {
-        lock.writeLock().lock();
-        try {
+        synchronized (accessRecencyMap) {
             accessRecencyMap.keySet().removeIf(key -> key.getCacheKey().equals(cacheKey));
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
