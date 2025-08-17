@@ -144,9 +144,9 @@ public class NeuralSparseIndexShard {
                         if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
                             continue;
                         }
-                            CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
-                            ClusteredPostingCache.getInstance().removeIndex(cacheKey);
-                            ForwardIndexCache.getInstance().removeIndex(cacheKey);
+                        CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
+                        ClusteredPostingCache.getInstance().removeIndex(cacheKey);
+                        ForwardIndexCache.getInstance().removeIndex(cacheKey);
 
                     }
                 }
