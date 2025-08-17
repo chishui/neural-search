@@ -51,7 +51,7 @@ public class ClusteredPostingCacheItem implements Accountable {
     public ClusteredPostingCacheItem() {
 =======
     public ClusteredPostingCacheItem(@NonNull CacheKey cachekey) {
-        cacheKey = cachekey;
+        this.cacheKey = cachekey;
         usedRamBytes.addAndGet(RamUsageEstimator.shallowSizeOf(cachekey));
 >>>>>>> 3ae4ffe2 (Feat: Implement LRU cache)
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
@@ -68,7 +68,7 @@ public class ClusteredPostingCacheItem implements Accountable {
             PostingClusters clusters = clusteredPostings.get(term);
             if (clusters != null) {
                 // Record access to update LRU status
-                LRUCache.getInstance().updateAccess(cacheKey, term);
+                LRUTermCache.getInstance().updateAccess(cacheKey, term);
             }
             return clusters;
         }
@@ -118,7 +118,7 @@ public class ClusteredPostingCacheItem implements Accountable {
                 }
                 
                 // Perform cache eviction when memory limit is reached
-                LRUCache.getInstance().evict(ramBytesUsed);
+                LRUTermCache.getInstance().evict(ramBytesUsed);
 
                 // Try again after eviction
                 if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
@@ -134,7 +134,7 @@ public class ClusteredPostingCacheItem implements Accountable {
             if (existingClusters == null) {
                 usedRamBytes.addAndGet(ramBytesUsed);
                 // Record access to update LRU status
-                LRUCache.getInstance().updateAccess(cacheKey, clonedTerm);
+                LRUTermCache.getInstance().updateAccess(cacheKey, clonedTerm);
             }
         }
 

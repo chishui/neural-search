@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -25,6 +26,7 @@ import java.util.function.Consumer;
 public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accountable {
 
     private static final String CIRCUIT_BREAKER_LABEL = "Cache Forward Index";
+    private final CacheKey cacheKey;
     private final AtomicReferenceArray<SparseVector> sparseVectors;
     private final AtomicLong usedRamBytes;
     @Getter
@@ -63,7 +65,12 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
             if (docId >= sparseVectors.length()) {
                 return null;
             }
-            return sparseVectors.get(docId);
+            SparseVector vector = sparseVectors.get(docId);
+            if (vector != null) {
+                // Record access to update LRU status
+                LRUDocumentCache.getInstance().updateAccess(cacheKey, docId);
+            }
+            return vector;
         }
     }
 
@@ -93,7 +100,7 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
                 }
                 
                 // Perform cache eviction when memory limit is reached
-                LRUCache.getInstance().evict(ramBytesUsed);
+                LRUDocumentCache.getInstance().evict(ramBytesUsed);
 
                 // Try again after eviction
                 if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
@@ -120,9 +127,11 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
 
             long ramBytesReleased = vector.ramBytesUsed();
 
+            // Only update memory usage if we actually inserted a new document
             if (sparseVectors.compareAndSet(docId, vector, null)) {
                 usedRamBytes.addAndGet(-ramBytesReleased);
                 CircuitBreakerManager.releaseBytes(ramBytesReleased);
+                LRUDocumentCache.getInstance().updateAccess(cacheKey, docId);
                 return ramBytesReleased;
             }
 
