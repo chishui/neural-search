@@ -13,8 +13,6 @@ import org.apache.lucene.util.BytesRef;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * LRU cache implementation for sparse vector caches.
