@@ -155,41 +155,9 @@ public class LRUTermCache {
             CacheKey cacheKey = termKey.getCacheKey();
             BytesRef term = termKey.getTerm();
 
-            // Get the caches
-            ForwardIndexCacheItem forwardIndexCache = ForwardIndexCache.getInstance().get(cacheKey);
             ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
-            SparseVectorWriter forwardIndexWriter = forwardIndexCache.getWriter();
-
-            PostingClusters postingClusters = null;
-            try {
-                postingClusters = clusteredPostingCache.getReader().read(term);
-            } catch (IOException e) {
-                log.error("Error while reading posting clusters for term {} from cache for index {}", term, cacheKey, e);
-                return 0;
-            }
-
-            if (postingClusters == null) {
-                return 0;
-            }
-
-            // Track bytes released
-            long ramBytesReleased = 0;
-
-            // Evict from forward index cache
-            List<DocumentCluster> clusters = postingClusters.getClusters();
-            for (DocumentCluster cluster : clusters) {
-                Iterator<DocWeight> iterator = cluster.iterator();
-                while (iterator.hasNext()) {
-                    DocWeight docWeight = iterator.next();
-                    ramBytesReleased += forwardIndexWriter.erase(docWeight.getDocID());
-                }
-            }
-
-            // Evict from clustered posting cache
-            ramBytesReleased += clusteredPostingCache.getWriter().erase(term);
-
             log.debug("Evicted term {} from cache for index {}", term, cacheKey);
-            return ramBytesReleased;
+            return clusteredPostingCache.getWriter().erase(term);
         } finally {
             lock.writeLock().unlock();
         }
