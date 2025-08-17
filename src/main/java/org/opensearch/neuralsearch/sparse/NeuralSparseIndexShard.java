@@ -59,7 +59,7 @@ public class NeuralSparseIndexShard {
 
     private static final ConcurrentHashMap<String, ReadWriteLock> shardLocks = new ConcurrentHashMap<>();
 
-    private static final ConcurrentHashMap<String, Boolean> warmupStatus = new ConcurrentHashMap<>();
+    // private static final ConcurrentHashMap<String, Boolean> warmupStatus = new ConcurrentHashMap<>();
 
     private static final String warmUpSearcherSource = "warm-up-searcher-source";
     private static final String clearCacheSearcherSource = "clear-cache-searcher-source";
@@ -80,16 +80,9 @@ public class NeuralSparseIndexShard {
      * Early stop to save resources if this is a repeated request
      */
     public void warmUp() {
-        String shardKey = indexShard.shardId().toString();
-        if (warmupStatus.putIfAbsent(shardKey, true) != null) {
-            log.info("[Neural Sparse] Warmup already in progress");
-            return;
-        }
         ReadWriteLock shardLock = getShardLock();
         shardLock.readLock().lock();
         try {
-            log.info("[Neural Sparse] Warming up index: [{}]", getIndexName());
-
             try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
                 for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
                     final LeafReader leafReader = leafReaderContext.reader();
@@ -120,9 +113,8 @@ public class NeuralSparseIndexShard {
                 log.error("[Neural Sparse] Failed to acquire searcher", e);
                 throw new RuntimeException(e);
             }
-            log.info("[Neural Sparse] Completed warming up cache for index: [{}]", getIndexName());
         } finally {
-            warmupStatus.remove(shardKey);
+            // warmupStatus.remove(shardKey);
             shardLock.readLock().unlock();
         }
     }
@@ -133,12 +125,9 @@ public class NeuralSparseIndexShard {
      * Uses write lock to ensure exclusive access during cache clearing.
      */
     public void clearCache() {
-        String shardKey = indexShard.shardId().toString();
         ReadWriteLock shardLock = getShardLock();
         shardLock.writeLock().lock();
         try {
-            log.info("[Neural Sparse] Clearing cache for index: [{}]", getIndexName());
-
             try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
                 for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
                     final LeafReader leafReader = leafReaderContext.reader();
@@ -155,27 +144,18 @@ public class NeuralSparseIndexShard {
                         if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
                             continue;
                         }
-                        try {
                             CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
                             ClusteredPostingCache.getInstance().removeIndex(cacheKey);
                             ForwardIndexCache.getInstance().removeIndex(cacheKey);
-                        } catch (Exception e) {
-                            log.error(
-                                "[Neural Sparse] Failed to clear cache for field: {} in segment: {}",
-                                fieldInfo.getName(),
-                                segmentInfo.name,
-                                e
-                            );
-                        }
+
                     }
                 }
             } catch (Exception e) {
                 log.error("[Neural Sparse] Failed to acquire searcher", e);
                 throw new RuntimeException(e);
             }
-            log.info("[Neural Sparse] Completed clearing cache for index: [{}]", getIndexName());
         } finally {
-            warmupStatus.remove(shardKey);
+            // clearStatus.remove(shardKey);
             shardLock.writeLock().unlock();
         }
     }

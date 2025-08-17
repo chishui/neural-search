@@ -60,7 +60,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseWarmupRequest::new,
-            ThreadPool.Names.SEARCH
+            ThreadPool.Names.FORCE_MERGE
         );
         this.indicesService = indicesService;
     }

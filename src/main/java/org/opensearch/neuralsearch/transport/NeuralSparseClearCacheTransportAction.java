@@ -62,7 +62,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseClearCacheRequest::new,
-            ThreadPool.Names.SEARCH
+            ThreadPool.Names.FORCE_MERGE
         );
         this.indicesService = indicesService;
     }
