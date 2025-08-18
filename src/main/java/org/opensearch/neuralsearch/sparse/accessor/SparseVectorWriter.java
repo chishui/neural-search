@@ -17,6 +17,7 @@ import java.io.IOException;
  * Implementations of this interface are responsible for efficiently persisting
  * sparse vector data, which may involve writing to disk, memory, or other storage media.
  */
+@FunctionalInterface
 public interface SparseVectorWriter {
 
     /**
@@ -31,12 +32,4 @@ public interface SparseVectorWriter {
      *                     when accessing the underlying storage medium
      */
     void insert(int docId, SparseVector vector) throws IOException;
-
-    /**
-     * Removes a sparse vector from the forward index.
-     *
-     * @param docId The document ID of the sparse vector to be removed from the forward index
-     * @return The number of RAM bytes freed by removing this sparse vector
-     */
-    long erase(int docId);
 }

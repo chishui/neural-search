@@ -9,6 +9,7 @@ import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.neuralsearch.sparse.accessor.CacheableSparseVectorWriter;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
@@ -32,7 +33,7 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
     @Getter
     private final SparseVectorReader reader = new CacheSparseVectorReader();
     @Getter
-    private final SparseVectorWriter writer = new CacheSparseVectorWriter();
+    private final CacheableSparseVectorWriter writer = new CacheSparseVectorWriter();
 
     /**
      * Returns the writer instance.
@@ -114,7 +115,12 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
             }
         }
 
-        @Override
+        /**
+         * Removes a sparse vector from the cached forward index.
+         *
+         * @param docId The document ID of the sparse vector to be removed from the forward index
+         * @return The number of RAM bytes freed by removing this sparse vector
+         */
         public long erase(int docId) {
             if (docId >= sparseVectors.length()) {
                 return 0;

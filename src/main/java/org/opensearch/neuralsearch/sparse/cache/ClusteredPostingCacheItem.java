@@ -10,6 +10,8 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.neuralsearch.sparse.accessor.CacheableClusteredPostingWriter;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPosting;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
@@ -27,7 +29,7 @@ import java.util.function.Consumer;
  * It is used by the SparsePostingsConsumer and SparsePostingsReader classes.
  */
 @Log4j2
-public class ClusteredPostingCacheItem implements Accountable {
+public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable {
 
     private static final String CIRCUIT_BREAKER_LABEL = "Cache Clustered Posting";
     private final CacheKey cacheKey;
@@ -36,9 +38,8 @@ public class ClusteredPostingCacheItem implements Accountable {
     @Getter
     private final ClusteredPostingReader reader = new CacheClusteredPostingReader();
     @Getter
-    private final ClusteredPostingWriter writer = new CacheClusteredPostingWriter();
+    private final CacheableClusteredPostingWriter writer = new CacheClusteredPostingWriter();
 
-<<<<<<< HEAD
     /**
      * Returns the writer instance.
      * @param circuitBreakerHandler A consumer to handle circuit breaker triggering differently
@@ -49,11 +50,6 @@ public class ClusteredPostingCacheItem implements Accountable {
     }
 
     public ClusteredPostingCacheItem() {
-=======
-    public ClusteredPostingCacheItem(@NonNull CacheKey cachekey) {
-        this.cacheKey = cachekey;
-        usedRamBytes.addAndGet(RamUsageEstimator.shallowSizeOf(cachekey));
->>>>>>> 3ae4ffe2 (Feat: Implement LRU cache)
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 
@@ -98,7 +94,6 @@ public class ClusteredPostingCacheItem implements Accountable {
             this.circuitBreakerTriggerHandler = null;
         }
 
-
         @Override
         public void insert(BytesRef term, List<DocumentCluster> clusters) {
             if (clusters == null || clusters.isEmpty() || term == null) {
@@ -129,14 +124,15 @@ public class ClusteredPostingCacheItem implements Accountable {
 
             // Update the clusters with putIfAbsent for thread safety
             PostingClusters existingClusters = clusteredPostings.putIfAbsent(clonedTerm, postingClusters);
+            // Record access to update LRU status
+            LRUTermCache.getInstance().updateAccess(cacheKey, clonedTerm);
 
             // Only update memory usage if we actually inserted a new entry
             if (existingClusters == null) {
                 usedRamBytes.addAndGet(ramBytesUsed);
-                // Record access to update LRU status
-                LRUTermCache.getInstance().updateAccess(cacheKey, clonedTerm);
             }
         }
+
 
         @Override
         public long erase(BytesRef term) {
@@ -150,7 +146,7 @@ public class ClusteredPostingCacheItem implements Accountable {
             // Clone a new BytesRef object to avoid offset change
             BytesRef clonedTerm = term.clone();
             long ramBytesReleased = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
-            PostingClusters removedClusters = clusteredPostings.remove(term);
+            PostingClusters removedClusters = clusteredPostings.remove(clonedTerm);
             if (removedClusters != null) {
                 usedRamBytes.addAndGet(-ramBytesReleased);
                 CircuitBreakerManager.releaseBytes(ramBytesReleased);
