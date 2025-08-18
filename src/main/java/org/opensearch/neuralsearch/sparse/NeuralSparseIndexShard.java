@@ -59,8 +59,6 @@ public class NeuralSparseIndexShard {
 
     private static final ConcurrentHashMap<String, ReadWriteLock> shardLocks = new ConcurrentHashMap<>();
 
-    // private static final ConcurrentHashMap<String, Boolean> warmupStatus = new ConcurrentHashMap<>();
-
     private static final String warmUpSearcherSource = "warm-up-searcher-source";
     private static final String clearCacheSearcherSource = "clear-cache-searcher-source";
 
@@ -114,7 +112,6 @@ public class NeuralSparseIndexShard {
                 throw new RuntimeException(e);
             }
         } finally {
-            // warmupStatus.remove(shardKey);
             shardLock.readLock().unlock();
         }
     }
@@ -155,7 +152,6 @@ public class NeuralSparseIndexShard {
                 throw new RuntimeException(e);
             }
         } finally {
-            // clearStatus.remove(shardKey);
             shardLock.writeLock().unlock();
         }
     }
