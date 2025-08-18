@@ -99,7 +99,6 @@ public class NeuralSparseIndexShard {
                                 if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
                                     continue;
                                 }
-
                                 warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
                             }
                         } catch (Exception e) {
@@ -144,7 +143,6 @@ public class NeuralSparseIndexShard {
                         CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
                         ClusteredPostingCache.getInstance().removeIndex(cacheKey);
                         ForwardIndexCache.getInstance().removeIndex(cacheKey);
-
                     }
                 }
             } catch (Exception e) {
@@ -185,13 +183,9 @@ public class NeuralSparseIndexShard {
             log.error("[Neural Sparse] Failed to create Lucene reader for inverted index", e);
         }
 
-        try {
-            // Create CacheGated readers
-            final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
-            warmUpForwardIndex(binaryDocValues, forwardIndexReader);
-        } catch (Exception e) {
-            log.error("[Neural Sparse] Failed to warm up forward index", e);
-        }
+        // Create CacheGated readers
+        final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
+        warmUpForwardIndex(binaryDocValues, forwardIndexReader);
     }
 
     /**
