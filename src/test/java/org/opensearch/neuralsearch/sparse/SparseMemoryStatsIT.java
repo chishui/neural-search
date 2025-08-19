@@ -12,7 +12,6 @@ import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.core.rest.RestStatus;
-import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
@@ -22,7 +21,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -311,49 +309,6 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum);
         assertEquals(originalCircuitBreakerMemoryStatsSum, currentCircuitBreakerMemoryStatsSum);
         assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
-    }
-
-    private static long parseFractionalSize(String value) {
-        value = value.trim().toLowerCase(Locale.ROOT);
-        double number;
-        long multiplier;
-
-        if (value.endsWith("kb")) {
-            number = Double.parseDouble(value.replace("kb", "").trim());
-            multiplier = 1024L;
-        } else if (value.endsWith("mb")) {
-            number = Double.parseDouble(value.replace("mb", "").trim());
-            multiplier = 1024L * 1024L;
-        } else if (value.endsWith("gb")) {
-            number = Double.parseDouble(value.replace("gb", "").trim());
-            multiplier = 1024L * 1024L * 1024L;
-        } else if (value.endsWith("b")) {
-            number = Double.parseDouble(value.replace("b", "").trim());
-            multiplier = 1L;
-        } else {
-            throw new IllegalArgumentException("Unknown size unit: " + value);
-        }
-
-        return Math.round(number * multiplier);
-    }
-
-    @SneakyThrows
-    private long[] getSparseMemoryUsageStatsAcrossNodes() {
-        Request request = new Request("GET", NeuralSearch.NEURAL_BASE_URI + "/stats/" + SPARSE_MEMORY_USAGE_METRIC_NAME);
-
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
-
-        String responseBody = EntityUtils.toString(response.getEntity());
-        List<Map<String, Object>> nodeStatsResponseList = parseNodeStatsResponse(responseBody);
-
-        List<Long> sparseMemoryUsageStats = new ArrayList<>();
-        for (Map<String, Object> nodeStatsResponse : nodeStatsResponseList) {
-            // we do not use breakers.neural_search.estimated_size_in_bytes due to precision limitation by memory stats
-            String stringValue = getNestedValue(nodeStatsResponse, SPARSE_MEMORY_USAGE_METRIC_PATH).toString();
-            sparseMemoryUsageStats.add(parseFractionalSize(stringValue));
-        }
-        return sparseMemoryUsageStats.stream().mapToLong(Long::longValue).toArray();
     }
 
     @SneakyThrows

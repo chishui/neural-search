@@ -70,10 +70,9 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     /**
      * @param streamInput Input stream to read the serialized result from
      * @return Empty result object read from the input stream
-     * @throws IOException
      */
     @Override
-    protected EmptyResult readShardResult(StreamInput streamInput) throws IOException {
+    protected EmptyResult readShardResult(StreamInput streamInput) {
         return EmptyResult.readEmptyResultFrom(streamInput);
     }
 
@@ -116,10 +115,9 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
      * @param request Request containing parameters for the cache clear operation
      * @param shardRouting Routing information for the current shard
      * @return Empty result object indicating operation completion
-     * @throws IOException
      */
     @Override
-    protected EmptyResult shardOperation(NeuralSparseClearCacheRequest request, ShardRouting shardRouting) throws IOException {
+    protected EmptyResult shardOperation(NeuralSparseClearCacheRequest request, ShardRouting shardRouting) {
         Index index = shardRouting.shardId().getIndex();
         IndexService indexService = indicesService.indexServiceSafe(index);
         IndexShard indexShard = indexService.getShard(shardRouting.shardId().id());

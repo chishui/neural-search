@@ -73,4 +73,18 @@ public class CircuitBreakerManager {
     public static void setLimitAndOverhead(ByteSizeValue limit, double overhead) {
         circuitBreaker.setLimitAndOverhead(limit.getBytes(), overhead);
     }
+
+    /**
+     * Check if the circuit breaker is near its limit
+     * @param threshold percentage threshold (0.0 to 1.0) to check against
+     * @return true if current usage is above the threshold
+     */
+    public static boolean isNearLimit(double threshold) {
+        if (circuitBreaker == null) {
+            return false;
+        }
+        long used = circuitBreaker.getUsed();
+        long limit = circuitBreaker.getLimit();
+        return limit > 0 && (double) used / limit >= threshold;
+    }
 }

@@ -10,18 +10,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
+import org.opensearch.client.ResponseException;
 import org.opensearch.core.rest.RestStatus;
-import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
-import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -32,8 +29,6 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
     private static final String TEST_INDEX_NAME = "test-sparse-cache-index";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
-    private static final String SPARSE_MEMORY_USAGE_METRIC_NAME = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getNameString();
-    private static final String SPARSE_MEMORY_USAGE_METRIC_PATH = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getFullPath();
 
     @Before
     public void setUp() throws Exception {
@@ -97,6 +92,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
         assertTrue("Memory usage should increase after warm up", afterWarmUpSparseMemoryUsageSum > originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertTrue(
+                String.format(
+                    "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterWarmUpSparseMemoryUsageStats[i]
+                ),
+                afterWarmUpSparseMemoryUsageStats[i] > originalSparseMemoryUsageStats[i]
+            );
+        }
     }
 
     /**
@@ -126,6 +132,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
         assertTrue("Memory usage should decrease after clear cache", afterClearCacheSparseMemoryUsageSum < originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertTrue(
+                String.format(
+                    "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterClearCacheSparseMemoryUsageStats[i]
+                ),
+                afterClearCacheSparseMemoryUsageStats[i] < originalSparseMemoryUsageStats[i]
+            );
+        }
     }
 
     /**
@@ -163,6 +180,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
         assertTrue("Memory usage should increase after warm up", afterWarmUpSparseMemoryUsageSum > originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertTrue(
+                String.format(
+                    "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterWarmUpSparseMemoryUsageStats[i]
+                ),
+                afterWarmUpSparseMemoryUsageStats[i] > originalSparseMemoryUsageStats[i]
+            );
+        }
     }
 
     /**
@@ -196,6 +224,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
         assertTrue("Memory usage should decrease after clear cache", afterClearCacheSparseMemoryUsageSum < originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertTrue(
+                String.format(
+                    "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterClearCacheSparseMemoryUsageStats[i]
+                ),
+                afterClearCacheSparseMemoryUsageStats[i] < originalSparseMemoryUsageStats[i]
+            );
+        }
     }
 
     /**
@@ -233,6 +272,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
         assertTrue("Memory usage should increase after warm up", afterWarmUpSparseMemoryUsageSum > originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertTrue(
+                String.format(
+                    "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterWarmUpSparseMemoryUsageStats[i]
+                ),
+                afterWarmUpSparseMemoryUsageStats[i] > originalSparseMemoryUsageStats[i]
+            );
+        }
     }
 
     /**
@@ -266,6 +316,111 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
         assertTrue("Memory usage should decrease after clear cache", afterClearCacheSparseMemoryUsageSum < originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertTrue(
+                String.format(
+                    "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterClearCacheSparseMemoryUsageStats[i]
+                ),
+                afterClearCacheSparseMemoryUsageStats[i] < originalSparseMemoryUsageStats[i]
+            );
+        }
+    }
+
+    /**
+     * Test warm up cache API for sparse index with memory usage verification. Mix SEISMIC and Rank Feature.
+     */
+    @SneakyThrows
+    public void testWarmUpCache_OnlyRankFeatures() {
+        Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
+        client().performRequest(request);
+        // Create Sparse Index
+        prepareOnlyRankFeaturesIndex();
+
+        // First clear cache before warm up
+        Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
+        Response clearCacheResponse = client().performRequest(clearCacheRequest);
+        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+
+        // Execute warm up cache request
+        Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
+        Response warmUpResponse = client().performRequest(warmUpRequest);
+
+        assertEquals(RestStatus.OK, RestStatus.fromCode(warmUpResponse.getStatusLine().getStatusCode()));
+
+        // Verify response structure
+        Map<String, Object> responseMap = createParser(
+            org.opensearch.common.xcontent.XContentType.JSON.xContent(),
+            warmUpResponse.getEntity().getContent()
+        ).map();
+
+        assertNotNull(responseMap);
+        assertTrue(responseMap.containsKey("_shards"));
+
+        // Verify memory usage not changed after warm up
+        long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
+        assertEquals("Memory usage should not change after warm up", afterWarmUpSparseMemoryUsageSum, originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertEquals(
+                String.format(
+                    "Memory usage for node %d should not change after warm up (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    originalSparseMemoryUsageStats[i]
+                ),
+                originalSparseMemoryUsageStats[i],
+                originalSparseMemoryUsageStats[i]
+            );
+        }
+    }
+
+    /**
+     * Test clear cache API for sparse index with memory usage verification. Mix SEISMIC and Rank Feature.
+     */
+    @SneakyThrows
+    public void testClearCache_OnlyRankFeatures() {
+        Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
+        client().performRequest(request);
+        // Create Sparse Index
+        prepareOnlyRankFeaturesIndex();
+        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+
+        // Execute clear cache request
+        Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
+        Response response = client().performRequest(clearCacheRequest);
+
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        // Verify response structure
+        Map<String, Object> responseMap = createParser(
+            org.opensearch.common.xcontent.XContentType.JSON.xContent(),
+            response.getEntity().getContent()
+        ).map();
+
+        assertNotNull(responseMap);
+        assertTrue(responseMap.containsKey("_shards"));
+
+        // Verify memory usage not changed after clear cache
+        long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
+        assertEquals("Memory usage should not change after clear cache", afterClearCacheSparseMemoryUsageSum, originalSparseMemoryUsageSum);
+        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
+            assertEquals(
+                String.format(
+                    "Memory usage for node %d should not change after clear cache (before: %d, after: %d)",
+                    i,
+                    originalSparseMemoryUsageStats[i],
+                    afterClearCacheSparseMemoryUsageStats[i]
+                ),
+                afterClearCacheSparseMemoryUsageStats[i],
+                originalSparseMemoryUsageStats[i]
+            );
+        }
     }
 
     /**
@@ -281,7 +436,11 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
 
         // Try to warm up cache - should fail
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + nonSparseIndex);
-        expectThrows(IOException.class, () -> client().performRequest(warmUpRequest));
+        ResponseException exception = expectThrows(ResponseException.class, () -> client().performRequest(warmUpRequest));
+
+        assertEquals(RestStatus.INTERNAL_SERVER_ERROR, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
+        String responseBody = EntityUtils.toString(exception.getResponse().getEntity());
+        assertTrue(responseBody.contains("don't support neural_sparse_warmup_action operation"));
 
     }
 
@@ -298,51 +457,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
 
         // Try to clear cache - should fail
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + nonSparseIndex);
-        expectThrows(IOException.class, () -> client().performRequest(clearCacheRequest));
+        ResponseException exception = expectThrows(ResponseException.class, () -> client().performRequest(clearCacheRequest));
 
-    }
+        assertEquals(RestStatus.INTERNAL_SERVER_ERROR, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
+        String responseBody = EntityUtils.toString(exception.getResponse().getEntity());
+        assertTrue(responseBody.contains("don't support neural_sparse_clear_cache_action operation"));
 
-    @SneakyThrows
-    private long[] getSparseMemoryUsageStatsAcrossNodes() {
-        Request request = new Request("GET", NeuralSearch.NEURAL_BASE_URI + "/stats/" + SPARSE_MEMORY_USAGE_METRIC_NAME);
-
-        Response response = client().performRequest(request);
-        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
-
-        String responseBody = EntityUtils.toString(response.getEntity());
-        List<Map<String, Object>> nodeStatsResponseList = parseNodeStatsResponse(responseBody);
-
-        List<Long> sparseMemoryUsageStats = new ArrayList<>();
-        for (Map<String, Object> nodeStatsResponse : nodeStatsResponseList) {
-            // we do not use breakers.neural_search.estimated_size_in_bytes due to precision limitation by memory stats
-            String stringValue = getNestedValue(nodeStatsResponse, SPARSE_MEMORY_USAGE_METRIC_PATH).toString();
-            sparseMemoryUsageStats.add(parseFractionalSize(stringValue));
-        }
-        return sparseMemoryUsageStats.stream().mapToLong(Long::longValue).toArray();
-    }
-
-    private static long parseFractionalSize(String value) {
-        value = value.trim().toLowerCase(Locale.ROOT);
-        double number;
-        long multiplier;
-
-        if (value.endsWith("kb")) {
-            number = Double.parseDouble(value.replace("kb", "").trim());
-            multiplier = 1024L;
-        } else if (value.endsWith("mb")) {
-            number = Double.parseDouble(value.replace("mb", "").trim());
-            multiplier = 1024L * 1024L;
-        } else if (value.endsWith("gb")) {
-            number = Double.parseDouble(value.replace("gb", "").trim());
-            multiplier = 1024L * 1024L * 1024L;
-        } else if (value.endsWith("b")) {
-            number = Double.parseDouble(value.replace("b", "").trim());
-            multiplier = 1L;
-        } else {
-            throw new IllegalArgumentException("Unknown size unit: " + value);
-        }
-
-        return Math.round(number * multiplier);
     }
 
     @SneakyThrows
@@ -407,6 +527,20 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
             ),
             null,
             4
+        );
+    }
+
+    @SneakyThrows
+    private void prepareOnlyRankFeaturesIndex() {
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+            null,
+            1
         );
     }
 }

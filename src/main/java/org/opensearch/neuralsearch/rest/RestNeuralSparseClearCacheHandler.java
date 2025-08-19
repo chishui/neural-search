@@ -55,8 +55,8 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     }
 
     /**
-     * @param request RestRequest
-     * @param client NodeClient
+     * @param request RestRequest of clear cache
+     * @param client NodeClient to execute actions according to request
      * @return RestChannelConsumer
      */
     @Override

@@ -50,6 +50,11 @@ public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
         );
     }
 
+    /**
+     * @param request RestRequest of warm up cache
+     * @param client NodeClient to execute actions according to request
+     * @return RestChannelConsumer
+     */
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         NeuralSparseWarmupRequest neuralSparseWarmupRequest = createNeuralSparseWarmupRequest(request);
@@ -60,6 +65,7 @@ public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
         );
     }
 
+    // Create a warm up cache request by processing the rest request and validating the indices
     private NeuralSparseWarmupRequest createNeuralSparseWarmupRequest(RestRequest request) {
         String[] indexNames = StringUtils.split(request.param("index"), ",");
         Index[] indices = indexNameExpressionResolver.concreteIndices(clusterService.state(), strictExpandOpen(), indexNames);

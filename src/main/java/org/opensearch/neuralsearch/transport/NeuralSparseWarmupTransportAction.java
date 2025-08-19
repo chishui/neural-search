@@ -4,7 +4,9 @@
  */
 package org.opensearch.neuralsearch.transport;
 
+import lombok.SneakyThrows;
 import org.opensearch.neuralsearch.sparse.NeuralSparseIndexShard; // This to change
+import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.core.action.support.DefaultShardOperationFailedException;
 import org.opensearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
@@ -110,19 +112,30 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
 
     /**
      * Operation performed at a shard level on all the shards of given index where the index is warmed up.
+     * Any exception thrown here will be caught by the framework and result in shard failure.
      *
      * @param request Request containing parameters for the warmup operation
      * @param shardRouting Routing information for the current shard
      * @return Empty result object indicating operation completion
-     * @throws IOException
      */
     @Override
-    protected EmptyResult shardOperation(NeuralSparseWarmupRequest request, ShardRouting shardRouting) throws IOException {
-        NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
-            indicesService.indexServiceSafe(shardRouting.shardId().getIndex()).getShard(shardRouting.shardId().id())
-        );
-        neuralSparseIndexShard.warmUp();
-        return EmptyResult.INSTANCE;
+    @SneakyThrows
+    protected EmptyResult shardOperation(NeuralSparseWarmupRequest request, ShardRouting shardRouting) {
+        // Check if cache is near limit before attempting warmup
+        if (CircuitBreakerManager.isNearLimit(1)) {
+            throw new IOException("Cannot warm up shard " + shardRouting.shardId() + ": cache is near circuit breaker limit");
+        }
+
+        try {
+            NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
+                indicesService.indexServiceSafe(shardRouting.shardId().getIndex()).getShard(shardRouting.shardId().id())
+            );
+            neuralSparseIndexShard.warmUp();
+            return EmptyResult.INSTANCE;
+        } catch (RuntimeException e) {
+            // Convert RuntimeException to IOException for clearer exception handling
+            throw new IOException("Failed to warm up shard: " + shardRouting.shardId(), e);
+        }
     }
 
     /**
