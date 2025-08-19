@@ -100,8 +100,10 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
                 }
                 
                 // Perform cache eviction when memory limit is reached
-                LRUDocumentCache.getInstance().evict(ramBytesUsed);
-
+                synchronized (LRUDocumentCache.getInstance()) {
+                    LRUDocumentCache.getInstance().evict(ramBytesUsed);
+                }
+                
                 // Try again after eviction
                 if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                     log.warn("Failed to add to cache even after eviction, vector will not be cached");

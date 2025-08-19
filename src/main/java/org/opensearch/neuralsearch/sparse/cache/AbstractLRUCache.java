@@ -71,6 +71,7 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
 
     /**
      * Evicts least recently used items from cache until the specified amount of RAM has been freed.
+     * For thread safety, please use synchronized when calling this method
      *
      * @param ramBytesToRelease Number of bytes to evict
      */

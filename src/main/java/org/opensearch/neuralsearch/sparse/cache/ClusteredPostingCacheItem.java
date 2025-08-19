@@ -112,7 +112,9 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
                 }
                 
                 // Perform cache eviction when memory limit is reached
-                LRUTermCache.getInstance().evict(ramBytesUsed);
+                synchronized (LRUTermCache.getInstance()) {
+                    LRUTermCache.getInstance().evict(ramBytesUsed);
+                }
 
                 // Try again after eviction
                 if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
@@ -120,7 +122,7 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
                     return;
                 }
             }
-
+            
             // Update the clusters with putIfAbsent for thread safety
             PostingClusters existingClusters = clusteredPostings.putIfAbsent(clonedTerm, postingClusters);
             // Record access to update LRU status
@@ -144,8 +146,7 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
             // Clone a new BytesRef object to avoid offset change
             BytesRef clonedTerm = term.clone();
             long ramBytesReleased = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
-            PostingClusters removedClusters = clusteredPostings.remove(clonedTerm);
-            if (removedClusters != null) {
+            if (clusteredPostings.remove(clonedTerm) != null) {
                 usedRamBytes.addAndGet(-ramBytesReleased);
                 CircuitBreakerManager.releaseBytes(ramBytesReleased);
                 return ramBytesReleased;

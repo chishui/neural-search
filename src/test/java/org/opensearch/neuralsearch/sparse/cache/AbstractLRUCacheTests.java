@@ -5,7 +5,6 @@
 package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.NonNull;
-import org.junit.Before;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -16,11 +15,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 
 public class AbstractLRUCacheTests extends AbstractSparseTestBase {
-
-    @Before
-    public void setUp() {
-        super.setUp();
-    }
 
     /**
      * Test that updateAccess correctly updates the access order in the LRU cache
