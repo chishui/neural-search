@@ -13,7 +13,6 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.accessor.CacheableClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPosting;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
-import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
@@ -132,7 +131,6 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
                 usedRamBytes.addAndGet(ramBytesUsed);
             }
         }
-
 
         @Override
         public long erase(BytesRef term) {

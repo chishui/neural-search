@@ -12,7 +12,6 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.opensearch.neuralsearch.sparse.accessor.CacheableSparseVectorWriter;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
-import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
