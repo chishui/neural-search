@@ -48,8 +48,11 @@ public class LRUTermCache extends AbstractLRUCache<LRUTermCache.TermKey> {
         CacheKey cacheKey = termKey.getCacheKey();
         BytesRef term = termKey.getTerm();
 
-        ClusteredPostingCacheItem clusteredPostingCache = ClusteredPostingCache.getInstance().get(cacheKey);
-        return clusteredPostingCache.getWriter().erase(term);
+        ClusteredPostingCacheItem clusteredPostingCacheItem = ClusteredPostingCache.getInstance().get(cacheKey);
+        if (clusteredPostingCacheItem == null) {
+            return 0;
+        }
+        return clusteredPostingCacheItem.getWriter().erase(term);
     }
 
     @Override
@@ -59,9 +62,7 @@ public class LRUTermCache extends AbstractLRUCache<LRUTermCache.TermKey> {
 
     @Override
     public void removeIndex(@NonNull CacheKey cacheKey) {
-        synchronized (accessRecencyMap) {
-            accessRecencyMap.keySet().removeIf(key -> key.getCacheKey().equals(cacheKey));
-        }
+        accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
 
     /**

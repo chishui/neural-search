@@ -109,6 +109,10 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
                 }
             }
 
+            // Record access to update LRU status
+            LRUDocumentCache.getInstance().updateAccess(cacheKey, docId);
+
+            // Only update memory usage if we actually inserted a new document
             if (sparseVectors.compareAndSet(docId, null, vector)) {
                 usedRamBytes.addAndGet(ramBytesUsed);
             }
@@ -132,11 +136,10 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
 
             long ramBytesReleased = vector.ramBytesUsed();
 
-            // Only update memory usage if we actually inserted a new document
+            // Only update memory usage if we actually erased a new document
             if (sparseVectors.compareAndSet(docId, vector, null)) {
                 usedRamBytes.addAndGet(-ramBytesReleased);
                 CircuitBreakerManager.releaseBytes(ramBytesReleased);
-                LRUDocumentCache.getInstance().updateAccess(cacheKey, docId);
                 return ramBytesReleased;
             }
 

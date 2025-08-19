@@ -48,6 +48,9 @@ public class LRUDocumentCache extends AbstractLRUCache<LRUDocumentCache.Document
         int docId = documentKey.getDocId();
 
         ForwardIndexCacheItem forwardIndexCacheItem = ForwardIndexCache.getInstance().get(cacheKey);
+        if (forwardIndexCacheItem == null) {
+            return 0;
+        }
         return forwardIndexCacheItem.getWriter().erase(docId);
     }
 
@@ -58,9 +61,7 @@ public class LRUDocumentCache extends AbstractLRUCache<LRUDocumentCache.Document
 
     @Override
     public void removeIndex(@NonNull CacheKey cacheKey) {
-        synchronized (accessRecencyMap) {
-            accessRecencyMap.keySet().removeIf(key -> key.getCacheKey().equals(cacheKey));
-        }
+        accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
 
     /**

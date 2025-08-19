@@ -7,9 +7,10 @@ package org.opensearch.neuralsearch.sparse.cache;
 import lombok.extern.log4j.Log4j2;
 import lombok.NonNull;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Abstract LRU cache implementation for sparse vector caches.
@@ -20,8 +21,10 @@ import java.util.Map;
  */
 @Log4j2
 public abstract class AbstractLRUCache<LRUCacheKey> {
-    // Map to track access with LRU ordering
-    protected final Map<LRUCacheKey, Boolean> accessRecencyMap;
+    /**
+     * Map to track access with LRU ordering
+     */
+    protected final Set<LRUCacheKey> accessRecencySet;
 
     /**
      * The default initial capacity - MUST be a power of two.
@@ -33,7 +36,9 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
     protected AbstractLRUCache() {
-        this.accessRecencyMap = new LinkedHashMap<>(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, true);
+        this.accessRecencySet = Collections.synchronizedSet(
+            Collections.newSetFromMap(new LinkedHashMap<>(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, true))
+        );
     }
 
     /**
@@ -47,9 +52,7 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
             return;
         }
 
-        synchronized (accessRecencyMap) {
-            accessRecencyMap.put(key, true);
-        }
+        accessRecencySet.add(key);
     }
 
     /**
@@ -58,18 +61,12 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      * @return The least recently used key, or null if the cache is empty
      */
     protected LRUCacheKey getLeastRecentlyUsedItem() {
-        synchronized (accessRecencyMap) {
-            if (accessRecencyMap.isEmpty()) {
-                return null;
-            }
-
-            // With accessOrder is true in the LinkedHashMap, the first entry is the least recently used
-            Iterator<Map.Entry<LRUCacheKey, Boolean>> iterator = accessRecencyMap.entrySet().iterator();
-            if (iterator.hasNext()) {
-                return iterator.next().getKey();
-            }
-            return null;
+        // With accessOrder is true in the LinkedHashMap, the first entry is the least recently used
+        Iterator<LRUCacheKey> iterator = accessRecencySet.iterator();
+        if (iterator.hasNext()) {
+            return iterator.next();
         }
+        return null;
     }
 
     /**
@@ -113,11 +110,8 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      * @return number of bytes freed, or 0 if the item was not evicted
      */
     protected long evictItem(LRUCacheKey key) {
-        synchronized (accessRecencyMap) {
-            // Remove from access tracking
-            if (accessRecencyMap.remove(key) == null) {
-                return 0;
-            }
+        if (!accessRecencySet.remove(key)) {
+            return 0;
         }
 
         return doEviction(key);
