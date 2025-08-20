@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -40,6 +41,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
     private SegmentInfo segmentInfo;
     private FieldInfos fieldInfos;
     private SparseTermsLuceneReader mockReader;
+    private Supplier<SparseTermsLuceneReader> readerSupplier = () -> mockReader;
 
     @Before
     public void init() throws IOException {
@@ -67,7 +69,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
         segmentReadState = new SegmentReadState(mockDir, segmentInfo, fieldInfos, IOContext.DEFAULT);
         mockReader = mock(SparseTermsLuceneReader.class);
 
-        producer = new SparsePostingsProducer(mockDelegate, segmentReadState, mockReader);
+        producer = new SparsePostingsProducer(mockDelegate, segmentReadState, readerSupplier);
     }
 
     @After
@@ -81,10 +83,11 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
 
     @SneakyThrows
     public void testConstructor() {
-        SparsePostingsProducer localProducer = new SparsePostingsProducer(mockDelegate, segmentReadState, mockReader);
+        SparsePostingsProducer localProducer = new SparsePostingsProducer(mockDelegate, segmentReadState, readerSupplier);
         assertNotNull(localProducer);
         assertEquals(mockDelegate, localProducer.getDelegate());
         assertEquals(segmentReadState, localProducer.getState());
+        expectThrows(NullPointerException.class, () -> new SparsePostingsProducer(mockDelegate, segmentReadState, null));
     }
 
     @SneakyThrows
@@ -96,7 +99,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
 
     @SneakyThrows
     public void testClose_WithNullDelegate() {
-        SparsePostingsProducer producerWithNullDelegate = new SparsePostingsProducer(null, segmentReadState, mockReader);
+        SparsePostingsProducer producerWithNullDelegate = new SparsePostingsProducer(null, segmentReadState, readerSupplier);
 
         // Should not throw exception
         producerWithNullDelegate.close();
@@ -147,7 +150,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
             segmentReadState.context
         );
 
-        SparsePostingsProducer lowThresholdProducer = new SparsePostingsProducer(mockDelegate, lowThresholdState, mockReader);
+        SparsePostingsProducer lowThresholdProducer = new SparsePostingsProducer(mockDelegate, lowThresholdState, readerSupplier);
 
         Terms mockTerms = mock(Terms.class);
         when(mockDelegate.terms(sparseFieldInfo.getName())).thenReturn(mockTerms);
@@ -156,8 +159,7 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
 
         assertEquals(mockTerms, result);
         verify(mockDelegate, times(1)).terms(sparseFieldInfo.getName());
-        assertNotNull(lowThresholdProducer.getReader());
-
+        assertNull(lowThresholdProducer.getReader());
         lowThresholdProducer.close();
     }
 
@@ -172,6 +174,12 @@ public class SparsePostingsProducerTests extends AbstractSparseTestBase {
         SparseTerms sparseTerms = (SparseTerms) result;
         CacheKey expectedKey = new CacheKey(segmentInfo, sparseFieldInfo);
         assertEquals(expectedKey, sparseTerms.getCacheKey());
+    }
+
+    @SneakyThrows
+    public void testTerms_nullSupplier() {
+        producer = new SparsePostingsProducer(mockDelegate, segmentReadState, () -> null);
+        expectThrows(NullPointerException.class, () -> producer.terms(sparseFieldInfo.getName()));
     }
 
     @SneakyThrows

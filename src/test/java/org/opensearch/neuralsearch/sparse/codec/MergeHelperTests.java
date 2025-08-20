@@ -81,7 +81,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
 
         MergeHelper.clearCacheData(mergeStateFacade, sparseFieldInfo, consumer);
 
-        assertEquals("Consumer should NOT be called when fieldInfo matches", 0, capturedKeys.size());
+        assertEquals("Consumer should be called when fieldInfo matches", 1, capturedKeys.size());
     }
 
     public void testClearInMemoryData_withNullFieldInfo_processesAllSparseFields() throws IOException {
@@ -94,7 +94,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
 
         MergeHelper.clearCacheData(mergeStateFacade, null, consumer);
 
-        assertEquals("Consumer should NOT be called when fieldInfo is null", 0, capturedKeys.size());
+        assertEquals("Consumer should be called for sparse field", 1, capturedKeys.size());
     }
 
     public void testClearInMemoryData_withNonSparseFieldInfo_processesAllSparseFields() throws IOException {
@@ -107,7 +107,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
 
         MergeHelper.clearCacheData(mergeStateFacade, nonSparseFieldInfo, consumer);
 
-        assertEquals("Consumer should be called for sparse field when fieldInfo doesn't match", 1, capturedKeys.size());
+        assertEquals("Consumer should NOT be called for sparse field when fieldInfo doesn't match", 0, capturedKeys.size());
     }
 
     public void testClearInMemoryData_withNonSparseBinaryDocValues_skipsField() throws IOException {

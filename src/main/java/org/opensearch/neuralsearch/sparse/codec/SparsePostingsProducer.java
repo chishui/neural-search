@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.Getter;
+import lombok.NonNull;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentReadState;
@@ -15,6 +16,7 @@ import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.function.Supplier;
 
 /**
  * SparsePostingsProducer vends SparseTerms for each sparse field.
@@ -25,13 +27,20 @@ public class SparsePostingsProducer extends FieldsProducer {
 
     private final FieldsProducer delegate;
     private final SegmentReadState state;
-    private final SparseTermsLuceneReader reader;
+    private final Supplier<SparseTermsLuceneReader> readerSupplier;
+    private SparseTermsLuceneReader reader;
 
-    public SparsePostingsProducer(FieldsProducer delegate, SegmentReadState state, SparseTermsLuceneReader reader) throws IOException {
+    // use supplier for lazy load
+    public SparsePostingsProducer(
+        FieldsProducer delegate,
+        SegmentReadState state,
+        @NonNull Supplier<SparseTermsLuceneReader> readerSupplier
+    ) {
         super();
         this.delegate = delegate;
         this.state = state;
-        this.reader = reader;
+        this.readerSupplier = readerSupplier;
+        this.reader = null;
     }
 
     @Override
@@ -61,6 +70,7 @@ public class SparsePostingsProducer extends FieldsProducer {
             return delegate.terms(field);
         }
         CacheKey key = new CacheKey(this.state.segmentInfo, fieldInfo);
+        reader = readerSupplier.get();
         return new SparseTerms(key, reader, field);
     }
 
