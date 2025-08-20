@@ -38,7 +38,6 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
      * @return the SparseVectorWriter instance
      */
     public SparseVectorWriter getWriter(Consumer<Long> circuitBreakerHandler) {
-
         return new CacheSparseVectorWriter(circuitBreakerHandler);
     }
 
