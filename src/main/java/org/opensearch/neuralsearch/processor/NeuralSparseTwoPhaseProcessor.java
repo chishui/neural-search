@@ -233,13 +233,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
                 String fieldName = neuralSparseQueryBuilder.fieldName();
                 if (sparseAnnFields.contains(fieldName)) {
                     throw new IllegalArgumentException(
-                        String.format(
-                            Locale.ROOT,
-                            "Two phase search processor cannot work with [%s] query on field [%s] in index [%s]",
-                            SEISMIC,
-                            fieldName,
-                            index
-                        )
+                        String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] query type", SEISMIC)
                     );
                 }
             }
