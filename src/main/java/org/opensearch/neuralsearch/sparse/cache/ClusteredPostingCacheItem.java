@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 /**
  * This class manages the cache postings for sparse vectors. It provides methods to write and read postings from cache.
@@ -34,6 +35,16 @@ public class ClusteredPostingCacheItem implements Accountable {
     private final ClusteredPostingReader reader = new CacheClusteredPostingReader();
     @Getter
     private final ClusteredPostingWriter writer = new CacheClusteredPostingWriter();
+
+    /**
+     * Returns the writer instance.
+     * @param circuitBreakerHandler A consumer to handle circuit breaker triggering differently
+     * @return the ClusteredPostingWriter instance
+     */
+    public ClusteredPostingWriter getWriter(Consumer<Long> circuitBreakerHandler) {
+
+        return new CacheClusteredPostingWriter(circuitBreakerHandler);
+    }
 
     public ClusteredPostingCacheItem() {
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
@@ -64,6 +75,16 @@ public class ClusteredPostingCacheItem implements Accountable {
     }
 
     private class CacheClusteredPostingWriter implements ClusteredPostingWriter {
+        private final Consumer<Long> circuitBreakerTriggerHandler;
+
+        private CacheClusteredPostingWriter(Consumer<Long> circuitBreakerTriggerHandler) {
+            this.circuitBreakerTriggerHandler = circuitBreakerTriggerHandler;
+        }
+
+        private CacheClusteredPostingWriter() {
+            this.circuitBreakerTriggerHandler = null;
+        }
+
         public void insert(BytesRef term, List<DocumentCluster> clusters) {
             if (clusters == null || clusters.isEmpty() || term == null) {
                 return;
@@ -77,6 +98,9 @@ public class ClusteredPostingCacheItem implements Accountable {
 
             if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                 // TODO: cache eviction
+                if (circuitBreakerTriggerHandler != null) {
+                    circuitBreakerTriggerHandler.accept(ramBytesUsed);
+                }
                 return;
             }
 
