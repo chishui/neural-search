@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.opensearch.index.query.AbstractQueryBuilder.BOOST_FIELD;
 import static org.opensearch.index.query.AbstractQueryBuilder.NAME_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 import static org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder.CUT_FIELD;
 import static org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder.HEAP_FACTOR_FIELD;
 import static org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder.METHOD_PARAMETERS_FIELD;
@@ -859,36 +858,5 @@ public class NeuralSparseQueryBuilderTests extends OpenSearchTestCase {
         assertTrue(query instanceof SparseVectorQuery);
         SparseVectorQuery sparseVectorQuery = (SparseVectorQuery) query;
         assertEquals(sparseVectorQuery.getOriginalQuery(), booleanQueryBuilder.build());
-    }
-
-    @SneakyThrows
-    public void testDoToQuery_seismicType_withTwoPhase() {
-        Supplier<Map<String, Float>> numberTokenSupplier = () -> Map.of("1000", 1.f, "2000", 2.f);
-        NeuralSparseQueryBuilder sparseEncodingQueryBuilder = new NeuralSparseQueryBuilder().fieldName(FIELD_NAME)
-            .maxTokenScore(MAX_TOKEN_SCORE)
-            .queryText(QUERY_TEXT)
-            .modelId(MODEL_ID)
-            .queryTokensSupplier(numberTokenSupplier)
-            .twoPhasePruneRatio(0.1f)
-            .sparseAnnQueryBuilder(sparseAnnQueryBuilder);
-        QueryShardContext mockedQueryShardContext = mock(QueryShardContext.class);
-        MappedFieldType mockedMappedFieldType = mock(MappedFieldType.class);
-        doAnswer(invocation -> "rank_features").when(mockedMappedFieldType).typeName();
-        doAnswer(invocation -> mockedMappedFieldType).when(mockedQueryShardContext).fieldMapper(any());
-        when(mockedMappedFieldType.typeName()).thenReturn(SparseTokensFieldMapper.CONTENT_TYPE);
-
-        BooleanQuery.Builder booleanQueryBuilder = new BooleanQuery.Builder();
-        booleanQueryBuilder.add(FeatureField.newLinearQuery(FIELD_NAME, "1000", 1.f), BooleanClause.Occur.SHOULD);
-        booleanQueryBuilder.add(FeatureField.newLinearQuery(FIELD_NAME, "2000", 2.f), BooleanClause.Occur.SHOULD);
-
-        Exception exception = expectThrows(
-            IllegalArgumentException.class,
-            () -> sparseEncodingQueryBuilder.doToQuery(mockedQueryShardContext)
-        );
-        assertEquals(
-            "Should throw correct error message for invalid positions",
-            "[" + SEISMIC + "] query only works without two phase query",
-            exception.getMessage()
-        );
     }
 }

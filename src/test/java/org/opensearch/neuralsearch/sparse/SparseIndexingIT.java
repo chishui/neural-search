@@ -641,7 +641,16 @@ public class SparseIndexingIT extends SparseBaseIT {
         );
 
         Exception exception = assertThrows(Exception.class, () -> search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
-        assert (exception.getMessage().contains("[" + SEISMIC + "] query only works without two phase query"));
+        assert (exception.getMessage()
+            .contains(
+                String.format(
+                    Locale.ROOT,
+                    "Two phase search processor cannot work with [%s] query on field [%s] in index [%s]",
+                    SEISMIC,
+                    TEST_SPARSE_FIELD_NAME,
+                    TEST_INDEX_NAME
+                )
+            ));
     }
 
     private List<String> getDocIDs(Map<String, Object> searchResults) {

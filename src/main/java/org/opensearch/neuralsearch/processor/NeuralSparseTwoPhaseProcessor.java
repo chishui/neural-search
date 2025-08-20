@@ -9,10 +9,15 @@ import com.google.common.collect.Multimap;
 import lombok.Getter;
 import lombok.Setter;
 import org.opensearch.action.search.SearchRequest;
+import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.cluster.metadata.MappingMetadata;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.ingest.ConfigurationUtils;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
+import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
 import org.opensearch.search.builder.SearchSourceBuilder;
@@ -22,9 +27,13 @@ import org.opensearch.search.pipeline.SearchRequestProcessor;
 import org.opensearch.search.rescore.QueryRescorerBuilder;
 import org.opensearch.search.rescore.RescorerBuilder;
 
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 
 /**
  * A SearchRequestProcessor to generate two-phase NeuralSparseQueryBuilder,
@@ -40,6 +49,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
     private PruneType pruneType;
     private float windowExpansion;
     private int maxWindowSize;
+    private ClusterService clusterService;
     private static final String PARAMETER_KEY = "two_phase_parameter";
     private static final String ENABLE_KEY = "enabled";
     private static final String EXPANSION_KEY = "expansion_rate";
@@ -61,7 +71,8 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
         float pruneRatio,
         PruneType pruneType,
         float windowExpansion,
-        int maxWindowSize
+        int maxWindowSize,
+        ClusterService clusterService
     ) {
         super(tag, description, ignoreFailure);
         this.enabled = enabled;
@@ -79,6 +90,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
             );
         }
         this.maxWindowSize = maxWindowSize;
+        this.clusterService = clusterService;
     }
 
     /**
@@ -98,6 +110,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
         if (queryBuilderMap.isEmpty()) {
             return request;
         }
+        validateSeismicQuery(request.indices(), queryBuilderMap);
         // Make a nestedQueryBuilder which includes all the two-phase QueryBuilder.
         QueryBuilder nestedTwoPhaseQueryBuilder = getNestedQueryBuilderFromNeuralSparseQueryBuilderMap(queryBuilderMap);
         nestedTwoPhaseQueryBuilder.boost(getOriginQueryWeightAfterRescore(request.source()));
@@ -191,11 +204,60 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
         return twoPhaseRescorer;
     }
 
+    @SuppressWarnings("unchecked")
+    private void validateSeismicQuery(String[] indices, Multimap<NeuralSparseQueryBuilder, Float> queryBuilderMap) {
+        for (String index : indices) {
+            final IndexMetadata metadata = clusterService.state().metadata().index(index);
+            if (metadata == null || !SparseSettings.IS_SPARSE_INDEX_SETTING.get(metadata.getSettings())) {
+                return;
+            }
+            MappingMetadata mappingMetadata = metadata.mapping();
+            if (mappingMetadata == null || mappingMetadata.sourceAsMap() == null) {
+                return;
+            }
+            Object properties = mappingMetadata.sourceAsMap().get("properties");
+            if (!(properties instanceof Map)) {
+                return;
+            }
+            Set<String> sparseAnnFields = new HashSet<>();
+            Map<String, Object> fields = (Map<String, Object>) properties;
+            for (Map.Entry<String, Object> field : fields.entrySet()) {
+                Map<String, Object> fieldMap = (Map<String, Object>) field.getValue();
+                Object type = fieldMap.get("type");
+                if (Objects.nonNull(type) && SparseTokensFieldType.isSparseTokensType(type.toString())) {
+                    sparseAnnFields.add(field.getKey());
+                }
+            }
+            for (Map.Entry<NeuralSparseQueryBuilder, Float> entry : queryBuilderMap.entries()) {
+                NeuralSparseQueryBuilder neuralSparseQueryBuilder = entry.getKey();
+                String fieldName = neuralSparseQueryBuilder.fieldName();
+                if (sparseAnnFields.contains(fieldName)) {
+                    throw new IllegalArgumentException(
+                        String.format(
+                            Locale.ROOT,
+                            "Two phase search processor cannot work with [%s] query on field [%s] in index [%s]",
+                            SEISMIC,
+                            fieldName,
+                            index
+                        )
+                    );
+                }
+            }
+        }
+    }
+
     /**
      * Factory to create NeuralSparseTwoPhaseProcessor, provide default parameter,
      *
      */
     public static class Factory implements Processor.Factory<SearchRequestProcessor> {
+
+        ClusterService clusterService;
+
+        public Factory(ClusterService clusterService) {
+            this.clusterService = clusterService;
+        }
+
         @Override
         public NeuralSparseTwoPhaseProcessor create(
             Map<String, Processor.Factory<SearchRequestProcessor>> processorFactories,
@@ -241,7 +303,8 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
                 pruneRatio,
                 pruneType,
                 windowExpansion,
-                maxWindowSize
+                maxWindowSize,
+                clusterService
             );
         }
     }
