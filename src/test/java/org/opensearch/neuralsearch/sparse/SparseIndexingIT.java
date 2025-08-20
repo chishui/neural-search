@@ -642,7 +642,7 @@ public class SparseIndexingIT extends SparseBaseIT {
 
         Exception exception = assertThrows(Exception.class, () -> search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
         assert (exception.getMessage()
-            .contains(String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] query type", SEISMIC)));
+            .contains(String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] query type for now", SEISMIC)));
     }
 
     private List<String> getDocIDs(Map<String, Object> searchResults) {
