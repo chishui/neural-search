@@ -21,10 +21,14 @@ import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
 
@@ -301,5 +305,81 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
         PostingClusters clusters = reader.read(emptyTerm);
         assertNotNull("Should be able to retrieve empty term", clusters);
         assertEquals("Should have correct number of clusters", testClusters.size(), clusters.getClusters().size());
+    }
+
+    /**
+     * Tests that getWriter with circuitBreakerHandler returns a writer with the handler.
+     * This verifies the new getWriter method functionality.
+     */
+    @SneakyThrows
+    public void test_getWriter_withCircuitBreakerHandler() {
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        ClusteredPostingWriter writer = cacheItem.getWriter(mockHandler);
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        assertNotNull("Writer should not be null", writer);
+
+        // Insert should work normally when circuit breaker doesn't trip
+        writer.insert(testTerm, testClusters);
+
+        PostingClusters clusters = reader.read(testTerm);
+        assertNotNull("Should be able to retrieve clusters", clusters);
+        verify(mockHandler, never()).accept(anyLong());
+    }
+
+    /**
+     * Tests that circuitBreakerHandler is called when circuit breaker trips.
+     * This verifies the circuit breaker handler functionality.
+     */
+    @SneakyThrows
+    public void test_writerInsert_withCircuitBreakerHandler_whenCircuitBreakerTrips() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        ClusteredPostingWriter writer = cacheItem.getWriter(mockHandler);
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should be empty when circuit breaker trips", 0, reader.size());
+        assertNull("Term should not exist when circuit breaker trips", reader.read(testTerm));
+        verify(mockHandler).accept(anyLong());
+    }
+
+    /**
+     * Tests that circuitBreakerHandler is not called when circuit breaker doesn't trip.
+     * This verifies the conditional calling of the handler.
+     */
+    @SneakyThrows
+    public void test_writerInsert_withCircuitBreakerHandler_whenCircuitBreakerDoesNotTrip() {
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        ClusteredPostingWriter writer = cacheItem.getWriter(mockHandler);
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should have one entry", 1, reader.size());
+        assertNotNull("Term should exist", reader.read(testTerm));
+        verify(mockHandler, never()).accept(anyLong());
+    }
+
+    /**
+     * Tests that default writer (without handler) works correctly when circuit breaker trips.
+     * This verifies backward compatibility.
+     */
+    @SneakyThrows
+    public void test_defaultWriter_whenCircuitBreakerTrips() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        ClusteredPostingWriter writer = cacheItem.getWriter();
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        // Should not throw exception even without handler
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should be empty when circuit breaker trips", 0, reader.size());
+        assertNull("Term should not exist when circuit breaker trips", reader.read(testTerm));
     }
 }
