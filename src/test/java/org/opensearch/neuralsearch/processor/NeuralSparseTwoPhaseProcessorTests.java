@@ -38,6 +38,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     private static final String TEST_INDEX_NAME = "test_index";
     private static final String TEST_SPARSE_FIELD_NAME = "test_sparse_field";
 
+    private IndexMetadata indexMetadata;
     private ClusterService clusterService;
 
     @Override
@@ -195,18 +196,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
 
     public void testValidateSeismicQuery_whenNonSparseIndex_thenSuccess() throws Exception {
         // Setup mock cluster service with non-sparse index
-        Metadata metadata = mock(Metadata.class);
-        ClusterState clusterState = mock(ClusterState.class);
-        IndexMetadata indexMetadata = mock(IndexMetadata.class);
-
-        // Create settings for the index
-        Settings indexSettings = Settings.builder().put("index.sparse", "false").build();
-
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-        when(metadata.hasIndex(TEST_INDEX_NAME)).thenReturn(true);
-        when(metadata.index(TEST_INDEX_NAME)).thenReturn(indexMetadata);
-        when(indexMetadata.getSettings()).thenReturn(indexSettings);
+        configureSparseIndexSetting(false);
 
         NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
@@ -227,20 +217,8 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testValidateSeismicQuery_whenNullMappingMetaData_thenSuccess() throws Exception {
-        // Setup mock cluster service with non-sparse index
-        Metadata metadata = mock(Metadata.class);
-        ClusterState clusterState = mock(ClusterState.class);
-        IndexMetadata indexMetadata = mock(IndexMetadata.class);
-
-        // Create settings for the index
-        Settings indexSettings = Settings.builder().put("index.sparse", "true").build();
-
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-        when(metadata.hasIndex(TEST_INDEX_NAME)).thenReturn(true);
-        when(metadata.index(TEST_INDEX_NAME)).thenReturn(indexMetadata);
-        when(indexMetadata.mapping()).thenReturn(null);
-        when(indexMetadata.getSettings()).thenReturn(indexSettings);
+        // Setup mock cluster service with null mapping metadata
+        configureIndexMapping(null);
 
         NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
@@ -260,25 +238,9 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         assertNotNull(processedRequest.source().rescores());
     }
 
-    public void testValidateSeismicQuery_whenNullProperties_thenSuccess() throws Exception {
-        // Create mock mapping for sparse field
-        Map<String, Object> properties = new HashMap<>();
-
-        // Setup mock cluster service
-        Metadata metadata = mock(Metadata.class);
-        ClusterState clusterState = mock(ClusterState.class);
-        IndexMetadata indexMetadata = mock(IndexMetadata.class);
-        MappingMetadata mappingMetadata = new MappingMetadata("_doc", properties);
-
-        // Create settings for the index
-        Settings indexSettings = Settings.builder().put("index.sparse", "true").build();
-
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-        when(metadata.hasIndex(TEST_INDEX_NAME)).thenReturn(true);
-        when(metadata.index(TEST_INDEX_NAME)).thenReturn(indexMetadata);
-        when(indexMetadata.mapping()).thenReturn(mappingMetadata);
-        when(indexMetadata.getSettings()).thenReturn(indexSettings);
+    public void testValidateSeismicQuery_whenEmptyProperties_thenSuccess() throws Exception {
+        // Setup mock cluster service with empty properties
+        configureIndexMappingProperties(Map.of());
 
         NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
@@ -299,8 +261,9 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testValidateSeismicQuery_whenNonSeismicField_thenSuccess() throws Exception {
-        // Setup mock cluster service with sparse field
-        setupMockClusterService(false);
+        // Setup mock cluster service with non-seismic field
+        Map<String, Object> properties = createFieldMappingProperties(false);
+        configureIndexMappingProperties(properties);
 
         NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
@@ -321,8 +284,9 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testValidateSeismicQuery_whenSeismicField_thenThrowException() throws Exception {
-        // Setup mock cluster service with sparse field
-        setupMockClusterService(true);
+        // Setup mock cluster service with seismic field
+        Map<String, Object> properties = createFieldMappingProperties(true);
+        configureIndexMappingProperties(properties);
 
         NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
@@ -345,8 +309,34 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         );
     }
 
-    private void setupMockClusterService(boolean isSeismicField) {
-        // Create mock mapping for sparse field
+    private void initializeMockClusterService() {
+        Metadata metadata = mock(Metadata.class);
+        ClusterState clusterState = mock(ClusterState.class);
+
+        indexMetadata = mock(IndexMetadata.class);
+
+        when(clusterService.state()).thenReturn(clusterState);
+        when(clusterState.metadata()).thenReturn(metadata);
+        when(metadata.index(TEST_INDEX_NAME)).thenReturn(indexMetadata);
+    }
+
+    private void configureSparseIndexSetting(boolean isSparseIndex) {
+        initializeMockClusterService();
+        Settings settings = Settings.builder().put("index.sparse", isSparseIndex).build();
+        when(indexMetadata.getSettings()).thenReturn(settings);
+    }
+
+    private void configureIndexMapping(MappingMetadata mappingMetadata) {
+        configureSparseIndexSetting(true);
+        when(indexMetadata.mapping()).thenReturn(mappingMetadata);
+    }
+
+    private void configureIndexMappingProperties(Map<String, Object> properties) {
+        MappingMetadata mappingMetadata = new MappingMetadata("_doc", properties);
+        configureIndexMapping(mappingMetadata);
+    }
+
+    private Map<String, Object> createFieldMappingProperties(boolean isSeismicField) {
         Map<String, Object> sparseFieldMapping = new HashMap<>();
         Map<String, Object> sparseFieldProperties = new HashMap<>();
         sparseFieldProperties.put("type", isSeismicField ? "sparse_tokens" : "rank_features");
@@ -354,22 +344,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
 
         Map<String, Object> properties = new HashMap<>();
         properties.put("properties", sparseFieldMapping);
-
-        // Setup mock cluster service
-        Metadata metadata = mock(Metadata.class);
-        ClusterState clusterState = mock(ClusterState.class);
-        IndexMetadata indexMetadata = mock(IndexMetadata.class);
-        MappingMetadata mappingMetadata = new MappingMetadata("_doc", properties);
-
-        // Create settings for the index
-        Settings indexSettings = Settings.builder().put("index.sparse", "true").build();
-
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-        when(metadata.hasIndex(TEST_INDEX_NAME)).thenReturn(true);
-        when(metadata.index(TEST_INDEX_NAME)).thenReturn(indexMetadata);
-        when(indexMetadata.mapping()).thenReturn(mappingMetadata);
-        when(indexMetadata.getSettings()).thenReturn(indexSettings);
+        return properties;
     }
 
     private NeuralSparseTwoPhaseProcessor createTestProcessor(
