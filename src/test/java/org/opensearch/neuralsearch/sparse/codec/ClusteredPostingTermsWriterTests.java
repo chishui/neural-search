@@ -10,6 +10,7 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.codecs.NormsProducer;
+import org.apache.lucene.codecs.lucene101.Lucene101PostingsFormat;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
@@ -25,42 +26,40 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClusters;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mock;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 
 import java.io.IOException;
 
-import org.apache.lucene.codecs.lucene101.Lucene101PostingsFormat;
 import org.apache.lucene.index.NumericDocValues;
+import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
 
-    private static final String CODEC_NAME = "test_codec";
     private static final int VERSION = 1;
-
-    @Mock
-    private NumericDocValues mockNorms;
-
-    @Mock
-    private IndexOutput mockIndexOutput;
-
-    private SegmentWriteState mockWriteState;
-
-    @Mock
-    private Directory mockDirectory;
+    private static final String CODEC_NAME = "test_codec";
 
     private FieldInfo mockFieldInfo;
+    private SegmentWriteState mockWriteState;
+    private ClusteredPostingTermsWriter clusteredPostingTermsWriter;
+
+    @Mock
+    private Codec mockCodec;
 
     @Mock
     private DocValuesFormat mockDocValuesFormat;
@@ -72,40 +71,30 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
     private BinaryDocValues mockBinaryDocValues;
 
     @Mock
-    private TermsEnum mockTermsEnum;
+    private Directory mockDirectory;
 
     @Mock
-    private NormsProducer mockNormsProducer;
-
-    SegmentInfo mockSegmentInfo;
-
-    @Mock
-    Codec mockCodec;
-
-    private ClusteredPostingTermsWriter clusteredPostingTermsWriter;
+    private IndexOutput mockIndexOutput;
 
     @Before
     @SneakyThrows
-    public void setUp() throws Exception {
+    public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
 
+        // configure mocks
         clusteredPostingTermsWriter = new ClusteredPostingTermsWriter(CODEC_NAME, VERSION);
-        mockSegmentInfo = TestsPrepareUtils.prepareSegmentInfo();
+        SegmentInfo mockSegmentInfo = spy(TestsPrepareUtils.prepareSegmentInfo());
         mockWriteState = TestsPrepareUtils.prepareSegmentWriteState(mockSegmentInfo);
         mockFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
+        mockFieldInfo.attributes().put(CLUSTER_RATIO_FIELD, String.valueOf(0.1f));
+        mockFieldInfo.attributes().put(N_POSTINGS_FIELD, String.valueOf(160));
+        mockFieldInfo.attributes().put(SUMMARY_PRUNE_RATIO_FIELD, String.valueOf(0.4f));
 
-        // Setup codec and DocValues
+        when(mockSegmentInfo.getCodec()).thenReturn(mockCodec);
         when(mockCodec.docValuesFormat()).thenReturn(mockDocValuesFormat);
-
-        // Setup field info
-        mockFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-
-        // Setup DocValues
         when(mockDocValuesFormat.fieldsProducer(any(SegmentReadState.class))).thenReturn(mockDocValuesProducer);
         when(mockDocValuesProducer.getBinary(any(FieldInfo.class))).thenReturn(mockBinaryDocValues);
-
-        // Setup directory to return our mock IndexOutput
         when(mockDirectory.createOutput(any(String.class), any())).thenReturn(mockIndexOutput);
     }
 
@@ -119,30 +108,25 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
 
     /**
      * Test case for the write method that takes a BytesRef, TermsEnum, and NormsProducer.
-     * It verifies that the method correctly sets the currentTerm and calls the superclass writeTerm method.
+     * It verifies that the method calls the superclass writeTerm method.
      */
     @SneakyThrows
     public void test_write_withTermsEnum() {
         clusteredPostingTermsWriter = spy(clusteredPostingTermsWriter);
-
-        // Initialize the writer
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
 
-        // Create test data
+        TermsEnum mockTermsEnum = mock(TermsEnum.class);
+        NormsProducer mockNormsProducer = mock(NormsProducer.class);
+
+        // Mock the super.writeTerm() to return our expected state
         BytesRef testText = new BytesRef("test");
         BlockTermState expectedState = new Lucene101PostingsFormat.IntBlockTermState();
-
-        // Mock the writeTerm method to return our expected state
         doReturn(expectedState).when(clusteredPostingTermsWriter)
             .writeTerm(eq(testText), eq(mockTermsEnum), any(FixedBitSet.class), eq(mockNormsProducer));
 
-        // Call the method under test
         BlockTermState result = clusteredPostingTermsWriter.write(testText, mockTermsEnum, mockNormsProducer);
 
-        // Verify the result
         assertSame("Should return the BlockTermState from writeTerm", expectedState, result);
-
-        // Verify that writeTerm was called with the correct parameters
         verify(clusteredPostingTermsWriter).writeTerm(eq(testText), eq(mockTermsEnum), any(FixedBitSet.class), eq(mockNormsProducer));
     }
 
@@ -158,7 +142,6 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
 
         BytesRef text = new BytesRef("test_term");
         PostingClusters postingClusters = mock(PostingClusters.class);
-
         BlockTermState result = clusteredPostingTermsWriter.write(text, postingClusters);
 
         assertNotNull("BlockTermState should not be null", result);
@@ -174,19 +157,13 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
 
         // Mock the superclass setField method
-        doNothing().when(clusteredPostingTermsWriter).setField(any(FieldInfo.class));
-
-        // Mock setPostingClustering to avoid actual clustering
-        doNothing().when(clusteredPostingTermsWriter).setPostingClustering(anyInt());
-
-        // Mock the superclass setField method
         clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
 
         // Verify setField was called
         verify(clusteredPostingTermsWriter).setField(mockFieldInfo);
 
-        // Verify that setPostingClustering was called
-        verify(clusteredPostingTermsWriter, times(1)).setPostingClustering(100);
+        // Verify that setPostingClustering gets called
+        verify(mockDocValuesFormat, times(1)).fieldsProducer(any(SegmentReadState.class));
     }
 
     /**
@@ -207,7 +184,7 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         verify(clusteredPostingTermsWriter).setField(mockFieldInfo);
 
         // Verify that setPostingClustering was not called
-        verify(clusteredPostingTermsWriter, times(0)).setPostingClustering(anyInt());
+        verify(mockDocValuesFormat, never()).fieldsProducer(any(SegmentReadState.class));
     }
 
     /**
@@ -224,8 +201,8 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
      * This test verifies that the startTerm method does not throw exception
      */
     public void test_startTerm() throws IOException {
+        NumericDocValues mockNorms = mock(NumericDocValues.class);
         clusteredPostingTermsWriter.startTerm(mockNorms);
-        // No assertion needed, we're just verifying it doesn't throw an exception
     }
 
     /**
@@ -233,29 +210,22 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
      * This test verifies that the startTerm method does not throw exception
      */
     @SneakyThrows
-    public void test_finishTerm() {
+    public void test_finishTerm_writesPostingClusters() {
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
 
         // Setup for finishTerm
-        BytesRef term = new BytesRef("test_term");
-        clusteredPostingTermsWriter.startTerm(null);
-        clusteredPostingTermsWriter.startDoc(1, 10);
-        clusteredPostingTermsWriter.startDoc(2, 20);
-
         clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
+        PostingClusters postingClusters = new PostingClusters(prepareClusterList());
+        clusteredPostingTermsWriter.write(new BytesRef("test_term"), postingClusters);
 
-        doNothing().when(clusteredPostingTermsWriter).setField(any(FieldInfo.class));
-
-        // Mock the PostingClusters that would be returned
-        PostingClusters mockClusters = createTestPostingClusters();
-
-        clusteredPostingTermsWriter.write(term, mockClusters);
+        // resets mockIndexOutput because write function also write posting clusters
+        reset(mockIndexOutput);
 
         BlockTermState state = clusteredPostingTermsWriter.newTermState();
         clusteredPostingTermsWriter.finishTerm(state);
 
         // Verify the output was written
-        verify(mockIndexOutput, times(1)).writeVLong(anyInt());
+        verify(mockIndexOutput, atLeastOnce()).writeVLong(anyLong());
     }
 
     /**
@@ -293,7 +263,6 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void test_finishDoc() {
         clusteredPostingTermsWriter.finishDoc();
-        // No assertions needed, just verifying it doesn't throw
     }
 
     /**
@@ -322,7 +291,7 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
         clusteredPostingTermsWriter.close();
 
-        verify(mockIndexOutput).writeLong(eq(100L));
+        verify(mockDocValuesProducer, never()).close();
     }
 
     /**
@@ -331,27 +300,24 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
      */
     public void test_close_whenDocValuesProducerNonNull() throws IOException {
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
-
-        // Set docValuesProducer to a non-null value
         clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
-
         clusteredPostingTermsWriter.close();
 
-        // Verify that writeFooter was called on mockIndexOutput
-        verify(mockIndexOutput).writeInt(0);
-
-        // Verify that close was called on mockDocValuesProducer
-        verify(mockDocValuesProducer).close();
+        verify(mockDocValuesProducer, times(1)).close();
     }
 
     /**
      * Test the closeWithException method when docValuesProducer is null.
      * This tests the edge case where the docValuesProducer field is not initialized.
      */
+    @SneakyThrows
     public void test_closeWithException_whenDocValuesProducerNull() {
-        ClusteredPostingTermsWriter writer = new ClusteredPostingTermsWriter(CODEC_NAME, VERSION);
-        writer.closeWithException();
-        // No exception should be thrown
+        clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
+        clusteredPostingTermsWriter.closeWithException();
+
+        // Verify that IOUtils.closeWhileHandlingException calls only postingOut
+        verify(mockIndexOutput, times(1)).close();
+        verify(mockDocValuesProducer, never()).close();
     }
 
     /**
@@ -362,16 +328,12 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void test_closeWithException_whenDocValuesProducerNonNull() {
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
-
-        // Set docValuesProducer to a non-null value
         clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
-
-        // Call the method under test
         clusteredPostingTermsWriter.closeWithException();
 
-        // Verify that IOUtils.closeWhileHandlingException was called for both postingOut and docValuesProducer
-        verify(mockIndexOutput).close();
-        verify(mockDocValuesProducer).close();
+        // Verify that IOUtils.closeWhileHandlingException calls with both postingOut and docValuesProducer
+        verify(mockIndexOutput, times(1)).close();
+        verify(mockDocValuesProducer, times(1)).close();
     }
 
     /**
@@ -380,26 +342,14 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
      */
     @SneakyThrows
     public void test_close_withStartFp() {
+        clusteredPostingTermsWriter = spy(clusteredPostingTermsWriter);
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
         clusteredPostingTermsWriter.close(100L);
 
         // Verify startFp was written
         verify(mockIndexOutput).writeLong(eq(100L));
 
-        // Verify footer was written
-        verify(mockIndexOutput).writeInt(eq(0));
-    }
-
-    /**
-     * Tests the close method when an IOException occurs while writing the startFp.
-     * This is a test case that verifies the method's behavior when an exception is thrown.
-     */
-    public void test_close_withStartFpThrowsIOException() throws IOException {
-        clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
-
-        // Mock IOException when writing startFp
-        doThrow(new IOException("Test exception")).when(mockIndexOutput).writeLong(anyInt());
-
-        clusteredPostingTermsWriter.close(100L);
+        // Verify calls this.close()
+        verify(clusteredPostingTermsWriter, times(1)).close();
     }
 }

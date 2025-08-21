@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
-import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.BlockTermState;
 import org.apache.lucene.codecs.CodecUtil;
@@ -108,8 +107,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         docWeights.clear();
     }
 
-    @VisibleForTesting
-    void setPostingClustering(int maxDoc) {
+    private void setPostingClustering(int maxDoc) {
         SparseVectorForwardIndex index = ForwardIndexCache.getInstance().getOrCreate(key, maxDoc);
 
         SparseBinaryDocValuesPassThrough luceneReader = null;
@@ -130,7 +128,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
             log.error(String.format(Locale.ROOT, "Failed to retrieve lucene reader due to exception: [%s]", e.getMessage()));
         }
 
-        float cluster_ratio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
+        float clusterRatio = Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
         int nPostings;
         if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
             nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
@@ -143,7 +141,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
             nPostings,
             new RandomClustering(
                 summaryPruneRatio,
-                cluster_ratio,
+                clusterRatio,
                 new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), luceneReader)
             )
         );

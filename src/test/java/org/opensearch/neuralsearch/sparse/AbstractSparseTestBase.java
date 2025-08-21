@@ -179,7 +179,7 @@ public class AbstractSparseTestBase extends OpenSearchQueryTestCase {
         docWeights1.add(new DocWeight(0, (byte) 1));
 
         List<DocWeight> docWeights2 = new ArrayList<>();
-        docWeights1.add(new DocWeight(1, (byte) 2));
+        docWeights2.add(new DocWeight(1, (byte) 2));
 
         clusters.add(new DocumentCluster(documentSummary1, docWeights1, false));
         clusters.add(new DocumentCluster(documentSummary2, docWeights2, false));
