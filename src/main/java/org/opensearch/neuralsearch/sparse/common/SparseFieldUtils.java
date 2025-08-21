@@ -24,19 +24,19 @@ public class SparseFieldUtils {
     @SuppressWarnings("unchecked")
     public static Set<String> getSparseAnnFields(String index) {
         if (index == null) {
-            return Collections.EMPTY_SET;
+            return Collections.emptySet();
         }
         final IndexMetadata metadata = NeuralSearchClusterUtil.instance().getClusterService().state().metadata().index(index);
         if (metadata == null || !SparseSettings.IS_SPARSE_INDEX_SETTING.get(metadata.getSettings())) {
-            return Collections.EMPTY_SET;
+            return Collections.emptySet();
         }
         MappingMetadata mappingMetadata = metadata.mapping();
         if (mappingMetadata == null || mappingMetadata.sourceAsMap() == null) {
-            return Collections.EMPTY_SET;
+            return Collections.emptySet();
         }
         Object properties = mappingMetadata.sourceAsMap().get("properties");
         if (!(properties instanceof Map)) {
-            return Collections.EMPTY_SET;
+            return Collections.emptySet();
         }
         Set<String> sparseAnnFields = new HashSet<>();
         Map<String, Object> fields = (Map<String, Object>) properties;
