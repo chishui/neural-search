@@ -101,4 +101,19 @@ public class NeuralSparseIndexShardTests extends AbstractSparseTestBase {
         verify(indexShard).acquireSearcher("warm-up-searcher-source");
         verify(searcher).close();
     }
+
+    public void testClearCacheWithPredicateFailure() throws IOException {
+        // Setup with sparse field that fails predicate test (threshold too high)
+        when(indexShard.acquireSearcher("clear-cache-searcher-source")).thenReturn(searcher);
+        when(searcher.getIndexReader()).thenReturn(TestsPrepareUtils.prepareIndexReaderWithSparseField(5));
+
+        neuralSparseIndexShard = new NeuralSparseIndexShard(indexShard);
+
+        // Execute
+        neuralSparseIndexShard.clearCache();
+
+        // Verify
+        verify(indexShard).acquireSearcher("clear-cache-searcher-source");
+        verify(searcher).close();
+    }
 }
