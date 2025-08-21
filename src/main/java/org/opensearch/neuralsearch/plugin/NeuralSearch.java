@@ -308,7 +308,7 @@ public class NeuralSearch extends Plugin
             NeuralQueryEnricherProcessor.TYPE,
             new NeuralQueryEnricherProcessor.Factory(),
             NeuralSparseTwoPhaseProcessor.TYPE,
-            new NeuralSparseTwoPhaseProcessor.Factory(parameters.searchPipelineService.getClusterService())
+            new NeuralSparseTwoPhaseProcessor.Factory()
         );
     }
 

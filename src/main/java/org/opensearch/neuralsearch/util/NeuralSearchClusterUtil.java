@@ -48,4 +48,11 @@ public class NeuralSearchClusterUtil {
         return this.clusterService.state().getNodes().getMinNodeVersion();
     }
 
+    /**
+     * Return the cluster service object
+     * @return the cluster service object
+     */
+    public ClusterService getClusterService() {
+        return this.clusterService;
+    }
 }

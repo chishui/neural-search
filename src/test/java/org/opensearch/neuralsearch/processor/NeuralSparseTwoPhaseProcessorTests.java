@@ -15,6 +15,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
+import org.opensearch.neuralsearch.util.NeuralSearchClusterUtil;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
 import org.opensearch.search.builder.SearchSourceBuilder;
@@ -45,10 +46,11 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     public void setUp() throws Exception {
         super.setUp();
         clusterService = mock(ClusterService.class);
+        NeuralSearchClusterUtil.instance().initialize(clusterService);
     }
 
     public void testFactory_whenCreateDefaultPipeline_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseTwoPhaseProcessor processor = createTestProcessor(factory);
         assertEquals(0.3f, processor.getPruneRatio(), 1e-3);
         assertEquals(4.0f, processor.getWindowExpansion(), 1e-3);
@@ -70,14 +72,14 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testFactory_whenCreatePipelineWithCustomPruneType_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseTwoPhaseProcessor processor = createTestProcessor(factory, 5f, "top_k", true, 5f, 1000);
         assertEquals(5f, processor.getPruneRatio(), 1e-6);
         assertEquals(PruneType.TOP_K, processor.getPruneType());
     }
 
     public void testFactory_whenRatioOutOfRange_thenThrowException() {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         expectThrows(IllegalArgumentException.class, () -> createTestProcessor(factory, 1.1f, true, 5.0f, 10000));
         expectThrows(IllegalArgumentException.class, () -> createTestProcessor(factory, 1.1f, "max_ratio", true, 5.0f, 10000));
         expectThrows(IllegalArgumentException.class, () -> createTestProcessor(factory, 0f, "top_k", true, 5.0f, 10000));
@@ -86,18 +88,18 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testFactory_whenWindowExpansionOutOfRange_thenThrowException() {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         expectThrows(IllegalArgumentException.class, () -> createTestProcessor(factory, 0.1f, true, 0.5f, 10000));
         expectThrows(IllegalArgumentException.class, () -> createTestProcessor(factory, 0.1f, true, -0.5f, 10000));
     }
 
     public void testFactory_whenMaxWindowSizeOutOfRange_thenThrowException() {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         expectThrows(IllegalArgumentException.class, () -> createTestProcessor(factory, 0.1f, true, 5.5f, -1));
     }
 
     public void testProcessRequest_whenTwoPhaseEnabled_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.source(new SearchSourceBuilder().query(neuralQueryBuilder));
@@ -109,7 +111,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testProcessRequest_whenUseCustomPruneType_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.source(new SearchSourceBuilder().query(neuralQueryBuilder));
@@ -122,7 +124,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testProcessRequest_whenTwoPhaseEnabledAndNestedBoolean_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
         boolQueryBuilder.should(neuralQueryBuilder);
@@ -137,7 +139,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testProcessRequestWithRescorer_whenTwoPhaseEnabled_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.source(new SearchSourceBuilder().query(neuralQueryBuilder));
@@ -152,7 +154,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testProcessRequest_whenTwoPhaseDisabled_thenSuccess() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.source(new SearchSourceBuilder().query(neuralQueryBuilder));
@@ -165,7 +167,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
 
     @SneakyThrows
     public void testProcessRequest_whenTwoPhaseEnabledAndOutOfWindowSize_thenThrowException() {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.source(new SearchSourceBuilder().query(neuralQueryBuilder));
@@ -178,7 +180,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
 
     @SneakyThrows
     public void testProcessRequest_whenTwoPhaseEnabledAndWithOutNeuralSparseQuery_thenReturnRequest() {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
         boolQueryBuilder.should(new MatchAllQueryBuilder());
         SearchRequest searchRequest = new SearchRequest();
@@ -189,7 +191,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
     }
 
     public void testType() throws Exception {
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseTwoPhaseProcessor processor = createTestProcessor(factory);
         assertEquals(NeuralSparseTwoPhaseProcessor.TYPE, processor.getType());
     }
@@ -198,7 +200,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         // Setup mock cluster service with non-sparse index
         configureSparseIndexSetting(false);
 
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         neuralQueryBuilder.fieldName(TEST_SPARSE_FIELD_NAME);
 
@@ -220,7 +222,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         // Setup mock cluster service with null mapping metadata
         configureIndexMapping(null);
 
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         neuralQueryBuilder.fieldName(TEST_SPARSE_FIELD_NAME);
 
@@ -242,7 +244,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         // Setup mock cluster service with empty properties
         configureIndexMappingProperties(Map.of());
 
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         neuralQueryBuilder.fieldName(TEST_SPARSE_FIELD_NAME);
 
@@ -265,7 +267,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         Map<String, Object> properties = createFieldMappingProperties(false);
         configureIndexMappingProperties(properties);
 
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         neuralQueryBuilder.fieldName(TEST_SPARSE_FIELD_NAME);
 
@@ -288,7 +290,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         Map<String, Object> properties = createFieldMappingProperties(true);
         configureIndexMappingProperties(properties);
 
-        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory(clusterService);
+        NeuralSparseTwoPhaseProcessor.Factory factory = new NeuralSparseTwoPhaseProcessor.Factory();
         NeuralSparseQueryBuilder neuralQueryBuilder = new NeuralSparseQueryBuilder();
         neuralQueryBuilder.fieldName(TEST_SPARSE_FIELD_NAME);
 
@@ -304,7 +306,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         Exception exception = expectThrows(IllegalArgumentException.class, () -> processor.processRequest(searchRequest));
 
         assertEquals(
-            String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] query type for now", SEISMIC),
+            String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] field for now", SEISMIC),
             exception.getMessage()
         );
     }

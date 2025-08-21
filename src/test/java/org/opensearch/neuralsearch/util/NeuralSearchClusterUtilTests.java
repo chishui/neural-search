@@ -33,4 +33,13 @@ public class NeuralSearchClusterUtilTests extends OpenSearchTestCase {
 
         assertTrue(Version.V_2_3_0.equals(minVersion));
     }
+
+    public void testGetClusterService_thenSuccess() {
+        ClusterService clusterService = mockClusterService(Version.V_2_3_0);
+
+        final NeuralSearchClusterUtil neuralSearchClusterUtil = NeuralSearchClusterUtil.instance();
+        neuralSearchClusterUtil.initialize(clusterService);
+
+        assertSame(clusterService, neuralSearchClusterUtil.getClusterService());
+    }
 }

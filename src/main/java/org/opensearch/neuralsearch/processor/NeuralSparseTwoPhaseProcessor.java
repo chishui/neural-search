@@ -18,6 +18,7 @@ import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.ingest.ConfigurationUtils;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
+import org.opensearch.neuralsearch.util.NeuralSearchClusterUtil;
 import org.opensearch.neuralsearch.util.prune.PruneType;
 import org.opensearch.neuralsearch.util.prune.PruneUtils;
 import org.opensearch.search.builder.SearchSourceBuilder;
@@ -233,7 +234,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
                 String fieldName = neuralSparseQueryBuilder.fieldName();
                 if (sparseAnnFields.contains(fieldName)) {
                     throw new IllegalArgumentException(
-                        String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] query type for now", SEISMIC)
+                        String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] field for now", SEISMIC)
                     );
                 }
             }
@@ -245,12 +246,6 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
      *
      */
     public static class Factory implements Processor.Factory<SearchRequestProcessor> {
-
-        ClusterService clusterService;
-
-        public Factory(ClusterService clusterService) {
-            this.clusterService = clusterService;
-        }
 
         @Override
         public NeuralSparseTwoPhaseProcessor create(
@@ -298,7 +293,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
                 pruneType,
                 windowExpansion,
                 maxWindowSize,
-                clusterService
+                NeuralSearchClusterUtil.instance().getClusterService()
             );
         }
     }
