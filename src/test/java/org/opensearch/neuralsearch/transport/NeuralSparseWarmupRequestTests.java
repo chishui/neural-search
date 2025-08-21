@@ -30,7 +30,7 @@ public class NeuralSparseWarmupRequestTests extends AbstractSparseTestBase {
     public void testConstructorWithEmptyIndices() {
         NeuralSparseWarmupRequest request = new NeuralSparseWarmupRequest();
 
-        assertArrayEquals(new String[0], request.indices());
+        assertEquals(0, request.indices().length);
     }
 
     public void testConstructorWithNullIndices() {

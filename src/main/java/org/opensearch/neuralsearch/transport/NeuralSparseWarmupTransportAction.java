@@ -6,7 +6,6 @@ package org.opensearch.neuralsearch.transport;
 
 import lombok.SneakyThrows;
 import org.opensearch.neuralsearch.sparse.NeuralSparseIndexShard; // This to change
-import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.core.action.support.DefaultShardOperationFailedException;
 import org.opensearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
@@ -121,21 +120,11 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
     @Override
     @SneakyThrows
     protected EmptyResult shardOperation(NeuralSparseWarmupRequest request, ShardRouting shardRouting) {
-        // Check if cache is near limit before attempting warmup
-        if (CircuitBreakerManager.isNearLimit(1)) {
-            throw new IOException("Cannot warm up shard " + shardRouting.shardId() + ": cache is near circuit breaker limit");
-        }
-
-        try {
-            NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
-                indicesService.indexServiceSafe(shardRouting.shardId().getIndex()).getShard(shardRouting.shardId().id())
-            );
-            neuralSparseIndexShard.warmUp();
-            return EmptyResult.INSTANCE;
-        } catch (RuntimeException e) {
-            // Convert RuntimeException to IOException for clearer exception handling
-            throw new IOException("Failed to warm up shard: " + shardRouting.shardId(), e);
-        }
+        NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
+            indicesService.indexServiceSafe(shardRouting.shardId().getIndex()).getShard(shardRouting.shardId().id())
+        );
+        neuralSparseIndexShard.warmUp();
+        return EmptyResult.INSTANCE;
     }
 
     /**

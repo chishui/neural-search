@@ -16,6 +16,7 @@ import org.opensearch.neuralsearch.sparse.data.SparseVector;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.Consumer;
 
 /**
  * This class is used to store/read sparse vector in cache
@@ -30,6 +31,15 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
     private final SparseVectorReader reader = new CacheSparseVectorReader();
     @Getter
     private final SparseVectorWriter writer = new CacheSparseVectorWriter();
+
+    /**
+     * Returns the writer instance.
+     * @param circuitBreakerHandler A consumer to handle circuit breaker triggering differently
+     * @return the SparseVectorWriter instance
+     */
+    public SparseVectorWriter getWriter(Consumer<Long> circuitBreakerHandler) {
+        return new CacheSparseVectorWriter(circuitBreakerHandler);
+    }
 
     public ForwardIndexCacheItem(int docCount) {
         sparseVectors = new AtomicReferenceArray<>(docCount);
@@ -54,6 +64,15 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
     }
 
     private class CacheSparseVectorWriter implements SparseVectorWriter {
+        private final Consumer<Long> circuitBreakerTriggerHandler;
+
+        private CacheSparseVectorWriter(Consumer<Long> circuitBreakerTriggerHandler) {
+            this.circuitBreakerTriggerHandler = circuitBreakerTriggerHandler;
+        }
+
+        private CacheSparseVectorWriter() {
+            this.circuitBreakerTriggerHandler = null;
+        }
 
         @Override
         public void insert(int docId, SparseVector vector) {
@@ -65,6 +84,9 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
 
             if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                 // TODO: cache eviction
+                if (circuitBreakerTriggerHandler != null) {
+                    circuitBreakerTriggerHandler.accept(ramBytesUsed);
+                }
                 return;
             }
 

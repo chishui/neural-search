@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.rest;
 
 import lombok.extern.log4j.Log4j2;
+import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.neuralsearch.sparse.common.exception.NeuralSparseInvalidIndicesException;
 import org.opensearch.cluster.service.ClusterService;
@@ -24,17 +25,17 @@ public class RestUtils {
     /**
      * @param indices An array of indices related to the request
      * @param clusterService ClusterService of OpenSearch Cluster
-     * @param sparse_index sparseIndex name of setting
+     * @param sparseIndex sparseIndex name of setting
      * @param apiOperation Determine whether the request is to warm up or clear cache
      */
-    public static void validateIndices(Index[] indices, ClusterService clusterService, String sparse_index, String apiOperation) {
+    public static void validateIndices(Index[] indices, ClusterService clusterService, String sparseIndex, String apiOperation) {
         List<String> invalidIndexNames = Arrays.stream(indices).filter(index -> {
             String sparseIndexSetting = Optional.ofNullable(clusterService)
-                .map(cs -> cs.state())
-                .map(state -> state.metadata())
+                .map(ClusterService::state)
+                .map(ClusterState::metadata)
                 .map(metadata -> metadata.getIndexSafe(index))
                 .map(IndexMetadata::getSettings)
-                .map(settings -> settings.get(sparse_index))
+                .map(settings -> settings.get(sparseIndex))
                 .orElse(null);
 
             return !"true".equals(sparseIndexSetting);

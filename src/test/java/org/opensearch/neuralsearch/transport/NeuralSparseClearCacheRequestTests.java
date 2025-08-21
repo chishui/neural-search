@@ -30,7 +30,7 @@ public class NeuralSparseClearCacheRequestTests extends AbstractSparseTestBase {
     public void testConstructorWithEmptyIndices() {
         NeuralSparseClearCacheRequest request = new NeuralSparseClearCacheRequest();
 
-        assertArrayEquals(new String[0], request.indices());
+        assertEquals(0, request.indices().length);
     }
 
     public void testConstructorWithNullIndices() {

@@ -46,6 +46,19 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
     }
 
     /**
+     * Tests that with different getWriter function calling, correct writer will be returned.
+     * This verifies the basic functionality of the ClusteredPostingWriter.
+     */
+    @SneakyThrows
+    public void test_writer_gettingMethods() {
+        ClusteredPostingWriter originalWriter = cacheItem.getWriter();
+        ClusteredPostingWriter consumerWriter = cacheItem.getWriter((lambdaPlaceHolder) -> {});
+
+        // Test CacheClusteredPostingWriter and EarlyStopCacheClusteredPostingWriter can be correctly created
+        assertNotEquals("Two writers should be different", originalWriter, consumerWriter);
+    }
+
+    /**
      * Tests that a term with clusters can be successfully inserted and read back.
      * This verifies the basic functionality of the writer and reader.
      */

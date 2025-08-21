@@ -6,7 +6,6 @@ package org.opensearch.neuralsearch.transport;
 
 import org.junit.Before;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
@@ -28,7 +27,7 @@ import org.opensearch.index.shard.IndexShard;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
+
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
@@ -39,7 +38,6 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -155,38 +153,14 @@ public class NeuralSparseWarmupTransportActionTests extends AbstractSparseTestBa
 
         NeuralSparseWarmupRequest request = new NeuralSparseWarmupRequest("test-index");
 
-        try (MockedStatic<CircuitBreakerManager> mockedCircuitBreaker = mockStatic(CircuitBreakerManager.class)) {
-            mockedCircuitBreaker.when(() -> CircuitBreakerManager.isNearLimit(1)).thenReturn(false);
+        // Execute
+        TransportBroadcastByNodeAction.EmptyResult result = transportAction.shardOperation(request, shardRouting);
 
-            // Execute
-            TransportBroadcastByNodeAction.EmptyResult result = transportAction.shardOperation(request, shardRouting);
-
-            // Verify
-            assertNotNull(result);
-            assertEquals(TransportBroadcastByNodeAction.EmptyResult.INSTANCE, result);
-            verify(indicesService).indexServiceSafe(index);
-            verify(indexService).getShard(0);
-        }
-    }
-
-    public void testShardOperationWithCircuitBreakerNearLimit() {
-        // Setup
-        Index index = new Index("test-index", "test-uuid");
-        ShardId shardId = new ShardId(index, 0);
-        ShardRouting shardRouting = mock(ShardRouting.class);
-        when(shardRouting.shardId()).thenReturn(shardId);
-
-        NeuralSparseWarmupRequest request = new NeuralSparseWarmupRequest("test-index");
-
-        try (MockedStatic<CircuitBreakerManager> mockedCircuitBreaker = mockStatic(CircuitBreakerManager.class)) {
-            mockedCircuitBreaker.when(() -> CircuitBreakerManager.isNearLimit(1)).thenReturn(true);
-
-            // Execute and verify exception
-            IOException exception = assertThrows(IOException.class, () -> { transportAction.shardOperation(request, shardRouting); });
-
-            assertTrue(exception.getMessage().contains("Cannot warm up shard"));
-            assertTrue(exception.getMessage().contains("cache is near circuit breaker limit"));
-        }
+        // Verify
+        assertNotNull(result);
+        assertEquals(TransportBroadcastByNodeAction.EmptyResult.INSTANCE, result);
+        verify(indicesService).indexServiceSafe(index);
+        verify(indexService).getShard(0);
     }
 
     public void testShardOperationWithRuntimeException() {
@@ -200,15 +174,10 @@ public class NeuralSparseWarmupTransportActionTests extends AbstractSparseTestBa
 
         NeuralSparseWarmupRequest request = new NeuralSparseWarmupRequest("test-index");
 
-        try (MockedStatic<CircuitBreakerManager> mockedCircuitBreaker = mockStatic(CircuitBreakerManager.class)) {
-            mockedCircuitBreaker.when(() -> CircuitBreakerManager.isNearLimit(1)).thenReturn(false);
+        // Execute and verify exception
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> { transportAction.shardOperation(request, shardRouting); });
 
-            // Execute and verify exception
-            IOException exception = assertThrows(IOException.class, () -> { transportAction.shardOperation(request, shardRouting); });
-
-            assertTrue(exception.getMessage().contains("Failed to warm up shard"));
-            assertEquals(RuntimeException.class, exception.getCause().getClass());
-        }
+        assertEquals("Test runtime exception", exception.getMessage());
     }
 
     public void testShards() {

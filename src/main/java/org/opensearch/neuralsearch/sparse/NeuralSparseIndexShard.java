@@ -26,11 +26,12 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.lucene.Lucene;
+import org.opensearch.core.common.breaker.CircuitBreaker;
+import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
-import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
@@ -93,11 +94,6 @@ public class NeuralSparseIndexShard {
                     // Use CacheGated readers to automatically populate cache on read
                     for (FieldInfo fieldInfo : sparseFieldInfos) {
                         try {
-                            // Check cache limit before processing each field
-                            if (CircuitBreakerManager.isNearLimit(0.95)) {
-                                throw new RuntimeException("Cache limit reached during warmup of field: " + fieldInfo.getName());
-                            }
-
                             final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
                             final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
                             final CacheKey key = new CacheKey(segmentInfo, fieldInfo);
@@ -108,11 +104,17 @@ public class NeuralSparseIndexShard {
                             warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
 
                         } catch (Exception e) {
+                            if (e instanceof CircuitBreakingException) {
+                                throw e;
+                            }
                             log.error("[Neural Sparse] Failed to warm up field: {}", fieldInfo.getName(), e);
                             throw new RuntimeException("Failed to warm up field: " + fieldInfo.getName(), e);
                         }
                     }
                 }
+            } catch (CircuitBreakingException e) {
+                log.error("[Neural Sparse] Circuit Breaker reaches limit");
+                throw e;
             } catch (Exception e) {
                 log.error("[Neural Sparse] Failed to acquire searcher", e);
                 throw new RuntimeException(e);
@@ -181,11 +183,16 @@ public class NeuralSparseIndexShard {
             final CacheGatedPostingsReader postingsReader = new CacheGatedPostingsReader(
                 fieldInfo.name,
                 ClusteredPostingCache.getInstance().getOrCreate(key).getReader(),
-                ClusteredPostingCache.getInstance().getOrCreate(key).getWriter(),
+                ClusteredPostingCache.getInstance().getOrCreate(key).getWriter((ramBytesUsed) -> {
+                    throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
+                }),
                 luceneReader
             );
             warmUpInvertedIndex(postingsReader);
         } catch (Exception e) {
+            if (e instanceof CircuitBreakingException) {
+                throw e;
+            }
             log.error("[Neural Sparse] Failed to create Lucene reader for inverted index", e);
         }
 
@@ -200,7 +207,9 @@ public class NeuralSparseIndexShard {
     private CacheGatedForwardIndexReader getCacheGatedForwardIndexReader(BinaryDocValues binaryDocValues, CacheKey key, int docCount) {
         if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues) {
             ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(key, docCount);
-            return new CacheGatedForwardIndexReader(cacheItem.getReader(), cacheItem.getWriter(), sparseBinaryDocValues);
+            return new CacheGatedForwardIndexReader(cacheItem.getReader(), cacheItem.getWriter((ramBytesUsed) -> {
+                throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
+            }), sparseBinaryDocValues);
         } else {
             // For regular BinaryDocValues, create a SparseVectorReader wrapper
             final SparseVectorReader luceneReader = docId -> {
@@ -215,7 +224,9 @@ public class NeuralSparseIndexShard {
             };
 
             ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(key, docCount);
-            return new CacheGatedForwardIndexReader(null, cacheItem.getWriter(), luceneReader);
+            return new CacheGatedForwardIndexReader(null, cacheItem.getWriter((ramBytesUsed) -> {
+                throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
+            }), luceneReader);
         }
     }
 
@@ -230,9 +241,12 @@ public class NeuralSparseIndexShard {
         int docId = binaryDocValues.nextDoc();
         while (docId != DocIdSetIterator.NO_MORE_DOCS) {
             try {
-                SparseVector vectorsFromLucene = cacheGatedForwardIndexReader.read(docId);
+                cacheGatedForwardIndexReader.read(docId);
             } catch (IOException e) {
                 log.warn("[Neural Sparse] Failed to read doc {} during warm up", docId, e);
+            } catch (CircuitBreakingException e) {
+                log.warn("[Neural Sparse] Circuit Breaker reaches limit when read doc {} during warm up", docId, e);
+                throw e;
             }
             docId = binaryDocValues.nextDoc();
         }
@@ -245,6 +259,9 @@ public class NeuralSparseIndexShard {
                 cacheGatedPostingsReader.read(term);
             } catch (IOException e) {
                 log.warn("[Neural Sparse] Failed to read term {} during warm up", term, e);
+            } catch (CircuitBreakingException e) {
+                log.warn("[Neural Sparse] Circuit Breaker reaches limit when read term {} during warm up", term, e);
+                throw e;
             }
         }
     }
