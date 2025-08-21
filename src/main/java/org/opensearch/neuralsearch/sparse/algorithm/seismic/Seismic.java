@@ -2,12 +2,13 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.opensearch.neuralsearch.sparse.algorithm;
+package org.opensearch.neuralsearch.sparse.algorithm.seismic;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.opensearch.common.ValidationException;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgorithm;
 import org.opensearch.neuralsearch.sparse.mapper.SparseMethodContext;
 
 import java.util.ArrayList;
@@ -21,6 +22,9 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 
+/**
+ * A class representing SEISMIC algorithm. It now only supports parameter validation.
+ */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Seismic implements SparseAlgorithm {
     public static final Seismic INSTANCE;
@@ -29,6 +33,12 @@ public class Seismic implements SparseAlgorithm {
         INSTANCE = new Seismic();
     }
 
+    /**
+     * Validates algorithm parameters.
+     *
+     * @param sparseMethodContext method context with parameters
+     * @return ValidationException with errors, or null if valid
+     */
     @Override
     public ValidationException validateMethod(SparseMethodContext sparseMethodContext) {
         String algoName = sparseMethodContext.getMethodComponentContext().getName();

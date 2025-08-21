@@ -11,8 +11,15 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Interface for clustering algorithm
+ * Document clustering algorithm interface.
  */
-public interface Clustering {
+public interface ClusteringAlgorithm {
+    /**
+     * Clusters documents into a list of document clusters.
+     *
+     * @param docWeights documents to cluster (usually a posting list)
+     * @return list of document clusters
+     * @throws IOException if clustering fails
+     */
     List<DocumentCluster> cluster(List<DocWeight> docWeights) throws IOException;
 }

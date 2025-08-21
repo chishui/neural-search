@@ -7,7 +7,6 @@ package org.opensearch.neuralsearch.plugin;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_SEARCH_HYBRID_SEARCH_DISABLED;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.RERANKER_MAX_DOC_FIELDS;
 import static org.opensearch.neuralsearch.settings.NeuralSearchSettings.NEURAL_STATS_ENABLED;
-import static org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning.updateThreadPoolSize;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,7 +32,7 @@ import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
@@ -180,9 +179,9 @@ public class NeuralSearch extends Plugin
         clusterService.getClusterSettings()
             .addSettingsUpdateConsumer(
                 NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
-                newThreadQty -> updateThreadPoolSize(newThreadQty)
+                ClusterTrainingExecutor::updateThreadPoolSize
             );
-        ClusterTrainingRunning.initialize(threadPool);
+        ClusterTrainingExecutor.getInstance().initialize(threadPool);
         return List.of(clientAccessor, EventStatsManager.instance(), infoStatsManager);
     }
 
@@ -221,10 +220,10 @@ public class NeuralSearch extends Plugin
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
                 settings,
-                ClusterTrainingRunning.THREAD_POOL_NAME,
+                ClusterTrainingExecutor.THREAD_POOL_NAME,
                 allocatedProcessors,
                 -1,
-                ClusterTrainingRunning.THREAD_POOL_NAME,
+                ClusterTrainingExecutor.THREAD_POOL_NAME,
                 false
             )
         );

@@ -39,6 +39,7 @@ import org.opensearch.neuralsearch.query.NeuralQueryBuilder;
 import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.search.query.HybridQueryPhaseSearcher;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.plugins.SearchPipelinePlugin;
 import org.opensearch.plugins.SearchPlugin;
 import org.opensearch.plugins.SearchPlugin.SearchExtSpec;
@@ -54,7 +55,6 @@ import org.opensearch.threadpool.ThreadPool;
 import static org.mockito.Mockito.verify;
 import org.mockito.ArgumentCaptor;
 import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
 
 public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
@@ -224,18 +224,18 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         ThreadPool mockThreadPool = mock(ThreadPool.class);
         OpenSearchThreadPoolExecutor mockExecutor = mock(OpenSearchThreadPoolExecutor.class);
 
-        when(mockThreadPool.executor(ClusterTrainingRunning.THREAD_POOL_NAME)).thenReturn(mockExecutor);
+        when(mockThreadPool.executor(ClusterTrainingExecutor.THREAD_POOL_NAME)).thenReturn(mockExecutor);
         when(mockExecutor.getCorePoolSize()).thenReturn(CURRENT_THREAD_COUNT);
         when(mockExecutor.getMaximumPoolSize()).thenReturn(CURRENT_THREAD_COUNT);
 
-        ClusterTrainingRunning.initialize(mockThreadPool);
-        ClusterTrainingRunning.updateThreadPoolSize(NEW_THREAD_COUNT);
+        ClusterTrainingExecutor.getInstance().initialize(mockThreadPool);
+        ClusterTrainingExecutor.updateThreadPoolSize(NEW_THREAD_COUNT);
 
         ArgumentCaptor<Settings> settingsCaptor = ArgumentCaptor.forClass(Settings.class);
         verify(mockThreadPool).setThreadPool(settingsCaptor.capture());
 
         Settings capturedSettings = settingsCaptor.getValue();
-        assertEquals(String.valueOf(NEW_THREAD_COUNT), capturedSettings.get(ClusterTrainingRunning.THREAD_POOL_NAME + ".size"));
+        assertEquals(String.valueOf(NEW_THREAD_COUNT), capturedSettings.get(ClusterTrainingExecutor.THREAD_POOL_NAME + ".size"));
     }
 
     public void testThreadPoolSettingRegistration() {

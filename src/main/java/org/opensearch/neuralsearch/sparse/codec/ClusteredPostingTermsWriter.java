@@ -25,10 +25,10 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusteringTask;
+import org.opensearch.neuralsearch.sparse.algorithm.seismic.RandomClusteringAlgorithm;
+import org.opensearch.neuralsearch.sparse.algorithm.seismic.SeismicPostingClusterer;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
-import org.opensearch.neuralsearch.sparse.algorithm.RandomClustering;
-import org.opensearch.neuralsearch.sparse.algorithm.PostingClustering;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
@@ -63,7 +63,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     private IndexOutput postingOut;
     private final List<DocWeight> docWeights = new ArrayList<>();
     private BytesRef currentTerm;
-    private PostingClustering postingClustering;
+    private SeismicPostingClusterer seismicPostingClusterer;
     private CacheKey key;
     private final int version;
     private final String codec_name;
@@ -93,7 +93,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         key = new CacheKey(this.state.segmentInfo, fieldInfo);
 
         if (!isMerge) {
-            setPostingClustering(maxDoc);
+            setSeismicPostingClusterer(maxDoc);
         }
     }
 
@@ -107,7 +107,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         docWeights.clear();
     }
 
-    private void setPostingClustering(int maxDoc) {
+    private void setSeismicPostingClusterer(int maxDoc) {
         SparseVectorForwardIndex index = ForwardIndexCache.getInstance().getOrCreate(key, maxDoc);
 
         SparseBinaryDocValuesPassThrough luceneReader = null;
@@ -137,9 +137,9 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
         }
         float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
 
-        this.postingClustering = new PostingClustering(
+        this.seismicPostingClusterer = new SeismicPostingClusterer(
             nPostings,
-            new RandomClustering(
+            new RandomClusteringAlgorithm(
                 summaryPruneRatio,
                 cluster_ratio,
                 new CacheGatedForwardIndexReader(index.getReader(), index.getWriter(), luceneReader)
@@ -177,7 +177,7 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
 
     @Override
     public void finishTerm(BlockTermState state) throws IOException {
-        PostingClusters postingClusters = new ClusteringTask(this.currentTerm, docWeights, key, this.postingClustering).get();
+        PostingClusters postingClusters = new ClusteringTask(this.currentTerm, docWeights, key, this.seismicPostingClusterer).get();
         writePostingClusters(postingClusters, state);
         this.docWeights.clear();
         this.currentTerm = null;

@@ -14,6 +14,7 @@ import org.junit.Before;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.algorithm.seismic.SeismicPostingClusterer;
 import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
@@ -31,7 +32,7 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
     private BytesRef term;
     private List<DocWeight> docs;
     private CacheKey key;
-    private PostingClustering postingClustering;
+    private SeismicPostingClusterer seismicPostingClusterer;
 
     @Before
     @Override
@@ -42,12 +43,12 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
         term = new BytesRef("test_term");
         key = mock(CacheKey.class);
         docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2));
-        postingClustering = mock(PostingClustering.class);
+        seismicPostingClusterer = mock(SeismicPostingClusterer.class);
         CircuitBreakerManager.setCircuitBreaker(mock(CircuitBreaker.class));
     }
 
     public void testConstructor_withValidInputs_createsTask() {
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
 
         assertNotNull(task);
     }
@@ -55,43 +56,43 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
     public void testConstructor_withEmptyDocs_createsTask() {
         docs = Collections.emptyList();
 
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
 
         assertNotNull(task);
     }
 
     public void testGet_withValidClustering_returnsPostingClusters() throws IOException {
         List<DocumentCluster> expectedClusters = Arrays.asList(mock(DocumentCluster.class), mock(DocumentCluster.class));
-        when(postingClustering.cluster(any())).thenReturn(expectedClusters);
+        when(seismicPostingClusterer.cluster(any())).thenReturn(expectedClusters);
 
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
         PostingClusters result = task.get();
 
         assertNotNull(result);
         assertNotNull(result.getClusters());
         assertEquals(2, result.getClusters().size());
-        verify(postingClustering, times(1)).cluster(any());
+        verify(seismicPostingClusterer, times(1)).cluster(any());
     }
 
     public void testGet_withEmptyDocs_returnsPostingClusters() throws IOException {
         docs = Collections.emptyList();
 
         List<DocumentCluster> expectedClusters = Collections.emptyList();
-        when(postingClustering.cluster(any())).thenReturn(expectedClusters);
+        when(seismicPostingClusterer.cluster(any())).thenReturn(expectedClusters);
 
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
         PostingClusters result = task.get();
 
         assertNotNull(result);
         assertNotNull(result.getClusters());
         assertEquals(0, result.getClusters().size());
-        verify(postingClustering, times(1)).cluster(any());
+        verify(seismicPostingClusterer, times(1)).cluster(any());
     }
 
     public void testGet_withIOException_throwsRuntimeException() throws IOException {
-        doThrow(new IOException("Test exception")).when(postingClustering).cluster(any());
+        doThrow(new IOException("Test exception")).when(seismicPostingClusterer).cluster(any());
 
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
 
         try {
             task.get();
@@ -106,36 +107,36 @@ public class ClusteringTaskTests extends AbstractSparseTestBase {
         docs = Arrays.asList(new DocWeight(1, (byte) 1), new DocWeight(2, (byte) 2), new DocWeight(3, (byte) 3));
 
         List<DocumentCluster> expectedClusters = Arrays.asList(mock(DocumentCluster.class));
-        when(postingClustering.cluster(any())).thenReturn(expectedClusters);
+        when(seismicPostingClusterer.cluster(any())).thenReturn(expectedClusters);
 
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
         task.get();
 
-        verify(postingClustering, times(1)).cluster(docs);
+        verify(seismicPostingClusterer, times(1)).cluster(docs);
     }
 
     public void testGet_withSingleDoc_returnsPostingClusters() throws IOException {
         docs = Arrays.asList(new DocWeight(42, (byte) 5));
 
         List<DocumentCluster> expectedClusters = Arrays.asList(mock(DocumentCluster.class));
-        when(postingClustering.cluster(any())).thenReturn(expectedClusters);
+        when(seismicPostingClusterer.cluster(any())).thenReturn(expectedClusters);
 
-        ClusteringTask task = new ClusteringTask(term, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(term, docs, key, seismicPostingClusterer);
         PostingClusters result = task.get();
 
         assertNotNull(result);
         assertNotNull(result.getClusters());
         assertEquals(1, result.getClusters().size());
-        verify(postingClustering, times(1)).cluster(docs);
+        verify(seismicPostingClusterer, times(1)).cluster(docs);
     }
 
     public void testGet_preservesOriginalTermBytes() throws IOException {
         BytesRef originalTerm = new BytesRef("original_term");
 
         List<DocumentCluster> expectedClusters = Arrays.asList(mock(DocumentCluster.class));
-        when(postingClustering.cluster(any())).thenReturn(expectedClusters);
+        when(seismicPostingClusterer.cluster(any())).thenReturn(expectedClusters);
 
-        ClusteringTask task = new ClusteringTask(originalTerm, docs, key, postingClustering);
+        ClusteringTask task = new ClusteringTask(originalTerm, docs, key, seismicPostingClusterer);
 
         // Modify original term to ensure deep copy was made
         originalTerm.bytes[0] = (byte) 'X';
