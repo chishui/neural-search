@@ -344,7 +344,7 @@ public class NeuralSearch extends Plugin
     @Override
     public Optional<CodecServiceFactory> getCustomCodecServiceFactory(IndexSettings indexSettings) {
         if (indexSettings.getValue(SparseSettings.IS_SPARSE_INDEX_SETTING)) {
-            return Optional.of((config) -> new SparseCodecService(config, indexSettings));
+            return Optional.of(SparseCodecService::new);
         }
         return Optional.empty();
     }
