@@ -2,7 +2,6 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-
 package org.opensearch.neuralsearch.sparse.common;
 
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -19,6 +18,7 @@ import java.util.Set;
 
 public class SparseFieldUtils {
 
+    // no instance of this util class
     private SparseFieldUtils() {}
 
     @SuppressWarnings("unchecked")
