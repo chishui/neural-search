@@ -10,9 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.BinaryDocValues;
@@ -59,8 +56,6 @@ public class NeuralSparseIndexShard {
     @NonNull
     private final IndexShard indexShard;
 
-    private static final ConcurrentHashMap<String, ReadWriteLock> shardLocks = new ConcurrentHashMap<>();
-
     private static final String warmUpSearcherSource = "warm-up-searcher-source";
     private static final String clearCacheSearcherSource = "clear-cache-searcher-source";
 
@@ -81,46 +76,40 @@ public class NeuralSparseIndexShard {
      */
     @SneakyThrows
     public void warmUp() {
-        ReadWriteLock shardLock = getShardLock();
-        shardLock.readLock().lock();
-        try {
-            try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
-                for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
-                    final LeafReader leafReader = leafReaderContext.reader();
+        try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
+            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
+                final LeafReader leafReader = leafReaderContext.reader();
 
-                    // Find all sparse FieldInfos in this segment
-                    final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
+                // Find all sparse FieldInfos in this segment
+                final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
 
-                    // Use CacheGated readers to automatically populate cache on read
-                    for (FieldInfo fieldInfo : sparseFieldInfos) {
-                        try {
-                            final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-                            final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
-                            final CacheKey key = new CacheKey(segmentInfo, fieldInfo);
+                // Use CacheGated readers to automatically populate cache on read
+                for (FieldInfo fieldInfo : sparseFieldInfos) {
+                    try {
+                        final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                        final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+                        final CacheKey key = new CacheKey(segmentInfo, fieldInfo);
 
-                            if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
-                                continue;
-                            }
-                            warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
-
-                        } catch (Exception e) {
-                            if (e instanceof CircuitBreakingException) {
-                                throw e;
-                            }
-                            log.error("[Neural Sparse] Failed to warm up field: {}", fieldInfo.getName(), e);
-                            throw new RuntimeException("Failed to warm up field: " + fieldInfo.getName(), e);
+                        if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
+                            continue;
                         }
+                        warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
+
+                    } catch (Exception e) {
+                        if (e instanceof CircuitBreakingException) {
+                            throw e;
+                        }
+                        log.error("[Neural Sparse] Failed to warm up field: {}", fieldInfo.getName(), e);
+                        throw new RuntimeException("Failed to warm up field: " + fieldInfo.getName(), e);
                     }
                 }
-            } catch (CircuitBreakingException e) {
-                log.error("[Neural Sparse] Circuit Breaker reaches limit");
-                throw e;
-            } catch (Exception e) {
-                log.error("[Neural Sparse] Failed to acquire searcher", e);
-                throw new RuntimeException(e);
             }
-        } finally {
-            shardLock.readLock().unlock();
+        } catch (CircuitBreakingException e) {
+            log.error("[Neural Sparse] Circuit Breaker reaches limit");
+            throw e;
+        } catch (Exception e) {
+            log.error("[Neural Sparse] Failed to acquire searcher", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -131,36 +120,30 @@ public class NeuralSparseIndexShard {
      */
     @SneakyThrows
     public void clearCache() {
-        ReadWriteLock shardLock = getShardLock();
-        shardLock.writeLock().lock();
-        try {
-            try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
-                for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
-                    final LeafReader leafReader = leafReaderContext.reader();
+        try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
+            for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
+                final LeafReader leafReader = leafReaderContext.reader();
 
-                    // Find all sparse token fields in this segment
-                    final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
+                // Find all sparse token fields in this segment
+                final Set<FieldInfo> sparseFieldInfos = collectSparseFieldInfos(leafReader);
 
-                    // Get segment info for creating cache keys
-                    final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
-                    final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
+                // Get segment info for creating cache keys
+                final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
+                final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
 
-                    // Clear in-memory cache for each sparse field
-                    for (FieldInfo fieldInfo : sparseFieldInfos) {
-                        if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
-                            continue;
-                        }
-                        CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
-                        ClusteredPostingCache.getInstance().removeIndex(cacheKey);
-                        ForwardIndexCache.getInstance().removeIndex(cacheKey);
+                // Clear in-memory cache for each sparse field
+                for (FieldInfo fieldInfo : sparseFieldInfos) {
+                    if (!PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
+                        continue;
                     }
+                    CacheKey cacheKey = new CacheKey(segmentInfo, fieldInfo);
+                    ClusteredPostingCache.getInstance().removeIndex(cacheKey);
+                    ForwardIndexCache.getInstance().removeIndex(cacheKey);
                 }
-            } catch (Exception e) {
-                log.error("[Neural Sparse] Failed to acquire searcher", e);
-                throw new RuntimeException(e);
             }
-        } finally {
-            shardLock.writeLock().unlock();
+        } catch (Exception e) {
+            log.error("[Neural Sparse] Failed to acquire searcher", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -282,10 +265,4 @@ public class NeuralSparseIndexShard {
 
         return new SegmentReadState(cfsDir, segmentInfo, coreFieldInfos, IOContext.DEFAULT);
     }
-
-    private ReadWriteLock getShardLock() {
-        String shardKey = indexShard.shardId().toString();
-        return shardLocks.computeIfAbsent(shardKey, k -> new ReentrantReadWriteLock());
-    }
-
 }

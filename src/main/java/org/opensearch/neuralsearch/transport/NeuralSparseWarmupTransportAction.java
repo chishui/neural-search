@@ -20,10 +20,11 @@ import org.opensearch.common.inject.Inject;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.transport.TransportService;
-import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.util.List;
+
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
 
 /**
  * Transport Action for warming up neural-sparse indices. TransportBroadcastByNodeAction will distribute the request to
@@ -61,7 +62,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseWarmupRequest::new,
-            ThreadPool.Names.FORCE_MERGE
+            ClusterTrainingRunning.THREAD_POOL_NAME
         );
         this.indicesService = indicesService;
     }

@@ -15,7 +15,7 @@ import java.util.concurrent.Future;
 public class ClusterTrainingRunning {
     private static ThreadPool threadpool = null;
     private static ClusterTrainingRunning INSTANCE;
-    public static final String THREAD_POOL_NAME = "cluster_training_thread_pool";
+    public static final String THREAD_POOL_NAME = "seismic_thread_pool";
 
     public static void initialize(ThreadPool threadPool) {
         ClusterTrainingRunning.threadpool = threadPool;
