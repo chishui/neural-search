@@ -45,8 +45,12 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTIN
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.lucene.index.NumericDocValues;
+import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
@@ -88,7 +92,7 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         mockWriteState = TestsPrepareUtils.prepareSegmentWriteState(mockSegmentInfo);
         mockFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
         mockFieldInfo.attributes().put(CLUSTER_RATIO_FIELD, String.valueOf(0.1f));
-        mockFieldInfo.attributes().put(N_POSTINGS_FIELD, String.valueOf(160));
+        mockFieldInfo.attributes().put(N_POSTINGS_FIELD, String.valueOf(-1));
         mockFieldInfo.attributes().put(SUMMARY_PRUNE_RATIO_FIELD, String.valueOf(0.4f));
 
         when(mockSegmentInfo.getCodec()).thenReturn(mockCodec);
@@ -144,17 +148,63 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
         PostingClusters postingClusters = mock(PostingClusters.class);
         BlockTermState result = clusteredPostingTermsWriter.write(text, postingClusters);
 
+        // Verify that the result is non-null and writePostingClusters gets called
         assertNotNull("BlockTermState should not be null", result);
+        verify(mockIndexOutput, atLeastOnce()).writeVLong(anyLong());
     }
 
     /**
-     * Test the setFieldAndMaxDoc method with a merge operation.
-     * This test verifies that when isMerge is true, the setPostingClustering method is called.
+     * Test the setFieldAndMaxDoc method without a merge operation.
+     * This test verifies that when isMerge is false, the setPostingClustering method is called.
      */
     @SneakyThrows
     public void test_setFieldAndMaxDoc_withoutMerge() {
         clusteredPostingTermsWriter = spy(this.clusteredPostingTermsWriter);
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
+
+        // Mock the superclass setField method
+        clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
+
+        // Verify setField was called
+        verify(clusteredPostingTermsWriter).setField(mockFieldInfo);
+
+        // Verify that setPostingClustering gets called
+        verify(mockDocValuesFormat, times(1)).fieldsProducer(any(SegmentReadState.class));
+    }
+
+    /**
+     * Test the setFieldAndMaxDoc method without a merge operation.
+     * The N_POSTINGS_FIELD has a non-default value.
+     * This test verifies that when isMerge is true, the setPostingClustering method is called.
+     */
+    @SneakyThrows
+    public void test_setFieldAndMaxDoc_withoutMerge_andNPostingValue() {
+        clusteredPostingTermsWriter = spy(this.clusteredPostingTermsWriter);
+        clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
+        mockFieldInfo.attributes().put(N_POSTINGS_FIELD, String.valueOf(160));
+
+        // Mock the superclass setField method
+        clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
+
+        // Verify setField was called
+        verify(clusteredPostingTermsWriter).setField(mockFieldInfo);
+
+        // Verify that setPostingClustering gets called
+        verify(mockDocValuesFormat, times(1)).fieldsProducer(any(SegmentReadState.class));
+    }
+
+    /**
+     * Test the setFieldAndMaxDoc method without a merge operation.
+     * The fields producer will throw an exception.
+     * This test verifies that when isMerge is true, the setPostingClustering method is called.
+     */
+    @SneakyThrows
+    public void test_setFieldAndMaxDoc_withoutMerge_andFieldsProducerThrowException() {
+        clusteredPostingTermsWriter = spy(this.clusteredPostingTermsWriter);
+        clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
+
+        // Mock the fields producer throw exception
+        when(mockDocValuesFormat.fieldsProducer(any(SegmentReadState.class))).thenThrow(new IOException("mock_exception"));
 
         // Mock the superclass setField method
         clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
@@ -213,12 +263,18 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
     public void test_finishTerm_writesPostingClusters() {
         clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
 
-        // Setup for finishTerm
+        // set up postingClusters containing a cluster with empty summary
+        List<DocumentCluster> documentClusterList = prepareClusterList();
+        List<DocWeight> docWeights = new ArrayList<>();
+        docWeights.add(new DocWeight(3, (byte) 4));
+        documentClusterList.add(new DocumentCluster(null, docWeights, false));
+        PostingClusters postingClusters = new PostingClusters(documentClusterList);
+
+        // set up for finish term
         clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
-        PostingClusters postingClusters = new PostingClusters(prepareClusterList());
         clusteredPostingTermsWriter.write(new BytesRef("test_term"), postingClusters);
 
-        // resets mockIndexOutput because write function also write posting clusters
+        // reset mockIndexOutput because write function also write posting clusters
         reset(mockIndexOutput);
 
         BlockTermState state = clusteredPostingTermsWriter.newTermState();
@@ -251,7 +307,6 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
      * Test case for addPosition method
      * This test verifies that an UnsupportedOperationException is thrown.
      */
-
     public void test_addPosition_thenThrownUnsupportedOperation() {
         assertThrows(UnsupportedOperationException.class, () -> clusteredPostingTermsWriter.addPosition(0, new BytesRef(), 0, 0));
     }
