@@ -42,7 +42,6 @@ public class ClusteredPostingCacheItem implements Accountable {
      * @return the ClusteredPostingWriter instance
      */
     public ClusteredPostingWriter getWriter(Consumer<Long> circuitBreakerHandler) {
-
         return new CacheClusteredPostingWriter(circuitBreakerHandler);
     }
 

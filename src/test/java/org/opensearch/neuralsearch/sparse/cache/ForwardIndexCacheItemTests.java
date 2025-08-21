@@ -16,9 +16,14 @@ import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
+import java.util.function.Consumer;
+
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
 
@@ -280,5 +285,89 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
         ForwardIndexCacheItem cacheItem2 = ForwardIndexCache.getInstance().getOrCreate(cacheKey2, testDocCount);
 
         assertNotSame("Should be different index instances", cacheItem1, cacheItem2);
+    }
+
+    /**
+     * Tests that getWriter with circuitBreakerHandler returns a writer with the handler.
+     * This verifies the new getWriter method functionality.
+     */
+    @SneakyThrows
+    public void test_getWriter_withCircuitBreakerHandler() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        SparseVectorWriter writer = cacheItem.getWriter(mockHandler);
+        SparseVectorReader reader = cacheItem.getReader();
+
+        assertNotNull("Writer should not be null", writer);
+
+        // Insert should work normally when circuit breaker doesn't trip
+        SparseVector vector = createVector(1, 2, 3, 4);
+        writer.insert(0, vector);
+
+        SparseVector readVector = reader.read(0);
+        assertEquals("Should be able to retrieve vector", vector, readVector);
+        verify(mockHandler, never()).accept(anyLong());
+    }
+
+    /**
+     * Tests that circuitBreakerHandler is called when circuit breaker trips.
+     * This verifies the circuit breaker handler functionality.
+     */
+    @SneakyThrows
+    public void test_writerInsert_withCircuitBreakerHandler_whenCircuitBreakerTrips() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        SparseVectorWriter writer = cacheItem.getWriter(mockHandler);
+        SparseVectorReader reader = cacheItem.getReader();
+
+        SparseVector vector = createVector(1, 2, 3, 4);
+        writer.insert(0, vector);
+
+        SparseVector readVector = reader.read(0);
+        assertNull("Vector should not be inserted when circuit breaker trips", readVector);
+        verify(mockHandler).accept(anyLong());
+    }
+
+    /**
+     * Tests that circuitBreakerHandler is not called when circuit breaker doesn't trip.
+     * This verifies the conditional calling of the handler.
+     */
+    @SneakyThrows
+    public void test_writerInsert_withCircuitBreakerHandler_whenCircuitBreakerDoesNotTrip() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        SparseVectorWriter writer = cacheItem.getWriter(mockHandler);
+        SparseVectorReader reader = cacheItem.getReader();
+
+        SparseVector vector = createVector(1, 2, 3, 4);
+        writer.insert(0, vector);
+
+        SparseVector readVector = reader.read(0);
+        assertEquals("Vector should be inserted successfully", vector, readVector);
+        verify(mockHandler, never()).accept(anyLong());
+    }
+
+    /**
+     * Tests that default writer (without handler) works correctly when circuit breaker trips.
+     * This verifies backward compatibility.
+     */
+    @SneakyThrows
+    public void test_defaultWriter_whenCircuitBreakerTrips() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        SparseVectorWriter writer = cacheItem.getWriter();
+        SparseVectorReader reader = cacheItem.getReader();
+
+        // Should not throw exception even without handler
+        SparseVector vector = createVector(1, 2, 3, 4);
+        writer.insert(0, vector);
+
+        SparseVector readVector = reader.read(0);
+        assertNull("Vector should not be inserted when circuit breaker trips", readVector);
     }
 }
