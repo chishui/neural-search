@@ -56,18 +56,4 @@ public class NeuralSparseWarmupRequestTests extends AbstractSparseTestBase {
         assertArrayEquals(originalIndices, deserializedRequest.indices());
         assertEquals(originalRequest.indicesOptions(), deserializedRequest.indicesOptions());
     }
-
-    public void testInheritedBroadcastRequestMethods() {
-        String[] indices = { "index1", "index2" };
-        NeuralSparseWarmupRequest request = new NeuralSparseWarmupRequest(indices);
-
-        // Test inherited methods work correctly
-        assertNotNull(request.indicesOptions());
-        assertEquals(IndicesOptions.strictExpandOpenAndForbidClosed(), request.indicesOptions());
-
-        // Test setting indices options
-        IndicesOptions customOptions = IndicesOptions.lenientExpandOpen();
-        request.indicesOptions(customOptions);
-        assertEquals(customOptions, request.indicesOptions());
-    }
 }

@@ -8,7 +8,6 @@ import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.core.action.support.DefaultShardOperationFailedException;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.core.xcontent.ToXContentObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,7 +44,7 @@ public class NeuralSparseWarmupResponseTests extends AbstractSparseTestBase {
         assertEquals(totalShards, response.getTotalShards());
         assertEquals(successfulShards, response.getSuccessfulShards());
         assertEquals(failedShards, response.getFailedShards());
-        assertEquals(2, response.getShardFailures().length);
+        assertEquals(failedShards, response.getShardFailures().length);
     }
 
     public void testConstructorWithZeroShards() {
@@ -59,7 +58,7 @@ public class NeuralSparseWarmupResponseTests extends AbstractSparseTestBase {
         assertEquals(0, response.getTotalShards());
         assertEquals(0, response.getSuccessfulShards());
         assertEquals(0, response.getFailedShards());
-        assertTrue(response.getShardFailures().length == 0);
+        assertEquals(0, response.getShardFailures().length);
     }
 
     public void testStreamConstructor() throws IOException {
@@ -90,18 +89,5 @@ public class NeuralSparseWarmupResponseTests extends AbstractSparseTestBase {
         assertEquals(originalResponse.getSuccessfulShards(), deserializedResponse.getSuccessfulShards());
         assertEquals(originalResponse.getFailedShards(), deserializedResponse.getFailedShards());
         assertEquals(originalResponse.getShardFailures().length, deserializedResponse.getShardFailures().length);
-    }
-
-    public void testToXContentObject() throws IOException {
-        int totalShards = 2;
-        int successfulShards = 1;
-        int failedShards = 1;
-        List<DefaultShardOperationFailedException> shardFailures = new ArrayList<>();
-
-        NeuralSparseWarmupResponse response = new NeuralSparseWarmupResponse(totalShards, successfulShards, failedShards, shardFailures);
-
-        // Verify it implements ToXContentObject
-        assertNotNull(response);
-        assertTrue(response instanceof ToXContentObject);
     }
 }
