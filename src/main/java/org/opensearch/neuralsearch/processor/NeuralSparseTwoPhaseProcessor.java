@@ -12,6 +12,7 @@ import org.opensearch.action.search.SearchRequest;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -50,7 +51,6 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
     private PruneType pruneType;
     private float windowExpansion;
     private int maxWindowSize;
-    private ClusterService clusterService;
     private static final String PARAMETER_KEY = "two_phase_parameter";
     private static final String ENABLE_KEY = "enabled";
     private static final String EXPANSION_KEY = "expansion_rate";
@@ -91,7 +91,6 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
             );
         }
         this.maxWindowSize = maxWindowSize;
-        this.clusterService = clusterService;
     }
 
     /**
@@ -208,27 +207,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
     @SuppressWarnings("unchecked")
     private void validateSeismicQuery(String[] indices, Multimap<NeuralSparseQueryBuilder, Float> queryBuilderMap) {
         for (String index : indices) {
-            final IndexMetadata metadata = clusterService.state().metadata().index(index);
-            if (metadata == null || !SparseSettings.IS_SPARSE_INDEX_SETTING.get(metadata.getSettings())) {
-                return;
-            }
-            MappingMetadata mappingMetadata = metadata.mapping();
-            if (mappingMetadata == null || mappingMetadata.sourceAsMap() == null) {
-                return;
-            }
-            Object properties = mappingMetadata.sourceAsMap().get("properties");
-            if (!(properties instanceof Map)) {
-                return;
-            }
-            Set<String> sparseAnnFields = new HashSet<>();
-            Map<String, Object> fields = (Map<String, Object>) properties;
-            for (Map.Entry<String, Object> field : fields.entrySet()) {
-                Map<String, Object> fieldMap = (Map<String, Object>) field.getValue();
-                Object type = fieldMap.get("type");
-                if (Objects.nonNull(type) && SparseTokensFieldType.isSparseTokensType(type.toString())) {
-                    sparseAnnFields.add(field.getKey());
-                }
-            }
+            Set<String> sparseAnnFields = SparseFieldUtils.getSparseAnnFields(index);
             for (Map.Entry<NeuralSparseQueryBuilder, Float> entry : queryBuilderMap.entries()) {
                 NeuralSparseQueryBuilder neuralSparseQueryBuilder = entry.getKey();
                 String fieldName = neuralSparseQueryBuilder.fieldName();
