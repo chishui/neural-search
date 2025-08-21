@@ -6,8 +6,9 @@ package org.opensearch.neuralsearch.sparse;
 
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexableFieldType;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensField;
 
-import static org.opensearch.neuralsearch.sparse.SparseTokensField.SPARSE_FIELD;
+import static org.opensearch.neuralsearch.sparse.mapper.SparseTokensField.SPARSE_FIELD;
 
 public class SparseTokensFieldTests extends AbstractSparseTestBase {
 

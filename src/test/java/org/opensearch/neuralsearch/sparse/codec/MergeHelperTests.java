@@ -24,7 +24,7 @@ import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.opensearch.neuralsearch.sparse.SparseTokensField.SPARSE_FIELD;
+import static org.opensearch.neuralsearch.sparse.mapper.SparseTokensField.SPARSE_FIELD;
 
 public class MergeHelperTests extends AbstractSparseTestBase {
     private MergeStateFacade mergeStateFacade;
