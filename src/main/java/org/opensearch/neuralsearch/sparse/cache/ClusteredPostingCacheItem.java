@@ -85,12 +85,17 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
 
         private final Consumer<Long> circuitBreakerTriggerHandler;
 
+        // Default handler: perform cache eviction when memory limit is reached
+        private CacheClusteredPostingWriter() {
+            this.circuitBreakerTriggerHandler = (ramBytesUsed) -> {
+                synchronized (LruTermCache.getInstance()) {
+                    LruTermCache.getInstance().evict(ramBytesUsed);
+                }
+            };
+        }
+        
         private CacheClusteredPostingWriter(Consumer<Long> circuitBreakerTriggerHandler) {
             this.circuitBreakerTriggerHandler = circuitBreakerTriggerHandler;
-        }
-
-        private CacheClusteredPostingWriter() {
-            this.circuitBreakerTriggerHandler = null;
         }
 
         @Override
@@ -108,12 +113,6 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
             if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                 if (circuitBreakerTriggerHandler != null) {
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
-                    return;
-                }
-
-                // Perform cache eviction when memory limit is reached
-                synchronized (LruTermCache.getInstance()) {
-                    LruTermCache.getInstance().evict(ramBytesUsed);
                 }
 
                 // Try again after eviction
