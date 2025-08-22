@@ -49,6 +49,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.ContentPath;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensField;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -60,6 +61,10 @@ import java.util.concurrent.Executors;
 import static org.apache.lucene.tests.util.LuceneTestCase.random;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.FilterLeafReader;
+import org.apache.lucene.index.FilterDirectoryReader;
 
 public class TestsPrepareUtils {
 
@@ -616,6 +621,54 @@ public class TestsPrepareUtils {
         }
 
         writer.close();
-        return DirectoryReader.open(directory);
+        DirectoryReader baseReader = DirectoryReader.open(directory);
+        return new TestDirectoryReaderWrapper(baseReader);
+    }
+
+    /**
+     * Wrapper to ensure sparse field BinaryDocValues are wrapped with SparseBinaryDocValuesPassThrough.
+     * This mimics the behavior of the neural-search codec in production.
+     */
+    private static class TestDirectoryReaderWrapper extends FilterDirectoryReader {
+
+        public TestDirectoryReaderWrapper(DirectoryReader in) throws IOException {
+            super(in, new SubReaderWrapper() {
+                @Override
+                public LeafReader wrap(LeafReader reader) {
+                    return new FilterLeafReader(reader) {
+                        @Override
+                        public BinaryDocValues getBinaryDocValues(String field) throws IOException {
+                            BinaryDocValues original = super.getBinaryDocValues(field);
+                            if (original != null && field.equals("sparse_field")) {
+                                // Wrap with SparseBinaryDocValuesPassThrough for sparse fields
+                                SegmentInfo segmentInfo = prepareSegmentInfo();
+                                return new SparseBinaryDocValuesPassThrough(original, segmentInfo);
+                            }
+                            return original;
+                        }
+
+                        @Override
+                        public CacheHelper getCoreCacheHelper() {
+                            return in.getCoreCacheHelper();
+                        }
+
+                        @Override
+                        public CacheHelper getReaderCacheHelper() {
+                            return in.getReaderCacheHelper();
+                        }
+                    };
+                }
+            });
+        }
+
+        @Override
+        protected DirectoryReader doWrapDirectoryReader(DirectoryReader in) throws IOException {
+            return new TestDirectoryReaderWrapper(in);
+        }
+
+        @Override
+        public CacheHelper getReaderCacheHelper() {
+            return in.getReaderCacheHelper();
+        }
     }
 }

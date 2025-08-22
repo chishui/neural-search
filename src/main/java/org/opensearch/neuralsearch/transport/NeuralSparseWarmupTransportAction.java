@@ -24,7 +24,7 @@ import org.opensearch.transport.TransportService;
 import java.io.IOException;
 import java.util.List;
 
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 
 /**
  * Transport Action for warming up neural-sparse indices. TransportBroadcastByNodeAction will distribute the request to
@@ -62,7 +62,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseWarmupRequest::new,
-            ClusterTrainingRunning.THREAD_POOL_NAME
+            ClusterTrainingExecutor.THREAD_POOL_NAME
         );
         this.indicesService = indicesService;
     }

@@ -26,7 +26,7 @@ import org.opensearch.transport.TransportService;
 import java.io.IOException;
 import java.util.List;
 
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 
 /**
  * Transport Action to evict neural-sparse indices from Cache. TransportBroadcastByNodeAction will distribute the request to
@@ -63,7 +63,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseClearCacheRequest::new,
-            ClusterTrainingRunning.THREAD_POOL_NAME
+            ClusterTrainingExecutor.THREAD_POOL_NAME
         );
         this.indicesService = indicesService;
     }

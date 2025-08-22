@@ -38,6 +38,7 @@ import org.opensearch.neuralsearch.sparse.cache.CacheGatedPostingsReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.apache.lucene.index.SegmentReadState;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensField;
 
 import java.util.Set;
 
