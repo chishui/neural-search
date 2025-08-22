@@ -18,9 +18,18 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Utility class for operations related to sparse fields in neural search indices.
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SparseFieldUtils {
 
+    /**
+     * Retrieves all sparse ANN fields from a given index.
+     *
+     * @param index The name of the index
+     * @return A set of field names that are configured as sparse token fields, or an empty set if none exist
+     */
     @SuppressWarnings("unchecked")
     public static Set<String> getSparseAnnFields(String index) {
         if (index == null) {
