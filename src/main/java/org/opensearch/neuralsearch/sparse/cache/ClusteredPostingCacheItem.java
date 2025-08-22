@@ -93,7 +93,7 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
                 }
             };
         }
-        
+
         private CacheClusteredPostingWriter(Consumer<Long> circuitBreakerTriggerHandler) {
             this.circuitBreakerTriggerHandler = circuitBreakerTriggerHandler;
         }

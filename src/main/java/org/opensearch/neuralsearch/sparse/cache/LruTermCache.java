@@ -6,7 +6,6 @@ package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
 
@@ -49,11 +48,6 @@ public class LruTermCache extends AbstractLruCache<LruTermCache.TermKey> {
             return 0;
         }
         return clusteredPostingCacheItem.getWriter().erase(term);
-    }
-
-    @Override
-    public void removeIndex(@NonNull CacheKey cacheKey) {
-        accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
 
     /**

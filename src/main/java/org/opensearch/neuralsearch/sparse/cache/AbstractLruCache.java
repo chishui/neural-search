@@ -10,7 +10,7 @@ import lombok.NonNull;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * Abstract LRU cache implementation for sparse vector caches.
@@ -21,14 +21,15 @@ import java.util.Set;
  */
 @Log4j2
 public abstract class AbstractLruCache<Key extends LruCacheKey> {
+
     /**
-     *
      * Map to track access with LRU ordering
+     * We use Map instead of set because only linked hash map supports tracking the access order ot tiems
      */
-    protected final Set<Key> accessRecencySet;
+    protected final Map<Key, Boolean> accessRecencyMap;
 
     protected AbstractLruCache() {
-        this.accessRecencySet = Collections.synchronizedSet(Collections.newSetFromMap(new LinkedHashMap<>(16, 0.75f, true)));
+        this.accessRecencyMap = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true));
     }
 
     /**
@@ -42,7 +43,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
             return;
         }
 
-        accessRecencySet.add(key);
+        accessRecencyMap.put(key, true);
     }
 
     /**
@@ -52,9 +53,9 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
      */
     protected Key getLeastRecentlyUsedItem() {
         // With accessOrder true, the first entry in the set the least recently used
-        Iterator<Key> iterator = accessRecencySet.iterator();
+        Iterator<Map.Entry<Key, Boolean>> iterator = accessRecencyMap.entrySet().iterator();
         if (iterator.hasNext()) {
-            return iterator.next();
+            return iterator.next().getKey();
         }
         return null;
     }
@@ -96,7 +97,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
      * @return number of bytes freed, or 0 if the item was not evicted
      */
     protected long evictItem(Key key) {
-        if (!accessRecencySet.remove(key)) {
+        if (accessRecencyMap.remove(key) == null) {
             return 0;
         }
 
@@ -109,7 +110,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
      * @param cacheKey The cache key to remove
      */
     public void removeIndex(@NonNull CacheKey cacheKey) {
-        accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
+        accessRecencyMap.keySet().removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
 
     /**

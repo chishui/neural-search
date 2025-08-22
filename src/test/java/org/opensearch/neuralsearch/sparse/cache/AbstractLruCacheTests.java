@@ -51,7 +51,7 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
         testCache.updateAccess(null);
 
         // Verify the cache still has the original key
-        assertEquals(1, testCache.accessRecencySet.size());
+        assertEquals(1, testCache.accessRecencyMap.size());
         assertEquals(key, testCache.getLeastRecentlyUsedItem());
     }
 
@@ -103,11 +103,11 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
 
         // Try to evict with zero bytes
         testCache.evict(0);
-        assertEquals(2, testCache.accessRecencySet.size());
+        assertEquals(2, testCache.accessRecencyMap.size());
 
         // Try to evict with negative bytes
         testCache.evict(-10);
-        assertEquals(2, testCache.accessRecencySet.size());
+        assertEquals(2, testCache.accessRecencyMap.size());
 
         // Verify doEviction was never called
         verify(testCache, never()).doEviction(any());
@@ -134,7 +134,7 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
         testCache.evict(120);
 
         // Verify the cache is now empty
-        assertTrue(testCache.accessRecencySet.isEmpty());
+        assertTrue(testCache.accessRecencyMap.isEmpty());
 
         // Verify doEviction was called 3 times
         verify(testCache, times(1)).doEviction(key1);
@@ -159,7 +159,7 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
         testCache.evict(100);
 
         // Verify the cache is now empty
-        assertTrue(testCache.accessRecencySet.isEmpty());
+        assertTrue(testCache.accessRecencyMap.isEmpty());
 
         // Verify doEviction was called only once
         verify(testCache, times(1)).doEviction(key);
@@ -181,8 +181,8 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
         long bytesFreed = testCache.evictItem(key1);
 
         // Verify key1 was removed from the access map
-        assertFalse(testCache.accessRecencySet.contains(key1));
-        assertTrue(testCache.accessRecencySet.contains(key2));
+        assertFalse(testCache.accessRecencyMap.containsKey(key1));
+        assertTrue(testCache.accessRecencyMap.containsKey(key2));
 
         // Verify the correct number of bytes was returned
         assertEquals(testCache.bytesFreedPerEviction, bytesFreed);
@@ -216,7 +216,7 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
         TestLruCache testCache = new TestLruCache();
         TestLruCacheKey key = new TestLruCacheKey("key");
         CacheKey cacheKey = key.getCacheKey();
-        assertTrue(key.getCacheKey().equals(cacheKey));
+        assertEquals(cacheKey, key.getCacheKey());
 
         testCache.updateAccess(key);
 
@@ -224,7 +224,7 @@ public class AbstractLruCacheTests extends AbstractSparseTestBase {
         testCache.removeIndex(cacheKey);
 
         // Verify the key was removed
-        assertFalse(testCache.accessRecencySet.contains(key));
+        assertFalse(testCache.accessRecencyMap.containsKey(key));
     }
 
     /**
