@@ -28,9 +28,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
     protected final Set<Key> accessRecencySet;
 
     protected AbstractLruCache() {
-        this.accessRecencySet = Collections.synchronizedSet(
-            Collections.newSetFromMap(new LinkedHashMap<>(16, 0.75f, true))
-        );
+        this.accessRecencySet = Collections.synchronizedSet(Collections.newSetFromMap(new LinkedHashMap<>(16, 0.75f, true)));
     }
 
     /**
