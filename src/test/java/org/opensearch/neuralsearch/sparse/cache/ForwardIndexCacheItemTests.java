@@ -200,7 +200,7 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
 
         assertTrue("Initial RAM usage should increase when the size of forward index increases", ramBytesUsed2 > ramBytesUsed1);
     }
-    
+
     /**
      * Tests that erasing a vector with an out-of-bounds index returns 0 bytes freed.
      * This verifies the bounds checking in the erase method.
