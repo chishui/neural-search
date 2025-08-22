@@ -4,6 +4,8 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
@@ -16,10 +18,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SparseFieldUtils {
-
-    // no instance of this util class
-    private SparseFieldUtils() {}
 
     @SuppressWarnings("unchecked")
     public static Set<String> getSparseAnnFields(String index) {

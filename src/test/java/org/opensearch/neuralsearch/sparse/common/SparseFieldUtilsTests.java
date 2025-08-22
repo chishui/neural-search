@@ -36,10 +36,6 @@ public class SparseFieldUtilsTests extends OpenSearchTestCase {
         NeuralSearchClusterUtil.instance().initialize(clusterService);
     }
 
-    public void testConstructor_thenFail() {
-
-    }
-
     public void testGetSparseAnnFields_whenNullSparseIndex_thenReturnEmptySet() {
         assertEquals(0, SparseFieldUtils.getSparseAnnFields(null).size());
     }
