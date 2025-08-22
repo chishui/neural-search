@@ -27,18 +27,9 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
      */
     protected final Set<Key> accessRecencySet;
 
-    /**
-     * The default initial capacity - MUST be a power of two.
-     */
-    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
-    /**
-     * The load factor used when none specified in constructor.
-     */
-    static final float DEFAULT_LOAD_FACTOR = 0.75f;
-
     protected AbstractLruCache() {
         this.accessRecencySet = Collections.synchronizedSet(
-            Collections.newSetFromMap(new LinkedHashMap<>(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, true))
+            Collections.newSetFromMap(new LinkedHashMap<>(16, 0.75f, true))
         );
     }
 
