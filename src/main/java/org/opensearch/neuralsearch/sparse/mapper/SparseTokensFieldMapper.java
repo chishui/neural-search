@@ -19,7 +19,6 @@ import org.opensearch.index.mapper.Mapper;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
-import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgoType;
 
 import java.io.ByteArrayOutputStream;
@@ -30,17 +29,18 @@ import java.util.List;
 import java.util.Map;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
+
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_SUMMARY_PRUNE_RATIO;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTER_RATIO;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
-import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_APPROXIMATE_THRESHOLD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_APPROXIMATE_THRESHOLD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTER_RATIO;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_SUMMARY_PRUNE_RATIO;
 
 /**
- * FieldMapper for SparseTokensField
+ * Field mapper for sparse token fields with feature-based indexing.
  */
 @Getter
 public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
@@ -49,8 +49,6 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
     private static final String METHOD = "method";
     @NonNull
     private final SparseMethodContext sparseMethodContext;
-    protected boolean stored;
-    protected boolean hasDocValues;
     private FieldType tokenFieldType;
 
     private SparseTokensFieldMapper(
@@ -58,14 +56,10 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
         MappedFieldType mappedFieldType,
         MultiFields multiFields,
         CopyTo copyTo,
-        SparseMethodContext sparseMethodContext,
-        boolean stored,
-        boolean hasDocValues
+        SparseMethodContext sparseMethodContext
     ) {
         super(simpleName, mappedFieldType, multiFields, copyTo);
         this.sparseMethodContext = sparseMethodContext;
-        this.stored = stored;
-        this.hasDocValues = hasDocValues;
         this.fieldType = new FieldType(Defaults.FIELD_TYPE);
         this.fieldType.setDocValuesType(DocValuesType.BINARY);
         setFieldTypeAttributes(this.fieldType, sparseMethodContext);
@@ -81,8 +75,6 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
     }
 
     public static class Builder extends ParametrizedFieldMapper.Builder {
-        protected final Parameter<Boolean> stored = Parameter.storeParam(m -> ft(m).stored, false);
-        protected final Parameter<Boolean> hasDocValues = Parameter.docValuesParam(m -> ft(m).hasDocValues, true);
         protected final Parameter<SparseMethodContext> sparseMethodContext = new Parameter<>(
             METHOD,
             false,
@@ -95,11 +87,6 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
             b.endObject();
         }), m -> m.getName());
 
-        /**
-         * Creates a new Builder with a field name
-         *
-         * @param name
-         */
         protected Builder(String name) {
             super(name);
             builder = this;
@@ -107,24 +94,17 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return List.of(stored, hasDocValues, sparseMethodContext);
+            return List.of(sparseMethodContext);
         }
 
         @Override
         public ParametrizedFieldMapper build(BuilderContext context) {
             return new SparseTokensFieldMapper(
                 name,
-                new SparseTokensFieldType(
-                    buildFullName(context),
-                    sparseMethodContext.getValue(),
-                    stored.getValue(),
-                    hasDocValues.getValue()
-                ),
+                new SparseTokensFieldType(buildFullName(context), sparseMethodContext.getValue()),
                 multiFieldsBuilder.build(this, context),
                 copyTo.build(),
-                sparseMethodContext.getValue(),
-                stored.getValue(),
-                hasDocValues.getValue()
+                sparseMethodContext.getValue()
             );
         }
     }
@@ -178,14 +158,12 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
                             "["
                                 + CONTENT_TYPE
                                 + "] fields do not support indexing multiple values for the same "
-                                + "rank feature ["
+                                + "key ["
                                 + key
                                 + "] in the same document"
                         );
                     }
-                    FeatureField featureField = new FeatureField(name(), feature, value);// this.tokenFieldType);
-                    setFieldTypeAttributes((FieldType) featureField.fieldType(), sparseMethodContext);
-
+                    FeatureField featureField = new FeatureField(name(), feature, value);
                     context.doc().addWithKey(key, featureField);
                     byte[] featureBytes = feature.getBytes(StandardCharsets.UTF_8);
                     dos.writeInt(featureBytes.length);
@@ -210,9 +188,10 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
         if (sparseMethodContext.getName().equals(SEISMIC)) {
             Integer nPostings = (Integer) sparseMethodContext.getMethodComponentContext()
                 .getParameter(N_POSTINGS_FIELD, DEFAULT_N_POSTINGS);
-            Float clusterRatio = sparseMethodContext.getMethodComponentContext().getFloat(CLUSTER_RATIO_FIELD, DEFAULT_CLUSTER_RATIO);
+            Float clusterRatio = sparseMethodContext.getMethodComponentContext()
+                .getFloatParameter(CLUSTER_RATIO_FIELD, DEFAULT_CLUSTER_RATIO);
             Float summaryPruneRatio = sparseMethodContext.getMethodComponentContext()
-                .getFloat(SUMMARY_PRUNE_RATIO_FIELD, DEFAULT_SUMMARY_PRUNE_RATIO);
+                .getFloatParameter(SUMMARY_PRUNE_RATIO_FIELD, DEFAULT_SUMMARY_PRUNE_RATIO);
             Integer algoTriggerThreshold = (Integer) sparseMethodContext.getMethodComponentContext()
                 .getParameter(APPROXIMATE_THRESHOLD_FIELD, DEFAULT_APPROXIMATE_THRESHOLD);
             fieldType.putAttribute(N_POSTINGS_FIELD, String.valueOf(nPostings));
@@ -222,6 +201,9 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
         }
     }
 
+    /**
+     * Default field type configurations.
+     */
     public static class Defaults {
         public static final FieldType FIELD_TYPE = new FieldType();
         public static final FieldType TOKEN_FIELD_TYPE = new FieldType();
@@ -238,6 +220,9 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
         }
     }
 
+    /**
+     * Parser for sparse tokens field type.
+     */
     public static class SparseTypeParser implements Mapper.TypeParser {
 
         @Override
@@ -247,9 +232,6 @@ public class SparseTokensFieldMapper extends ParametrizedFieldMapper {
             SparseMethodContext context = builder.sparseMethodContext.getValue();
             if (context == null) {
                 throw new MapperParsingException("[" + CONTENT_TYPE + "] requires [method] parameter");
-            }
-            if (context.getName() == null) {
-                throw new MapperParsingException("[" + CONTENT_TYPE + "] requires [method.name] parameter");
             }
             if (!SparseAlgoType.SEISMIC.getName().equals(context.getName())) {
                 throw new MapperParsingException("[method.name]: " + context.getName() + " is not supported");

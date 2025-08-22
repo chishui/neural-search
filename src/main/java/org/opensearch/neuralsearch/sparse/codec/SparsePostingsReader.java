@@ -15,10 +15,10 @@ import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.neuralsearch.sparse.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.algorithm.BatchClusteringTask;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensField;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingRunning;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
@@ -114,7 +114,7 @@ public class SparsePostingsReader {
                         futures.add(
                             CompletableFuture.supplyAsync(
                                 new BatchClusteringTask(termBatch, key, summaryPruneRatio, clusterRatio, nPostings, mergeState, fieldInfo),
-                                ClusterTrainingRunning.getInstance().getExecutor()
+                                ClusterTrainingExecutor.getInstance().getExecutor()
                             )
                         );
                     }

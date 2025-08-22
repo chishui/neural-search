@@ -252,6 +252,22 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
     }
 
     /**
+     * Tests that ramBytesUsed correctly records the memory on the sparse vector array
+     */
+    @SneakyThrows
+    public void test_ramBytesUsed_withDifferentVectorSize() {
+        int docCount1 = 10, docCount2 = 20;
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, docCount1);
+        long ramBytesUsed1 = cacheItem.ramBytesUsed();
+
+        ForwardIndexCache.getInstance().removeIndex(cacheKey);
+        cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, docCount2);
+        long ramBytesUsed2 = cacheItem.ramBytesUsed();
+
+        assertTrue("Initial RAM usage should increase when the size of forward index increases", ramBytesUsed2 > ramBytesUsed1);
+    }
+
+    /**
      * Tests that ramBytesUsed correctly reports the memory usage after vectors are inserted.
      * This verifies the memory tracking functionality of the ForwardIndexCacheItem.
      */

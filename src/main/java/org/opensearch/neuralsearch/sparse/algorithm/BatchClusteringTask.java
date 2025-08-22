@@ -15,6 +15,8 @@ import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.algorithm.seismic.RandomClusteringAlgorithm;
+import org.opensearch.neuralsearch.sparse.algorithm.seismic.SeismicPostingClusterer;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
@@ -78,9 +80,9 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                     newIdToFieldProducerIndex,
                     newIdToOldId
                 );
-                PostingClustering postingClustering = new PostingClustering(
+                SeismicPostingClusterer seismicPostingClusterer = new SeismicPostingClusterer(
                     nPostings,
-                    new RandomClustering(summaryPruneRatio, clusterRatio, (newDocId) -> {
+                    new RandomClusteringAlgorithm(summaryPruneRatio, clusterRatio, (newDocId) -> {
                         int oldId = newIdToOldId[newDocId];
                         int segmentIndex = newIdToFieldProducerIndex[newDocId];
                         BinaryDocValues binaryDocValues = mergeState.docValuesProducers[segmentIndex].getBinary(fieldInfo);
@@ -88,7 +90,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                         return reader.read(oldId);
                     })
                 );
-                List<DocumentCluster> clusters = postingClustering.cluster(docWeights);
+                List<DocumentCluster> clusters = seismicPostingClusterer.cluster(docWeights);
                 postingClusters.add(Pair.of(term, new PostingClusters(clusters)));
                 ClusteredPostingWriter writer = ClusteredPostingCache.getInstance().getOrCreate(key).getWriter();
                 writer.insert(term, clusters);

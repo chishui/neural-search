@@ -24,8 +24,7 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIE
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
 
 /**
- * SparseMethodContext is responsible for handling the parameters of sparse method.
- * It will be used to initialize SparseEncodingQueryBuilder
+ * Context for sparse method configuration and parameters.
  */
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 @Getter
@@ -34,23 +33,35 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
     private final String name;
     private final MethodComponentContext methodComponentContext;
 
+    /**
+     * Constructs from stream input.
+     */
     public SparseMethodContext(StreamInput in) throws IOException {
         this.name = in.readString();
-        this.methodComponentContext = new MethodComponentContext(in);
+        this.methodComponentContext = new MethodComponentContext(in, name);
     }
 
+    /**
+     * Writes to stream output.
+     */
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(this.name);
         this.methodComponentContext.writeTo(out);
     }
 
+    /**
+     * Converts to XContent format.
+     */
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder = methodComponentContext.toXContent(builder, params);
         return builder;
     }
 
+    /**
+     * Parses map to SparseMethodContext.
+     */
     @SuppressWarnings("unchecked")
     public static SparseMethodContext parse(Object in) {
         if (!(in instanceof Map<?, ?>)) {
@@ -77,18 +88,13 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
                 }
 
                 // Interpret all map parameters as sub-MethodComponentContexts
-                @SuppressWarnings("unchecked")
-                Map<String, Object> parametersTemp = ((Map<String, Object>) value).entrySet()
-                    .stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> {
-                        Object v = e.getValue();
-                        if (v instanceof Map) {
-                            return MethodComponentContext.parse(v);
-                        }
-                        return v;
-                    }));
-
-                parameters = parametersTemp;
+                parameters = ((Map<String, Object>) value).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> {
+                    Object v = e.getValue();
+                    if (v instanceof Map) {
+                        throw new IllegalArgumentException("Value should not be map");
+                    }
+                    return v;
+                }));
             } else {
                 throw new MapperParsingException("Invalid parameter: " + key);
             }

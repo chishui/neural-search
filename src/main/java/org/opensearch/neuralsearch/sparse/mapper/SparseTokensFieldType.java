@@ -18,19 +18,22 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * SparseTokensFieldType is responsible for handling sparse tokens field type
+ * Field type for sparse token fields that handles sparse vector representations.
+ * Extends MappedFieldType to provide specialized behavior for neural search sparse tokens.
  */
 @Getter
 public class SparseTokensFieldType extends MappedFieldType {
     private final SparseMethodContext sparseMethodContext;
-    protected boolean stored;
-    protected boolean hasDocValues;
 
-    public SparseTokensFieldType(String name, SparseMethodContext sparseMethodContext, boolean stored, boolean hasDocValues) {
-        super(name, false, stored, hasDocValues, TextSearchInfo.NONE, Map.of());
+    /**
+     * Creates a new SparseTokensFieldType.
+     *
+     * @param name field name
+     * @param sparseMethodContext context for sparse encoding method
+     */
+    public SparseTokensFieldType(String name, SparseMethodContext sparseMethodContext) {
+        super(name, false, false, false, TextSearchInfo.NONE, Map.of());
         this.sparseMethodContext = sparseMethodContext;
-        this.stored = stored;
-        this.hasDocValues = hasDocValues;
     }
 
     @Override

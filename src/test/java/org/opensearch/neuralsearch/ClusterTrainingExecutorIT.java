@@ -12,7 +12,7 @@ import org.opensearch.client.Response;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 
-public class ClusterTrainingRunningIT extends OpenSearchSecureRestTestCase {
+public class ClusterTrainingExecutorIT extends OpenSearchSecureRestTestCase {
 
     private static final int INVALID_THREAD_COUNT = -5;
     private static final String THREAD_QTY_SETTING_KEY = "neural.sparse.algo_param.index_thread_qty";

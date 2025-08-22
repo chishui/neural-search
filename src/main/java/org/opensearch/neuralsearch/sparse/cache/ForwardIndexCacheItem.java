@@ -44,7 +44,11 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
     public ForwardIndexCacheItem(int docCount) {
         sparseVectors = new AtomicReferenceArray<>(docCount);
         // Account for the array itself in memory usage
-        usedRamBytes = new AtomicLong(RamUsageEstimator.shallowSizeOf(sparseVectors));
+        usedRamBytes = new AtomicLong(
+            RamUsageEstimator.shallowSizeOf(sparseVectors) + RamUsageEstimator.alignObjectSize(
+                (long) docCount * RamUsageEstimator.NUM_BYTES_OBJECT_REF
+            )
+        );
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 

@@ -16,6 +16,7 @@ import java.io.IOException;
 
 @AllArgsConstructor
 public class SparseBinaryDocValuesPassThrough extends BinaryDocValues implements SparseVectorReader {
+
     private final BinaryDocValues delegate;
     @Getter
     private final SegmentInfo segmentInfo;
