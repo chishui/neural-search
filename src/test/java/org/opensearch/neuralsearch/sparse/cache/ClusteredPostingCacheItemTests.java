@@ -12,7 +12,6 @@ import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
-import org.opensearch.neuralsearch.sparse.accessor.CacheableClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
@@ -386,7 +385,7 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
         assertEquals("Cache should be empty when circuit breaker trips", 0, reader.size());
         assertNull("Term should not exist when circuit breaker trips", reader.read(testTerm));
     }
-    
+
     /**
      * Tests that erasing a term with null value returns 0 bytes freed.
      * This verifies the null handling in the erase method.

@@ -4,26 +4,24 @@
  */
 package org.opensearch.neuralsearch.sparse.cache;
 
-import lombok.NonNull;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 
-public class AbstractLRUCacheTests extends AbstractSparseTestBase {
+public class AbstractLruCacheTests extends AbstractSparseTestBase {
 
     /**
      * Test that updateAccess correctly updates the access order in the LRU cache
      */
     public void test_updateAccess_returnsLeastRecentlyUsedItem() {
-        TestLRUCache testCache = new TestLRUCache();
-
-        String key1 = "key1";
-        String key2 = "key2";
+        TestLruCache testCache = new TestLruCache();
+        TestLruCacheKey key1 = new TestLruCacheKey("key1");
+        TestLruCacheKey key2 = new TestLruCacheKey("key2");
 
         // Add keys to the cache
         testCache.updateAccess(key1);
@@ -43,24 +41,25 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
      * Test that updateAccess handles null keys gracefully
      */
     public void test_updateAccess_withNullKey() {
-        TestLRUCache testCache = new TestLRUCache();
+        TestLruCache testCache = new TestLruCache();
+        TestLruCacheKey key = new TestLruCacheKey("key");
 
         // Add a key to the cache
-        testCache.updateAccess("key1");
+        testCache.updateAccess(key);
 
         // Try to update with null key
         testCache.updateAccess(null);
 
         // Verify the cache still has the original key
         assertEquals(1, testCache.accessRecencySet.size());
-        assertEquals("key1", testCache.getLeastRecentlyUsedItem());
+        assertEquals(key, testCache.getLeastRecentlyUsedItem());
     }
 
     /**
      * Test that getLeastRecentlyUsedItem returns null when the cache is empty
      */
     public void test_getLeastRecentlyUsedItem_returnsNullWithEmptyCache() {
-        TestLRUCache testCache = new TestLRUCache();
+        TestLruCache testCache = new TestLruCache();
 
         assertNull(testCache.getLeastRecentlyUsedItem());
     }
@@ -69,11 +68,10 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
      * Test that getLeastRecentlyUsedItem returns the correct item
      */
     public void test_getLeastRecentlyUsedItem() {
-        TestLRUCache testCache = new TestLRUCache();
-
-        String key1 = "key1";
-        String key2 = "key2";
-        String key3 = "key3";
+        TestLruCache testCache = new TestLruCache();
+        TestLruCacheKey key1 = new TestLruCacheKey("key1");
+        TestLruCacheKey key2 = new TestLruCacheKey("key2");
+        TestLruCacheKey key3 = new TestLruCacheKey("key3");
 
         // Add keys in order
         testCache.updateAccess(key1);
@@ -95,11 +93,13 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
      * Test that evict does nothing when ramBytesToRelease is zero or negative
      */
     public void test_evict_withZeroAndNegativeBytes() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = spy(new TestLruCache());
+        TestLruCacheKey key1 = new TestLruCacheKey("key1");
+        TestLruCacheKey key2 = new TestLruCacheKey("key2");
 
         // Add some items to the cache
-        testCache.updateAccess("key1");
-        testCache.updateAccess("key2");
+        testCache.updateAccess(key1);
+        testCache.updateAccess(key2);
 
         // Try to evict with zero bytes
         testCache.evict(0);
@@ -110,22 +110,25 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
         assertEquals(2, testCache.accessRecencySet.size());
 
         // Verify doEviction was never called
-        verify(testCache, never()).doEviction(anyString());
+        verify(testCache, never()).doEviction(any());
     }
 
     /**
      * Test that evict correctly evicts items until enough memory is freed
      */
     public void test_evict_untilEnoughMemoryFreed() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = spy(new TestLruCache());
+        TestLruCacheKey key1 = new TestLruCacheKey("key1");
+        TestLruCacheKey key2 = new TestLruCacheKey("key2");
+        TestLruCacheKey key3 = new TestLruCacheKey("key3");
 
         // Set up the test cache to return specific byte values for eviction
         testCache.bytesFreedPerEviction = 50;
 
         // Add items to the cache
-        testCache.updateAccess("key1");
-        testCache.updateAccess("key2");
-        testCache.updateAccess("key3");
+        testCache.updateAccess(key1);
+        testCache.updateAccess(key2);
+        testCache.updateAccess(key3);
 
         // Evict 120 bytes (should evict 3 items)
         testCache.evict(120);
@@ -134,22 +137,23 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
         assertTrue(testCache.accessRecencySet.isEmpty());
 
         // Verify doEviction was called 3 times
-        verify(testCache, times(1)).doEviction("key1");
-        verify(testCache, times(1)).doEviction("key2");
-        verify(testCache, times(1)).doEviction("key3");
+        verify(testCache, times(1)).doEviction(key1);
+        verify(testCache, times(1)).doEviction(key2);
+        verify(testCache, times(1)).doEviction(key3);
     }
 
     /**
      * Test that evict stops when the cache becomes empty
      */
     public void test_evict_stopsWhenCacheEmpty() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = spy(new TestLruCache());
+        TestLruCacheKey key = new TestLruCacheKey("key");
 
         // Set up the test cache to return specific byte values for eviction
         testCache.bytesFreedPerEviction = 0;
 
         // Add one item to the cache
-        testCache.updateAccess("key1");
+        testCache.updateAccess(key);
 
         // Try to evict 100 bytes (more than available)
         testCache.evict(100);
@@ -158,25 +162,27 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
         assertTrue(testCache.accessRecencySet.isEmpty());
 
         // Verify doEviction was called only once
-        verify(testCache, times(1)).doEviction("key1");
+        verify(testCache, times(1)).doEviction(key);
     }
 
     /**
      * Test that evictItem correctly removes an item from the access map
      */
     public void test_evictItem() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = new TestLruCache();
+        TestLruCacheKey key1 = new TestLruCacheKey("key1");
+        TestLruCacheKey key2 = new TestLruCacheKey("key2");
 
         // Add items to the cache
-        testCache.updateAccess("key1");
-        testCache.updateAccess("key2");
+        testCache.updateAccess(key1);
+        testCache.updateAccess(key2);
 
         // Evict key1
-        long bytesFreed = testCache.evictItem("key1");
+        long bytesFreed = testCache.evictItem(key1);
 
         // Verify key1 was removed from the access map
-        assertFalse(testCache.accessRecencySet.contains("key1"));
-        assertTrue(testCache.accessRecencySet.contains("key2"));
+        assertFalse(testCache.accessRecencySet.contains(key1));
+        assertTrue(testCache.accessRecencySet.contains(key2));
 
         // Verify the correct number of bytes was returned
         assertEquals(testCache.bytesFreedPerEviction, bytesFreed);
@@ -186,69 +192,81 @@ public class AbstractLRUCacheTests extends AbstractSparseTestBase {
      * Test that evictItem returns 0 when the key doesn't exist
      */
     public void test_evictItem_withNonExistentKey() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = spy(new TestLruCache());
+        TestLruCacheKey key = new TestLruCacheKey("key");
+        TestLruCacheKey nonExistentKey = new TestLruCacheKey("nonexistent");
 
         // Add an item to the cache
-        testCache.updateAccess("key1");
+        testCache.updateAccess(key);
 
         // Try to evict a non-existent key
-        long bytesFreed = testCache.evictItem("nonexistent");
+        long bytesFreed = testCache.evictItem(nonExistentKey);
 
         // Verify no bytes were freed
         assertEquals(0, bytesFreed);
 
         // Verify doEviction was not called
-        verify(testCache, never()).doEviction("nonexistent");
+        verify(testCache, never()).doEviction(nonExistentKey);
     }
 
     /**
-     * Test that removeIndex calls the abstract method with the correct key
+     * Test that removeIndex calls the doRemoveIndex method with the correct key
      */
     public void test_removeIndex() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = new TestLruCache();
+        TestLruCacheKey key = new TestLruCacheKey("key");
+        CacheKey cacheKey = key.getCacheKey();
+        assertTrue(key.getCacheKey().equals(cacheKey));
 
-        CacheKey cacheKey = mock(CacheKey.class);
+        testCache.updateAccess(key);
 
         // Call removeIndex
         testCache.removeIndex(cacheKey);
 
-        // Verify the abstract method was called with the correct key
-        verify(testCache, times(1)).doRemoveIndex(cacheKey);
+        // Verify the key was removed
+        assertFalse(testCache.accessRecencySet.contains(key));
     }
 
     /**
      * Test that removeIndex throws NullPointerException when key is null
      */
     public void test_removeIndex_withNullKey() {
-        TestLRUCache testCache = spy(new TestLRUCache());
+        TestLruCache testCache = new TestLruCache();
         NullPointerException exception = expectThrows(NullPointerException.class, () -> testCache.removeIndex(null));
         assertEquals("cacheKey is marked non-null but is null", exception.getMessage());
     }
 
     /**
-     * A concrete implementation of AbstractLRUCache for testing
+     * A concrete implementation of AbstractLruCache for testing
      */
-    private static class TestLRUCache extends AbstractLRUCache<String> {
+    private static class TestLruCache extends AbstractLruCache<TestLruCacheKey> {
 
         long bytesFreedPerEviction = 0;
 
         @Override
-        protected long doEviction(String s) {
-            return bytesFreedPerEviction;
+        protected long doEviction(TestLruCacheKey testLrucachekey) {
+            return 0;
+        }
+    }
+
+    /**
+     * A concrete implementation of LruCacheKey for testing
+     */
+    private static class TestLruCacheKey implements LruCacheKey {
+
+        private String name;
+        private CacheKey cacheKey;
+
+        public TestLruCacheKey(String name) {
+            this.name = name;
         }
 
         @Override
-        protected void logEviction(String key, long bytesFreed) {
-            // Do nothing for testing
-        }
-
-        @Override
-        public void removeIndex(@NonNull CacheKey cacheKey) {
-            doRemoveIndex(cacheKey);
-        }
-
-        public void doRemoveIndex(@NonNull CacheKey cacheKey) {
-            // Do nothing for testing
+        public CacheKey getCacheKey() {
+            if (cacheKey == null) {
+                cacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), TestsPrepareUtils.prepareKeyFieldInfo());
+            }
+            return cacheKey;
         }
     }
 }

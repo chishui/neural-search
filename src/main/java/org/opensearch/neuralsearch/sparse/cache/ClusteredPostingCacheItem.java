@@ -5,14 +5,13 @@
 package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.neuralsearch.sparse.accessor.CacheableClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPosting;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
@@ -48,7 +47,8 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
         return new CacheClusteredPostingWriter(circuitBreakerHandler);
     }
 
-    public ClusteredPostingCacheItem() {
+    public ClusteredPostingCacheItem(CacheKey cacheKey) {
+        this.cacheKey = cacheKey;
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 
@@ -63,7 +63,7 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
             PostingClusters clusters = clusteredPostings.get(term);
             if (clusters != null) {
                 // Record access to update LRU status
-                LRUTermCache.getInstance().updateAccess(cacheKey, term);
+                LruTermCache.getInstance().updateAccess(cacheKey, term);
             }
             return clusters;
         }
@@ -81,8 +81,8 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
         }
     }
 
-    private class CacheClusteredPostingWriter implements ClusteredPostingWriter {
-        
+    private class CacheClusteredPostingWriter implements CacheableClusteredPostingWriter {
+
         private final Consumer<Long> circuitBreakerTriggerHandler;
 
         private CacheClusteredPostingWriter(Consumer<Long> circuitBreakerTriggerHandler) {
@@ -110,10 +110,10 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
                     return;
                 }
-                
+
                 // Perform cache eviction when memory limit is reached
-                synchronized (LRUTermCache.getInstance()) {
-                    LRUTermCache.getInstance().evict(ramBytesUsed);
+                synchronized (LruTermCache.getInstance()) {
+                    LruTermCache.getInstance().evict(ramBytesUsed);
                 }
 
                 // Try again after eviction
@@ -122,11 +122,11 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
                     return;
                 }
             }
-            
+
             // Update the clusters with putIfAbsent for thread safety
             PostingClusters existingClusters = clusteredPostings.putIfAbsent(clonedTerm, postingClusters);
             // Record access to update LRU status
-            LRUTermCache.getInstance().updateAccess(cacheKey, clonedTerm);
+            LruTermCache.getInstance().updateAccess(cacheKey, clonedTerm);
 
             // Only update memory usage if we actually inserted a new entry
             if (existingClusters == null) {

@@ -5,13 +5,12 @@
 package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.opensearch.neuralsearch.sparse.accessor.CacheableSparseVectorWriter;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.accessor.SparseVectorWriter;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.io.IOException;
@@ -43,7 +42,8 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
         return new CacheSparseVectorWriter(circuitBreakerHandler);
     }
 
-    public ForwardIndexCacheItem(int docCount) {
+    public ForwardIndexCacheItem(CacheKey cacheKey, int docCount) {
+        this.cacheKey = cacheKey;
         sparseVectors = new AtomicReferenceArray<>(docCount);
         // Account for the array itself in memory usage
         usedRamBytes = new AtomicLong(
@@ -68,13 +68,13 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
             SparseVector vector = sparseVectors.get(docId);
             if (vector != null) {
                 // Record access to update LRU status
-                LRUDocumentCache.getInstance().updateAccess(cacheKey, docId);
+                LruDocumentCache.getInstance().updateAccess(cacheKey, docId);
             }
             return vector;
         }
     }
 
-    private class CacheSparseVectorWriter implements SparseVectorWriter {
+    private class CacheSparseVectorWriter implements CacheableSparseVectorWriter {
         private final Consumer<Long> circuitBreakerTriggerHandler;
 
         private CacheSparseVectorWriter(Consumer<Long> circuitBreakerTriggerHandler) {
@@ -98,12 +98,12 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
                     return;
                 }
-                
+
                 // Perform cache eviction when memory limit is reached
-                synchronized (LRUDocumentCache.getInstance()) {
-                    LRUDocumentCache.getInstance().evict(ramBytesUsed);
+                synchronized (LruDocumentCache.getInstance()) {
+                    LruDocumentCache.getInstance().evict(ramBytesUsed);
                 }
-                
+
                 // Try again after eviction
                 if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
                     log.warn("Failed to add to cache even after eviction, vector will not be cached");
@@ -112,7 +112,7 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
             }
 
             // Record access to update LRU status
-            LRUDocumentCache.getInstance().updateAccess(cacheKey, docId);
+            LruDocumentCache.getInstance().updateAccess(cacheKey, docId);
 
             // Only update memory usage if we actually inserted a new document
             if (sparseVectors.compareAndSet(docId, null, vector)) {
@@ -126,6 +126,7 @@ public class ForwardIndexCacheItem implements SparseVectorForwardIndex, Accounta
          * @param docId The document ID of the sparse vector to be removed from the forward index
          * @return The number of RAM bytes freed by removing this sparse vector
          */
+        @Override
         public long erase(int docId) {
             if (docId >= sparseVectors.length()) {
                 return 0;

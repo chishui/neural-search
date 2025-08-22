@@ -15,14 +15,14 @@ import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.util.List;
 
-public class LRUTermCacheTests extends AbstractSparseTestBase {
+public class LruTermCacheTests extends AbstractSparseTestBase {
 
     private BytesRef term1;
     private BytesRef term2;
     private BytesRef term3;
     private CacheKey cacheKey1;
     private CacheKey cacheKey2;
-    private final LRUTermCache lruTermCache = LRUTermCache.getInstance();
+    private final LruTermCache lruTermCache = LruTermCache.getInstance();
 
     @Before
     public void setUp() {
@@ -46,8 +46,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test that getInstance returns the singleton instance
      */
     public void test_getInstance_returnsSingletonInstance() {
-        LRUTermCache instance1 = LRUTermCache.getInstance();
-        LRUTermCache instance2 = LRUTermCache.getInstance();
+        LruTermCache instance1 = LruTermCache.getInstance();
+        LruTermCache instance2 = LruTermCache.getInstance();
 
         assertNotNull(instance1);
         assertSame(instance1, instance2);
@@ -62,7 +62,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
         lruTermCache.updateAccess(cacheKey1, term2);
 
         // Verify the least recently used item is the first one added
-        LRUTermCache.TermKey leastRecentlyUsed = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey leastRecentlyUsed = lruTermCache.getLeastRecentlyUsedItem();
         assertNotNull(leastRecentlyUsed);
         assertEquals(cacheKey1, leastRecentlyUsed.getCacheKey());
         assertEquals(term1, leastRecentlyUsed.getTerm());
@@ -88,7 +88,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
         lruTermCache.updateAccess(cacheKey1, term1);
 
         // Verify that the least recently used term is the non-null one
-        LRUTermCache.TermKey leastRecentlyUsed = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey leastRecentlyUsed = lruTermCache.getLeastRecentlyUsedItem();
         assertNotNull(leastRecentlyUsed);
         assertEquals(cacheKey1, leastRecentlyUsed.getCacheKey());
         assertEquals(term1, leastRecentlyUsed.getTerm());
@@ -105,7 +105,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
         lruTermCache.updateAccess(cacheKey1, term1);
 
         // Verify that the least recently used term is the non-null one
-        LRUTermCache.TermKey leastRecentlyUsed = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey leastRecentlyUsed = lruTermCache.getLeastRecentlyUsedItem();
         assertNotNull(leastRecentlyUsed);
         assertEquals(cacheKey1, leastRecentlyUsed.getCacheKey());
         assertEquals(term1, leastRecentlyUsed.getTerm());
@@ -116,7 +116,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      */
     @SneakyThrows
     public void test_doEviction_erasesTerm() {
-        LRUTermCache.TermKey termKey = new LRUTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey termKey = new LruTermCache.TermKey(cacheKey1, term1);
         List<DocumentCluster> expectedClusterList = prepareClusterList();
         PostingClusters expectedCluster = preparePostingClusters();
         ClusteredPostingCache.getInstance().get(cacheKey1).getWriter().insert(term1, expectedClusterList);
@@ -141,7 +141,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void test_doEviction_withNonExistentKey() {
         CacheKey nonExistentCacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "non_existent_field");
-        LRUTermCache.TermKey termKey = new LRUTermCache.TermKey(nonExistentCacheKey, term1);
+        LruTermCache.TermKey termKey = new LruTermCache.TermKey(nonExistentCacheKey, term1);
 
         // Call doEviction
         long bytesFreed = lruTermCache.doEviction(termKey);
@@ -175,7 +175,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
         lruTermCache.evict(posting1Size + posting2Size);
 
         // The third term should still be in the cache
-        LRUTermCache.TermKey remainingTerm = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey remainingTerm = lruTermCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingTerm);
         assertEquals(cacheKey2, remainingTerm.getCacheKey());
         assertEquals(term3, remainingTerm.getTerm());
@@ -200,7 +200,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
         lruTermCache.removeIndex(cacheKey1);
 
         // Verify only terms for cacheKey2 remain
-        LRUTermCache.TermKey remainingTerm = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey remainingTerm = lruTermCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingTerm);
         assertEquals(cacheKey2, remainingTerm.getCacheKey());
         assertEquals(term3, remainingTerm.getTerm());
@@ -218,8 +218,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey equals
      */
     public void test_TermKey_equals_returnsTrue_whenSame() {
-        LRUTermCache.TermKey key1 = new LRUTermCache.TermKey(cacheKey1, term1);
-        LRUTermCache.TermKey key2 = new LRUTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key1 = new LruTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key2 = new LruTermCache.TermKey(cacheKey1, term1);
 
         assertEquals(key1, key2);
     }
@@ -228,8 +228,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey equals
      */
     public void test_TermKey_equals_returnsFalse_withDifferentTerm() {
-        LRUTermCache.TermKey key1 = new LRUTermCache.TermKey(cacheKey1, term1);
-        LRUTermCache.TermKey key2 = new LRUTermCache.TermKey(cacheKey1, term2);
+        LruTermCache.TermKey key1 = new LruTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key2 = new LruTermCache.TermKey(cacheKey1, term2);
 
         assertNotEquals(key1, key2);
     }
@@ -238,8 +238,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey equals
      */
     public void test_TermKey_equals_returnsFalse_withDifferentCacheKey() {
-        LRUTermCache.TermKey key1 = new LRUTermCache.TermKey(cacheKey1, term1);
-        LRUTermCache.TermKey key2 = new LRUTermCache.TermKey(cacheKey2, term1);
+        LruTermCache.TermKey key1 = new LruTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key2 = new LruTermCache.TermKey(cacheKey2, term1);
 
         assertNotEquals(key1, key2);
     }
@@ -248,8 +248,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey hashCode
      */
     public void test_TermKey_hashCodeEquals_returnsEqualValues_whenSame() {
-        LRUTermCache.TermKey key1 = new LRUTermCache.TermKey(cacheKey1, term1);
-        LRUTermCache.TermKey key2 = new LRUTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key1 = new LruTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key2 = new LruTermCache.TermKey(cacheKey1, term1);
 
         assertEquals(key1.hashCode(), key2.hashCode());
     }
@@ -258,8 +258,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey hashCode
      */
     public void test_TermKey_hashCodeEquals_returnsDifferentValues_withDifferentTerm() {
-        LRUTermCache.TermKey key1 = new LRUTermCache.TermKey(cacheKey1, term1);
-        LRUTermCache.TermKey key2 = new LRUTermCache.TermKey(cacheKey1, term2);
+        LruTermCache.TermKey key1 = new LruTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key2 = new LruTermCache.TermKey(cacheKey1, term2);
 
         assertNotEquals(key1.hashCode(), key2.hashCode());
     }
@@ -268,8 +268,8 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey hashCode
      */
     public void test_TermKey_hashCodeEquals_returnsDifferentValues_withDifferentCacheKey() {
-        LRUTermCache.TermKey key1 = new LRUTermCache.TermKey(cacheKey1, term1);
-        LRUTermCache.TermKey key2 = new LRUTermCache.TermKey(cacheKey2, term1);
+        LruTermCache.TermKey key1 = new LruTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key2 = new LruTermCache.TermKey(cacheKey2, term1);
 
         assertNotEquals(key1.hashCode(), key2.hashCode());
     }
@@ -278,7 +278,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey get CacheKey
      */
     public void test_TermKey_getCacheKey() {
-        LRUTermCache.TermKey key = new LRUTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key = new LruTermCache.TermKey(cacheKey1, term1);
 
         assertEquals(cacheKey1, key.getCacheKey());
     }
@@ -287,7 +287,7 @@ public class LRUTermCacheTests extends AbstractSparseTestBase {
      * Test TermKey get Term
      */
     public void test_TermKey_getTerm() {
-        LRUTermCache.TermKey key = new LRUTermCache.TermKey(cacheKey1, term1);
+        LruTermCache.TermKey key = new LruTermCache.TermKey(cacheKey1, term1);
 
         assertEquals(term1, key.getTerm());
     }

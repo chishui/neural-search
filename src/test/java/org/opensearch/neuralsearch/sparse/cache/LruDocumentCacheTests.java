@@ -10,11 +10,11 @@ import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
-public class LRUDocumentCacheTests extends AbstractSparseTestBase {
+public class LruDocumentCacheTests extends AbstractSparseTestBase {
 
     private CacheKey cacheKey1;
     private CacheKey cacheKey2;
-    private final LRUDocumentCache lruDocumentCache = LRUDocumentCache.getInstance();
+    private final LruDocumentCache lruDocumentCache = LruDocumentCache.getInstance();
 
     @Before
     public void setUp() {
@@ -31,8 +31,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test that getInstance returns the singleton instance
      */
     public void test_getInstance_returnsSingletonInstance() {
-        LRUDocumentCache instance1 = LRUDocumentCache.getInstance();
-        LRUDocumentCache instance2 = LRUDocumentCache.getInstance();
+        LruDocumentCache instance1 = LruDocumentCache.getInstance();
+        LruDocumentCache instance2 = LruDocumentCache.getInstance();
 
         assertNotNull(instance1);
         assertSame(instance1, instance2);
@@ -47,7 +47,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
         lruDocumentCache.updateAccess(cacheKey1, 2);
 
         // Verify the least recently used item is the first one added
-        LRUDocumentCache.DocumentKey leastRecentlyUsed = lruDocumentCache.getLeastRecentlyUsedItem();
+        LruDocumentCache.DocumentKey leastRecentlyUsed = lruDocumentCache.getLeastRecentlyUsedItem();
         assertNotNull(leastRecentlyUsed);
         assertEquals(cacheKey1, leastRecentlyUsed.getCacheKey());
         assertEquals(1, leastRecentlyUsed.getDocId());
@@ -66,7 +66,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test that updateAccess handles null cache key gracefully
      */
     public void test_updateAccess_withNullCacheKey() {
-        LRUDocumentCache cache = LRUDocumentCache.getInstance();
+        LruDocumentCache cache = LruDocumentCache.getInstance();
 
         // Try to update with null cache key
         cache.updateAccess(null, 2);
@@ -75,7 +75,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
         cache.updateAccess(cacheKey1, 1);
 
         // Verify that the least recently used document is the non-null one
-        LRUDocumentCache.DocumentKey leastRecentlyUsed = cache.getLeastRecentlyUsedItem();
+        LruDocumentCache.DocumentKey leastRecentlyUsed = cache.getLeastRecentlyUsedItem();
         assertNotNull(leastRecentlyUsed);
         assertEquals(cacheKey1, leastRecentlyUsed.getCacheKey());
         assertEquals(1, leastRecentlyUsed.getDocId());
@@ -86,7 +86,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      */
     @SneakyThrows
     public void test_doEviction_erasesDocument() {
-        LRUDocumentCache.DocumentKey documentKey = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey documentKey = new LruDocumentCache.DocumentKey(cacheKey1, 1);
         SparseVector expectedVector = createVector(1, 10, 2, 20);
         ForwardIndexCache.getInstance().get(cacheKey1).getWriter().insert(1, expectedVector);
 
@@ -110,7 +110,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void test_doEviction_withNonExistentKey() {
         CacheKey nonExistentCacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "non_existent_field");
-        LRUDocumentCache.DocumentKey documentKey = new LRUDocumentCache.DocumentKey(nonExistentCacheKey, 1);
+        LruDocumentCache.DocumentKey documentKey = new LruDocumentCache.DocumentKey(nonExistentCacheKey, 1);
 
         // Call doEviction
         long bytesFreed = lruDocumentCache.doEviction(documentKey);
@@ -136,7 +136,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
         lruDocumentCache.evict(vector1.ramBytesUsed() + vector2.ramBytesUsed());
 
         // The third document should still be in the cache
-        LRUDocumentCache.DocumentKey remainingDoc = lruDocumentCache.getLeastRecentlyUsedItem();
+        LruDocumentCache.DocumentKey remainingDoc = lruDocumentCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingDoc);
         assertEquals(cacheKey2, remainingDoc.getCacheKey());
         assertEquals(2, remainingDoc.getDocId());
@@ -160,7 +160,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
         lruDocumentCache.removeIndex(cacheKey1);
 
         // Verify only documents for mockCacheKey2 remain
-        LRUDocumentCache.DocumentKey remainingDoc = lruDocumentCache.getLeastRecentlyUsedItem();
+        LruDocumentCache.DocumentKey remainingDoc = lruDocumentCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingDoc);
         assertEquals(cacheKey2, remainingDoc.getCacheKey());
         assertEquals(1, remainingDoc.getDocId());
@@ -178,8 +178,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey equals
      */
     public void test_DocumentKey_equals_returnsTrue_whenSame() {
-        LRUDocumentCache.DocumentKey key1 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
-        LRUDocumentCache.DocumentKey key2 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key2 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
 
         assertEquals(key1, key2);
     }
@@ -188,8 +188,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey equals
      */
     public void test_DocumentKey_equals_returnsFalse_withDifferentDocId() {
-        LRUDocumentCache.DocumentKey key1 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
-        LRUDocumentCache.DocumentKey key2 = new LRUDocumentCache.DocumentKey(cacheKey1, 2);
+        LruDocumentCache.DocumentKey key1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key2 = new LruDocumentCache.DocumentKey(cacheKey1, 2);
 
         assertNotEquals(key1, key2);
     }
@@ -198,8 +198,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey equals
      */
     public void test_DocumentKey_equals_returnsFalse_withDifferentCacheKey() {
-        LRUDocumentCache.DocumentKey key1 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
-        LRUDocumentCache.DocumentKey key2 = new LRUDocumentCache.DocumentKey(cacheKey2, 1);
+        LruDocumentCache.DocumentKey key1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key2 = new LruDocumentCache.DocumentKey(cacheKey2, 1);
 
         assertNotEquals(key1, key2);
     }
@@ -208,8 +208,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey hashCode
      */
     public void test_DocumentKey_hashCodeEquals_returnsEqualValues_whenSame() {
-        LRUDocumentCache.DocumentKey key1 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
-        LRUDocumentCache.DocumentKey key2 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key2 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
 
         assertEquals(key1.hashCode(), key2.hashCode());
     }
@@ -218,8 +218,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey hashCode
      */
     public void test_DocumentKey_hashCodeEquals_returnsDifferentValues_withDifferentDocId() {
-        LRUDocumentCache.DocumentKey key1 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
-        LRUDocumentCache.DocumentKey key2 = new LRUDocumentCache.DocumentKey(cacheKey1, 2);
+        LruDocumentCache.DocumentKey key1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key2 = new LruDocumentCache.DocumentKey(cacheKey1, 2);
 
         assertNotEquals(key1.hashCode(), key2.hashCode());
     }
@@ -228,8 +228,8 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey hashCode
      */
     public void test_DocumentKey_hashCodeEquals_returnsDifferentValues_withDifferentCacheKey() {
-        LRUDocumentCache.DocumentKey key1 = new LRUDocumentCache.DocumentKey(cacheKey1, 1);
-        LRUDocumentCache.DocumentKey key2 = new LRUDocumentCache.DocumentKey(cacheKey2, 1);
+        LruDocumentCache.DocumentKey key1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey key2 = new LruDocumentCache.DocumentKey(cacheKey2, 1);
 
         assertNotEquals(key1.hashCode(), key2.hashCode());
     }
@@ -238,7 +238,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey get CacheKey
      */
     public void test_DocumentKey_getCacheKey() {
-        LRUDocumentCache.DocumentKey key = new LRUDocumentCache.DocumentKey(cacheKey1, 42);
+        LruDocumentCache.DocumentKey key = new LruDocumentCache.DocumentKey(cacheKey1, 42);
 
         assertEquals(cacheKey1, key.getCacheKey());
     }
@@ -247,7 +247,7 @@ public class LRUDocumentCacheTests extends AbstractSparseTestBase {
      * Test DocumentKey get docId
      */
     public void test_DocumentKey_getDocId() {
-        LRUDocumentCache.DocumentKey key = new LRUDocumentCache.DocumentKey(cacheKey1, 42);
+        LruDocumentCache.DocumentKey key = new LruDocumentCache.DocumentKey(cacheKey1, 42);
 
         assertEquals(42, key.getDocId());
     }

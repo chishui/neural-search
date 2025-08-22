@@ -16,14 +16,14 @@ import lombok.extern.log4j.Log4j2;
  * when memory pressure requires it.
  */
 @Log4j2
-public class LRUDocumentCache extends AbstractLRUCache<LRUDocumentCache.DocumentKey> {
-    private static final LRUDocumentCache INSTANCE = new LRUDocumentCache();
+public class LruDocumentCache extends AbstractLruCache<LruDocumentCache.DocumentKey> {
+    private static final LruDocumentCache INSTANCE = new LruDocumentCache();
 
-    private LRUDocumentCache() {
+    private LruDocumentCache() {
         super();
     }
 
-    public static LRUDocumentCache getInstance() {
+    public static LruDocumentCache getInstance() {
         return INSTANCE;
     }
 
@@ -55,11 +55,6 @@ public class LRUDocumentCache extends AbstractLRUCache<LRUDocumentCache.Document
     }
 
     @Override
-    protected void logEviction(DocumentKey documentKey, long bytesFreed) {
-        log.debug("Evicted document {} from index {}, freed {} bytes", documentKey.getDocId(), documentKey.getCacheKey(), bytesFreed);
-    }
-
-    @Override
     public void removeIndex(@NonNull CacheKey cacheKey) {
         accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
@@ -69,7 +64,7 @@ public class LRUDocumentCache extends AbstractLRUCache<LRUDocumentCache.Document
      */
     @Getter
     @EqualsAndHashCode
-    public static class DocumentKey {
+    public static class DocumentKey implements LruCacheKey {
         private final CacheKey cacheKey;
         private final int docId;
 

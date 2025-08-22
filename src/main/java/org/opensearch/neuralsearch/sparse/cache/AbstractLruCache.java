@@ -17,14 +17,15 @@ import java.util.Set;
  * This class provides common functionality for managing eviction of cache entries
  * based on least recently used policy.
  *
- * @param <LRUCacheKey> The type of key used for cache entries
+ * @param <Key> The type of key used for cache entries
  */
 @Log4j2
-public abstract class AbstractLRUCache<LRUCacheKey> {
+public abstract class AbstractLruCache<Key extends LruCacheKey> {
     /**
+     *
      * Map to track access with LRU ordering
      */
-    protected final Set<LRUCacheKey> accessRecencySet;
+    protected final Set<Key> accessRecencySet;
 
     /**
      * The default initial capacity - MUST be a power of two.
@@ -35,7 +36,7 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      */
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
-    protected AbstractLRUCache() {
+    protected AbstractLruCache() {
         this.accessRecencySet = Collections.synchronizedSet(
             Collections.newSetFromMap(new LinkedHashMap<>(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, true))
         );
@@ -47,7 +48,7 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      *
      * @param key The key being accessed
      */
-    protected void updateAccess(LRUCacheKey key) {
+    protected void updateAccess(Key key) {
         if (key == null) {
             return;
         }
@@ -60,9 +61,9 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      *
      * @return The least recently used key, or null if the cache is empty
      */
-    protected LRUCacheKey getLeastRecentlyUsedItem() {
-        // With accessOrder is true in the LinkedHashMap, the first entry is the least recently used
-        Iterator<LRUCacheKey> iterator = accessRecencySet.iterator();
+    protected Key getLeastRecentlyUsedItem() {
+        // With accessOrder true, the first entry in the set the least recently used
+        Iterator<Key> iterator = accessRecencySet.iterator();
         if (iterator.hasNext()) {
             return iterator.next();
         }
@@ -85,7 +86,7 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
         // Continue evicting until we've freed enough memory or the cache is empty
         while (ramBytesReleased < ramBytesToRelease) {
             // Get the least recently used item
-            LRUCacheKey leastRecentlyUsedKey = getLeastRecentlyUsedItem();
+            Key leastRecentlyUsedKey = getLeastRecentlyUsedItem();
 
             if (leastRecentlyUsedKey == null) {
                 // Cache is empty, nothing more to evict
@@ -93,12 +94,7 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
             }
 
             // Evict the item and track bytes freed
-            long bytesFreed = evictItem(leastRecentlyUsedKey);
-
-            if (bytesFreed > 0) {
-                ramBytesReleased += bytesFreed;
-                logEviction(leastRecentlyUsedKey, bytesFreed);
-            }
+            ramBytesReleased += evictItem(leastRecentlyUsedKey);
         }
 
         log.debug("Freed {} bytes of memory", ramBytesReleased);
@@ -110,12 +106,21 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      * @param key The key to evict
      * @return number of bytes freed, or 0 if the item was not evicted
      */
-    protected long evictItem(LRUCacheKey key) {
+    protected long evictItem(Key key) {
         if (!accessRecencySet.remove(key)) {
             return 0;
         }
 
         return doEviction(key);
+    }
+
+    /**
+     * Removes all entries for a specific cache key when an index is removed.
+     *
+     * @param cacheKey The cache key to remove
+     */
+    public void removeIndex(@NonNull CacheKey cacheKey) {
+        accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
 
     /**
@@ -125,21 +130,5 @@ public abstract class AbstractLRUCache<LRUCacheKey> {
      * @param key The key to evict
      * @return number of bytes freed
      */
-    protected abstract long doEviction(LRUCacheKey key);
-
-    /**
-     * Logs information about an evicted item.
-     * Subclasses should implement this to provide appropriate logging.
-     *
-     * @param key The key that was evicted
-     * @param bytesFreed The number of bytes freed by the eviction
-     */
-    protected abstract void logEviction(LRUCacheKey key, long bytesFreed);
-
-    /**
-     * Removes all entries for a specific cache key when an index is removed.
-     *
-     * @param cacheKey The cache key to remove
-     */
-    public abstract void removeIndex(@NonNull CacheKey cacheKey);
+    protected abstract long doEviction(Key key);
 }

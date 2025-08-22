@@ -17,14 +17,14 @@ import org.apache.lucene.util.BytesRef;
  * when memory pressure requires it.
  */
 @Log4j2
-public class LRUTermCache extends AbstractLRUCache<LRUTermCache.TermKey> {
-    private static final LRUTermCache INSTANCE = new LRUTermCache();
+public class LruTermCache extends AbstractLruCache<LruTermCache.TermKey> {
+    private static final LruTermCache INSTANCE = new LruTermCache();
 
-    private LRUTermCache() {
+    private LruTermCache() {
         super();
     }
 
-    public static LRUTermCache getInstance() {
+    public static LruTermCache getInstance() {
         return INSTANCE;
     }
 
@@ -56,11 +56,6 @@ public class LRUTermCache extends AbstractLRUCache<LRUTermCache.TermKey> {
     }
 
     @Override
-    protected void logEviction(TermKey termKey, long bytesFreed) {
-        log.debug("Evicted term {} from index {}, freed {} bytes", termKey.getTerm(), termKey.getCacheKey(), bytesFreed);
-    }
-
-    @Override
     public void removeIndex(@NonNull CacheKey cacheKey) {
         accessRecencySet.removeIf(key -> key.getCacheKey().equals(cacheKey));
     }
@@ -70,7 +65,7 @@ public class LRUTermCache extends AbstractLRUCache<LRUTermCache.TermKey> {
      */
     @Getter
     @EqualsAndHashCode
-    public static class TermKey {
+    public static class TermKey implements LruCacheKey {
         private final CacheKey cacheKey;
         private final BytesRef term;
 
