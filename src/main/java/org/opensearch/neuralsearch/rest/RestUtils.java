@@ -28,7 +28,7 @@ public class RestUtils {
      * @param sparseIndex sparseIndex name of setting
      * @param apiOperation Determine whether the request is to warm up or clear cache
      */
-    public static void validateIndices(Index[] indices, ClusterService clusterService, String sparseIndex, String apiOperation) {
+    public static void validateSparseIndices(Index[] indices, ClusterService clusterService, String sparseIndex, String apiOperation) {
         List<String> invalidIndexNames = Arrays.stream(indices).filter(index -> {
             String sparseIndexSetting = Optional.ofNullable(clusterService)
                 .map(ClusterService::state)
@@ -44,7 +44,12 @@ public class RestUtils {
         if (!invalidIndexNames.isEmpty()) {
             throw new NeuralSparseInvalidIndicesException(
                 invalidIndexNames,
-                String.format(Locale.ROOT, "Request rejected. Indices %s don't support %s operation.", invalidIndexNames, apiOperation)
+                String.format(
+                    Locale.ROOT,
+                    "Request rejected. Indices [%s] don't support %s operation.",
+                    String.join(", ", invalidIndexNames),
+                    apiOperation
+                )
             );
         }
     }

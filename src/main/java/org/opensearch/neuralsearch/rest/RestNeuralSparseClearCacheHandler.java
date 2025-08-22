@@ -69,7 +69,7 @@ public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     private NeuralSparseClearCacheRequest createClearCacheRequest(RestRequest request) {
         String[] indexNames = Strings.splitStringByCommaToArray(request.param("index"));
         Index[] indices = indexNameExpressionResolver.concreteIndices(clusterService.state(), strictExpandOpen(), indexNames);
-        RestUtils.validateIndices(indices, clusterService, SPARSE_INDEX, NAME);
+        RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, NAME);
 
         return new NeuralSparseClearCacheRequest(indexNames);
     }

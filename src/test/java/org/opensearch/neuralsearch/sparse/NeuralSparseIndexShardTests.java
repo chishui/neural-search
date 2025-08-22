@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
-import org.junit.After;
 import org.junit.Before;
 import org.opensearch.core.index.Index;
 import org.opensearch.core.index.shard.ShardId;
@@ -38,12 +37,6 @@ public class NeuralSparseIndexShardTests extends AbstractSparseTestBase {
         searcher = mock(Engine.Searcher.class);
 
         when(indexShard.shardId()).thenReturn(testShardId);
-    }
-
-    @After
-    @Override
-    public void tearDown() throws Exception {
-        super.tearDown();
     }
 
     public void testGetIndexName() {

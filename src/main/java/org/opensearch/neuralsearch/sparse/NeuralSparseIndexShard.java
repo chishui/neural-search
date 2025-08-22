@@ -7,7 +7,6 @@ package org.opensearch.neuralsearch.sparse;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
 import org.apache.lucene.codecs.Codec;
@@ -26,18 +25,18 @@ import org.opensearch.common.lucene.Lucene;
 import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.index.engine.Engine;
+import org.opensearch.index.engine.EngineException;
+import org.opensearch.index.shard.IllegalIndexShardStateException;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
-import org.opensearch.neuralsearch.sparse.data.SparseVector;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedPostingsReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseTermsLuceneReader;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
-import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.apache.lucene.index.SegmentReadState;
 
 import java.util.Set;
@@ -56,8 +55,8 @@ public class NeuralSparseIndexShard {
     @NonNull
     private final IndexShard indexShard;
 
-    private static final String warmUpSearcherSource = "warm-up-searcher-source";
-    private static final String clearCacheSearcherSource = "clear-cache-searcher-source";
+    private static final String WARM_UP_SEARCHER_SOURCE = "warm-up-searcher-source";
+    private static final String CLEAR_CACHE_SEARCHER_SOURCE = "clear-cache-searcher-source";
 
     /**
      * Return the name of the shards index
@@ -74,9 +73,8 @@ public class NeuralSparseIndexShard {
      * Uses read lock to allow concurrent warmup operations but prevent conflicts with clear cache.
      * Early stop to save resources if this is a repeated request
      */
-    @SneakyThrows
-    public void warmUp() {
-        try (Engine.Searcher searcher = indexShard.acquireSearcher(warmUpSearcherSource)) {
+    public void warmUp() throws IOException {
+        try (Engine.Searcher searcher = indexShard.acquireSearcher(WARM_UP_SEARCHER_SOURCE)) {
             for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
                 final LeafReader leafReader = leafReaderContext.reader();
 
@@ -95,21 +93,18 @@ public class NeuralSparseIndexShard {
                         }
                         warmUpWithCacheGatedReaders(leafReader, fieldInfo, key);
 
-                    } catch (Exception e) {
-                        if (e instanceof CircuitBreakingException) {
-                            throw e;
-                        }
-                        log.error("[Neural Sparse] Failed to warm up field: {}", fieldInfo.getName(), e);
-                        throw new RuntimeException("Failed to warm up field: " + fieldInfo.getName(), e);
+                    } catch (CircuitBreakingException e) {
+                        log.error("[Neural Sparse] Circuit Breaker reaches limit", e);
+                        throw e;
+                    } catch (IOException e) {
+                        log.error("[Neural Sparse] Failed to read data during warm up", e);
+                        throw e;
                     }
                 }
             }
-        } catch (CircuitBreakingException e) {
-            log.error("[Neural Sparse] Circuit Breaker reaches limit");
-            throw e;
-        } catch (Exception e) {
+        } catch (IllegalIndexShardStateException | EngineException e) {
             log.error("[Neural Sparse] Failed to acquire searcher", e);
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 
@@ -118,9 +113,8 @@ public class NeuralSparseIndexShard {
      * Removes sparse field data from memory to free up resources.
      * Uses write lock to ensure exclusive access during cache clearing.
      */
-    @SneakyThrows
     public void clearCache() {
-        try (Engine.Searcher searcher = indexShard.acquireSearcher(clearCacheSearcherSource)) {
+        try (Engine.Searcher searcher = indexShard.acquireSearcher(CLEAR_CACHE_SEARCHER_SOURCE)) {
             for (final LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves()) {
                 final LeafReader leafReader = leafReaderContext.reader();
 
@@ -141,16 +135,17 @@ public class NeuralSparseIndexShard {
                     ForwardIndexCache.getInstance().removeIndex(cacheKey);
                 }
             }
-        } catch (Exception e) {
+        } catch (IllegalIndexShardStateException | EngineException e) {
             log.error("[Neural Sparse] Failed to acquire searcher", e);
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 
     /**
      * Warm up using CacheGated readers that automatically populate cache on read
      */
-    private void warmUpWithCacheGatedReaders(LeafReader leafReader, FieldInfo fieldInfo, CacheKey key) throws IOException {
+    private void warmUpWithCacheGatedReaders(LeafReader leafReader, FieldInfo fieldInfo, CacheKey key) throws IOException,
+        CircuitBreakingException {
         final SegmentReader segmentReader = Lucene.segmentReader(leafReader);
         final SegmentInfo segmentInfo = segmentReader.getSegmentInfo().info;
         final int docCount = segmentInfo.maxDoc();
@@ -159,58 +154,38 @@ public class NeuralSparseIndexShard {
             log.error("[Neural Sparse] No binary doc values found for field: {}", fieldInfo.name);
             return;
         }
-        try {
-            // Create SparseTermsLuceneReader for inverted index
-            final SparseTermsLuceneReader luceneReader = new SparseTermsLuceneReader(createSegmentReadState(segmentInfo));
 
-            final CacheGatedPostingsReader postingsReader = new CacheGatedPostingsReader(
-                fieldInfo.name,
-                ClusteredPostingCache.getInstance().getOrCreate(key).getReader(),
-                ClusteredPostingCache.getInstance().getOrCreate(key).getWriter((ramBytesUsed) -> {
-                    throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
-                }),
-                luceneReader
-            );
-            warmUpInvertedIndex(postingsReader);
-        } catch (Exception e) {
-            if (e instanceof CircuitBreakingException) {
-                throw e;
-            }
-            log.error("[Neural Sparse] Failed to create Lucene reader for inverted index", e);
-        }
-
-        // Create CacheGated readers
         final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, docCount);
         warmUpForwardIndex(binaryDocValues, forwardIndexReader);
+
+        final CacheGatedPostingsReader postingsReader = getCacheGatedPostingReader(fieldInfo, key, segmentInfo);
+        warmUpInvertedIndex(postingsReader);
     }
 
-    /**
-     * Create CacheGatedForwardIndexReader following the existing pattern
-     */
     private CacheGatedForwardIndexReader getCacheGatedForwardIndexReader(BinaryDocValues binaryDocValues, CacheKey key, int docCount) {
-        if (binaryDocValues instanceof SparseBinaryDocValuesPassThrough sparseBinaryDocValues) {
-            ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(key, docCount);
-            return new CacheGatedForwardIndexReader(cacheItem.getReader(), cacheItem.getWriter((ramBytesUsed) -> {
-                throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
-            }), sparseBinaryDocValues);
-        } else {
-            // For regular BinaryDocValues, create a SparseVectorReader wrapper
-            final SparseVectorReader luceneReader = docId -> {
-                try {
-                    if (binaryDocValues.advanceExact(docId)) {
-                        return new SparseVector(binaryDocValues.binaryValue());
-                    }
-                } catch (IOException e) {
-                    log.error("Failed to read doc {}", docId, e);
-                }
-                return null;
-            };
+        assert (binaryDocValues instanceof SparseBinaryDocValuesPassThrough);
+        SparseBinaryDocValuesPassThrough sparseBinaryDocValues = (SparseBinaryDocValuesPassThrough) binaryDocValues;
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(key, docCount);
+        return new CacheGatedForwardIndexReader(
+            cacheItem.getReader(),
+            cacheItem.getWriter(this::customizedConsumer),
+            sparseBinaryDocValues
+        );
+    }
 
-            ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(key, docCount);
-            return new CacheGatedForwardIndexReader(null, cacheItem.getWriter((ramBytesUsed) -> {
-                throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
-            }), luceneReader);
-        }
+    private CacheGatedPostingsReader getCacheGatedPostingReader(FieldInfo fieldInfo, CacheKey key, SegmentInfo segmentInfo)
+        throws IOException {
+        final SparseTermsLuceneReader luceneReader = new SparseTermsLuceneReader(createSegmentReadState(segmentInfo));
+        return new CacheGatedPostingsReader(
+            fieldInfo.name,
+            ClusteredPostingCache.getInstance().getOrCreate(key).getReader(),
+            ClusteredPostingCache.getInstance().getOrCreate(key).getWriter(this::customizedConsumer),
+            luceneReader
+        );
+    }
+
+    private void customizedConsumer(long ramBytesUsed) {
+        throw new CircuitBreakingException("Circuit Breaker reaches limit", CircuitBreaker.Durability.PERMANENT);
     }
 
     private Set<FieldInfo> collectSparseFieldInfos(LeafReader leafReader) {
@@ -220,32 +195,18 @@ public class NeuralSparseIndexShard {
     }
 
     private void warmUpForwardIndex(BinaryDocValues binaryDocValues, CacheGatedForwardIndexReader cacheGatedForwardIndexReader)
-        throws IOException {
+        throws IOException, CircuitBreakingException {
         int docId = binaryDocValues.nextDoc();
         while (docId != DocIdSetIterator.NO_MORE_DOCS) {
-            try {
-                cacheGatedForwardIndexReader.read(docId);
-            } catch (IOException e) {
-                log.warn("[Neural Sparse] Failed to read doc {} during warm up", docId, e);
-            } catch (CircuitBreakingException e) {
-                log.warn("[Neural Sparse] Circuit Breaker reaches limit when read doc {} during warm up", docId, e);
-                throw e;
-            }
+            cacheGatedForwardIndexReader.read(docId);
             docId = binaryDocValues.nextDoc();
         }
     }
 
-    private void warmUpInvertedIndex(CacheGatedPostingsReader cacheGatedPostingsReader) {
+    private void warmUpInvertedIndex(CacheGatedPostingsReader cacheGatedPostingsReader) throws IOException, CircuitBreakingException {
         final Set<BytesRef> terms = cacheGatedPostingsReader.getTerms();
         for (BytesRef term : terms) {
-            try {
-                cacheGatedPostingsReader.read(term);
-            } catch (IOException e) {
-                log.warn("[Neural Sparse] Failed to read term {} during warm up", term, e);
-            } catch (CircuitBreakingException e) {
-                log.warn("[Neural Sparse] Circuit Breaker reaches limit when read term {} during warm up", term, e);
-                throw e;
-            }
+            cacheGatedPostingsReader.read(term);
         }
     }
 
@@ -255,7 +216,7 @@ public class NeuralSparseIndexShard {
         final FieldInfos coreFieldInfos;
 
         if (segmentInfo.getUseCompoundFile()) {
-            /*If we get compound file, we will set directory as csf file*/
+            // If we get compound file, we will set directory as csf file
             cfsDir = codec.compoundFormat().getCompoundReader(segmentInfo.dir, segmentInfo);
         } else {
             /*Otherwise, we set directory as dir coming from segmentInfo*/

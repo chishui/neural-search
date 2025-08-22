@@ -69,7 +69,7 @@ public class RestNeuralSparseWarmupHandler extends BaseRestHandler {
     private NeuralSparseWarmupRequest createNeuralSparseWarmupRequest(RestRequest request) {
         String[] indexNames = StringUtils.split(request.param("index"), ",");
         Index[] indices = indexNameExpressionResolver.concreteIndices(clusterService.state(), strictExpandOpen(), indexNames);
-        RestUtils.validateIndices(indices, clusterService, SPARSE_INDEX, NAME);
+        RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, NAME);
 
         return new NeuralSparseWarmupRequest(indexNames);
     }
