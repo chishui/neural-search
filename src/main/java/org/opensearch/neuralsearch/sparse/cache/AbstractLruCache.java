@@ -52,7 +52,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
      * @return The least recently used key, or null if the cache is empty
      */
     protected Key getLeastRecentlyUsedItem() {
-        // With accessOrder true, the first entry in the set the least recently used
+        // With accessOrder is true in the LinkedHashMap, the first entry is the least recently used
         Iterator<Map.Entry<Key, Boolean>> iterator = accessRecencyMap.entrySet().iterator();
         if (iterator.hasNext()) {
             return iterator.next().getKey();
