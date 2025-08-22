@@ -11,9 +11,6 @@ import lombok.extern.log4j.Log4j2;
 
 /**
  * LRU cache implementation for sparse vector caches.
- * This class manages eviction of cache entries based on least recently used policy.
- * It tracks access to documents across different indices and evicts entire document entries
- * when memory pressure requires it.
  */
 @Log4j2
 public class LruDocumentCache extends AbstractLruCache<LruDocumentCache.DocumentKey> {
@@ -38,8 +35,7 @@ public class LruDocumentCache extends AbstractLruCache<LruDocumentCache.Document
             return;
         }
 
-        DocumentKey documentKey = new DocumentKey(cacheKey, docId);
-        super.updateAccess(documentKey);
+        super.updateAccess(new DocumentKey(cacheKey, docId));
     }
 
     @Override
@@ -60,7 +56,7 @@ public class LruDocumentCache extends AbstractLruCache<LruDocumentCache.Document
     }
 
     /**
-     * Key class that combines a cache key and document for tracking LRU access.
+     * Key class that combines a cache key and a document id for tracking LRU access.
      */
     @Getter
     @EqualsAndHashCode

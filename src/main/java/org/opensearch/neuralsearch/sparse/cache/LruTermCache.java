@@ -11,10 +11,7 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
 
 /**
- * LRU cache implementation for sparse vector caches.
- * This class manages eviction of cache entries based on least recently used policy.
- * It tracks access to terms across different indices and evicts entire term entries
- * when memory pressure requires it.
+ * LRU cache implementation for posting list caches.
  */
 @Log4j2
 public class LruTermCache extends AbstractLruCache<LruTermCache.TermKey> {
@@ -39,8 +36,7 @@ public class LruTermCache extends AbstractLruCache<LruTermCache.TermKey> {
             return;
         }
 
-        TermKey termKey = new TermKey(cacheKey, term.clone());
-        super.updateAccess(termKey);
+        super.updateAccess(new TermKey(cacheKey, term.clone()));
     }
 
     @Override
