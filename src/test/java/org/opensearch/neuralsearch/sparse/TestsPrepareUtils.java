@@ -567,6 +567,13 @@ public class TestsPrepareUtils {
         return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
     }
 
+    public static SegmentWriteState prepareSegmentWriteState(Directory directory, FieldInfos fieldInfos) {
+        SegmentInfo segmentInfo = prepareSegmentInfo();
+        IOContext ioContext = IOContext.DEFAULT;
+
+        return new SegmentWriteState(InfoStream.getDefault(), directory, segmentInfo, fieldInfos, null, ioContext);
+    }
+
     public static BytesRef prepareValidSparseVectorBytes() {
         // Create a valid sparse vector BytesRef with token "1" -> 0.5f
         try {
