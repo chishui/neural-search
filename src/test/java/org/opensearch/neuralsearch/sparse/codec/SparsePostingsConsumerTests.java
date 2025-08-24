@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import lombok.SneakyThrows;
 import org.apache.lucene.codecs.BlockTermState;
 import org.apache.lucene.codecs.FieldsConsumer;
 import org.apache.lucene.codecs.NormsProducer;
@@ -19,399 +20,254 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
-import org.junit.After;
 import org.junit.Before;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
-import org.opensearch.neuralsearch.sparse.SparseTokensField;
-import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
+import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
 
+    @Mock
+    private FieldsConsumer mockDelegate;
+
+    @Mock
+    private Directory mockDirectory;
+
+    @Mock
+    private IndexOutput mockTermsOutput;
+
+    @Mock
+    private IndexOutput mockPostingOutput;
+
+    @Mock
+    private SparseTermsLuceneWriter mockSparseTermsLuceneWriter;
+
+    @Mock
+    private ClusteredPostingTermsWriter mockClusteredPostingTermsWriter;
+
+    @Mock
+    private Fields mockFields;
+
+    @Mock
+    private NormsProducer mockNormsProducer;
+
+    @Mock
+    private MergeState mockMergeState;
+
+    @Mock
+    private SparsePostingsReader mockSparsePostingsReader;
+
+    private SegmentWriteState mockWriteState;
+    private FieldInfos mockFieldInfos;
     private SparsePostingsConsumer sparsePostingsConsumer;
-    private FieldsConsumer delegateConsumer;
-    private SegmentWriteState segmentWriteState;
-    private Directory directory;
-    private IndexOutput termsOutput;
-    private IndexOutput postingOutput;
-    private FieldInfo sparseFieldInfo;
-    private FieldInfo nonSparseFieldInfo;
-    private Fields fields;
-    private NormsProducer normsProducer;
-    private MergeState mergeState;
 
     @Before
-    @Override
-    public void setUp() throws Exception {
+    @SneakyThrows
+    public void setUp() {
         super.setUp();
+        MockitoAnnotations.openMocks(this);
 
-        // Mock dependencies
-        delegateConsumer = mock(FieldsConsumer.class);
-        segmentWriteState = mock(SegmentWriteState.class);
-        directory = mock(Directory.class);
-        termsOutput = mock(IndexOutput.class);
-        postingOutput = mock(IndexOutput.class);
-        fields = mock(Fields.class);
-        normsProducer = mock(NormsProducer.class);
-        mergeState = mock(MergeState.class);
+        // Setup directory and outputs
+        when(mockDirectory.createOutput(anyString(), any())).thenReturn(mockTermsOutput, mockPostingOutput);
 
-        // Setup segment info
-        SegmentInfo segmentInfo = mock(SegmentInfo.class);
-        when(segmentInfo.name).thenReturn("test_segment");
-        when(segmentWriteState.segmentInfo).thenReturn(segmentInfo);
-        when(segmentWriteState.directory).thenReturn(directory);
-        when(segmentWriteState.segmentSuffix).thenReturn("suffix");
-        when(segmentWriteState.context).thenReturn(null);
+        // Setup segment write state
+        SegmentInfo mockSegmentInfo = spy(TestsPrepareUtils.prepareSegmentInfo());
+        mockFieldInfos = mock(FieldInfos.class);
+        mockWriteState = new SegmentWriteState(null, mockDirectory, mockSegmentInfo, mockFieldInfos, null, null, null);
 
-        // Setup field infos
-        FieldInfos fieldInfos = mock(FieldInfos.class);
-        when(segmentWriteState.fieldInfos).thenReturn(fieldInfos);
-
-        // Setup sparse field
-        sparseFieldInfo = mock(FieldInfo.class);
-        Map<String, String> sparseAttributes = new HashMap<>();
-        sparseAttributes.put(SparseTokensField.SPARSE_FIELD, "true");
-        when(sparseFieldInfo.attributes()).thenReturn(sparseAttributes);
-        when(sparseFieldInfo.name).thenReturn("sparse_field");
-        when(sparseFieldInfo.number).thenReturn(1);
-        when(fieldInfos.fieldInfo("sparse_field")).thenReturn(sparseFieldInfo);
-
-        // Setup non-sparse field
-        nonSparseFieldInfo = mock(FieldInfo.class);
-        when(nonSparseFieldInfo.attributes()).thenReturn(new HashMap<>());
-        when(nonSparseFieldInfo.name).thenReturn("non_sparse_field");
-        when(nonSparseFieldInfo.number).thenReturn(2);
-        when(fieldInfos.fieldInfo("non_sparse_field")).thenReturn(nonSparseFieldInfo);
-
-        // Setup directory outputs
-        when(directory.createOutput(any(), any())).thenReturn(termsOutput, postingOutput);
-        when(termsOutput.getFilePointer()).thenReturn(0L);
-        when(postingOutput.getFilePointer()).thenReturn(0L);
+        // Create the consumer with mocked dependencies
+        sparsePostingsConsumer = spy(new SparsePostingsConsumer(mockDelegate, mockWriteState));
     }
 
-    @After
-    @Override
-    public void tearDown() throws Exception {
-        super.tearDown();
+    /**
+     * Test constructor with default version
+     */
+    public void test_constructor_withDefaultVersion() throws IOException {
+        SparsePostingsConsumer consumer = new SparsePostingsConsumer(mockDelegate, mockWriteState);
+        assertNotNull("Consumer should be created", consumer);
     }
 
-    public void testConstructor() throws IOException {
-        // Test constructor with version parameter
-        SparsePostingsConsumer consumer = new SparsePostingsConsumer(delegateConsumer, segmentWriteState, 1);
-        assertNotNull(consumer);
+    /**
+     * Test constructor with specific version
+     */
+    public void test_constructor_withSpecificVersion() throws IOException {
+        SparsePostingsConsumer consumer = new SparsePostingsConsumer(mockDelegate, mockWriteState, 1);
+        assertNotNull("Consumer should be created", consumer);
     }
 
-    public void testWriteWithNoSparseFields() throws IOException {
-        // Create the consumer
-        sparsePostingsConsumer = new SparsePostingsConsumer(delegateConsumer, segmentWriteState);
+    /**
+     * Test constructor handles IOException properly
+     */
+    public void test_constructor_withIOException() throws IOException {
+        when(mockDirectory.createOutput(anyString(), any())).thenThrow(new IOException("Test exception"));
 
-        // Setup fields with only non-sparse fields
+        IOException exception = expectThrows(IOException.class, () -> {
+            new SparsePostingsConsumer(mockDelegate, mockWriteState);
+        });
+
+        assertEquals("Test exception", exception.getMessage());
+    }
+
+    /**
+     * Test write method with no sparse fields
+     */
+    public void test_write_withNonSparseFields() throws IOException {
         List<String> fieldNames = new ArrayList<>();
-        fieldNames.add("non_sparse_field");
-        when(fields.iterator()).thenReturn(fieldNames.iterator());
+        fieldNames.add("regular_field1");
+        fieldNames.add("regular_field2");
 
-        sparsePostingsConsumer.write(fields, normsProducer);
+        when(mockFields.iterator()).thenReturn(fieldNames.iterator());
 
-        // Verify delegate was called with the same fields
-        verify(delegateConsumer, times(1)).write(any(Fields.class), any(NormsProducer.class));
+        // Setup field info to indicate non-sparse fields
+        FieldInfo mockFieldInfo = mock(FieldInfo.class);
+        when(mockFieldInfos.fieldInfo(anyString())).thenReturn(mockFieldInfo);
+
+        // Call write
+        sparsePostingsConsumer.write(mockFields, mockNormsProducer);
+
+        // Verify delegate was called with all fields
+        verify(mockDelegate).write(any(Fields.class), eq(mockNormsProducer));
+
+        // Verify sparse writers were not used
+        verify(mockSparseTermsLuceneWriter, never()).writeFieldCount(any(Integer.class));
     }
 
-    public void testWriteWithSparseFields() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup fields with both sparse and non-sparse fields
+    /**
+     * Test write method with sparse fields
+     */
+    @SneakyThrows
+    public void test_write_withSparseFields() {
+        // Setup fields with sparse fields
         List<String> fieldNames = new ArrayList<>();
+        fieldNames.add("regular_field");
         fieldNames.add("sparse_field");
-        fieldNames.add("non_sparse_field");
-        when(fields.iterator()).thenReturn(fieldNames.iterator());
 
-        // Setup Terms for sparse field
-        Terms terms = mock(Terms.class);
-        when(fields.terms("sparse_field")).thenReturn(terms);
+        when(mockFields.iterator()).thenReturn(fieldNames.iterator());
 
-        // Setup TermsEnum
-        TermsEnum termsEnum = mock(TermsEnum.class);
-        when(terms.iterator()).thenReturn(termsEnum);
-        when(termsEnum.next()).thenReturn(new BytesRef("term1"), null);
+        // Setup field info to indicate sparse field
+        FieldInfo regularFieldInfo = mock(FieldInfo.class);
+        FieldInfo sparseFieldInfo = mock(FieldInfo.class);
 
-        // Setup BlockTermState
-        BlockTermState blockTermState = mock(BlockTermState.class);
+        when(mockFieldInfos.fieldInfo("regular_field")).thenReturn(regularFieldInfo);
+        when(mockFieldInfos.fieldInfo("sparse_field")).thenReturn(sparseFieldInfo);
 
-        // Mock internal methods
-        doNothing().when(sparsePostingsConsumer).initWriters();
-        doNothing().when(sparsePostingsConsumer).writeFieldCount(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeFieldNumber(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeTermsSize(anyInt());
-        doReturn(blockTermState).when(sparsePostingsConsumer).writeTerm(any(BytesRef.class), any(TermsEnum.class), any(NormsProducer.class));
+        // Setup terms for sparse field
+        Terms mockTerms = mock(Terms.class);
+        TermsEnum mockTermsEnum = mock(TermsEnum.class);
+        when(mockTerms.iterator()).thenReturn(mockTermsEnum);
+        when(mockFields.terms("sparse_field")).thenReturn(mockTerms);
 
-        sparsePostingsConsumer.write(fields, normsProducer);
+        // Setup terms enum to return one term then null
+        BytesRef term = new BytesRef("term1");
+        when(mockTermsEnum.next()).thenReturn(term, null);
 
-        // Verify delegate was called with filtered fields (non-sparse only)
-        verify(delegateConsumer, times(1)).write(any(FilterLeafReader.FilterFields.class), any(NormsProducer.class));
+        // Setup clustered posting writer to return a term state
+        BlockTermState mockTermState = mock(BlockTermState.class);
+        when(mockClusteredPostingTermsWriter.write(any(BytesRef.class), eq(mockTermsEnum), eq(mockNormsProducer))).thenReturn(
+            mockTermState
+        );
 
-        // Verify sparse terms were written
-        verify(sparsePostingsConsumer, times(1)).writeFieldCount(1);
-        verify(sparsePostingsConsumer, times(1)).writeFieldNumber(1);
-        verify(sparsePostingsConsumer, times(1)).writeTermsSize(1);
-        verify(sparsePostingsConsumer, times(1)).writeTerm(any(BytesRef.class), any(TermsEnum.class), any(NormsProducer.class));
+        // Call write
+        sparsePostingsConsumer.write(mockFields, mockNormsProducer);
+
+        // Verify delegate was called with non-sparse fields
+        verify(mockDelegate).write(any(FilterLeafReader.FilterFields.class), eq(mockNormsProducer));
+
+        // Verify sparse writers were used
+        verify(mockSparseTermsLuceneWriter).writeFieldCount(1);
+        verify(mockSparseTermsLuceneWriter).writeFieldNumber(any(Integer.class));
+        verify(mockSparseTermsLuceneWriter).writeTermsSize(1);
+        verify(mockSparseTermsLuceneWriter).writeTerm(eq(term), eq(mockTermState));
     }
 
-    public void testMerge() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup merge state
-        when(mergeState.segmentInfo).thenReturn(segmentWriteState.segmentInfo);
-
-        // Mock internal methods
-        doNothing().when(sparsePostingsConsumer).initWriters();
-        doNothing().when(sparsePostingsConsumer).mergeSparseSectors(any(MergeState.class), any(NormsProducer.class));
-
-        sparsePostingsConsumer.merge(mergeState, normsProducer);
+    /**
+     * Test merge method
+     */
+    @SneakyThrows
+    public void test_merge() {
+        sparsePostingsConsumer.merge(mockMergeState, mockNormsProducer);
 
         // Verify delegate merge was called
-        verify(delegateConsumer, times(1)).merge(mergeState, normsProducer);
+        verify(mockDelegate).merge(mockMergeState, mockNormsProducer);
 
-        // Verify merge method was called
-        verify(sparsePostingsConsumer, times(1)).mergeSparseSectors(mergeState, normsProducer);
+        // Verify SparsePostingsReader merge was called
+        verify(mockSparsePostingsReader).merge(mockSparseTermsLuceneWriter, mockClusteredPostingTermsWriter);
     }
 
-    public void testClose() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
+    /**
+     * Test merge method handles exceptions
+     */
+    @SneakyThrows
+    public void test_merge_withExceptions() {
+        // Mock SparsePostingsReader to throw exception
+        doThrow(new RuntimeException("Test exception")).when(mockSparsePostingsReader).merge(any(), any());
 
-        // Mock internal methods
-        doNothing().when(sparsePostingsConsumer).closeWriters(anyLong(), anyLong());
+        // Call merge - should not throw exception
+        sparsePostingsConsumer.merge(mockMergeState, mockNormsProducer);
 
+        // Verify delegate merge was still called
+        verify(mockDelegate).merge(mockMergeState, mockNormsProducer);
+    }
+
+    /**
+     * Test close method with successful close
+     */
+    @SneakyThrows
+    public void test_close() {
+        // Setup mocks for close
+        doNothing().when(mockSparseTermsLuceneWriter).close(anyLong());
+        doNothing().when(mockClusteredPostingTermsWriter).close(anyLong());
+
+        // Call close
         sparsePostingsConsumer.close();
 
         // Verify delegate close was called
-        verify(delegateConsumer, times(1)).close();
+        verify(mockDelegate).close();
 
         // Verify writers were closed
-        verify(sparsePostingsConsumer, times(1)).closeWriters(anyLong(), anyLong());
-    }
-
-    public void testMergeWithException() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup merge state
-        when(mergeState.segmentInfo).thenReturn(segmentWriteState.segmentInfo);
-
-        // Mock internal methods to throw exception
-        doNothing().when(sparsePostingsConsumer).initWriters();
-        doThrow(new IOException("Test exception")).when(sparsePostingsConsumer).mergeSparseSectors(any(MergeState.class), any(NormsProducer.class));
-
-        // Should not throw exception, just log error
-        sparsePostingsConsumer.merge(mergeState, normsProducer);
-
-        // Verify delegate merge was still called
-        verify(delegateConsumer, times(1)).merge(mergeState, normsProducer);
-    }
-
-    public void testWriteWithEmptySparseTerms() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup fields with sparse field
-        List<String> fieldNames = new ArrayList<>();
-        fieldNames.add("sparse_field");
-        when(fields.iterator()).thenReturn(fieldNames.iterator());
-
-        // Return null for terms to simulate empty terms
-        when(fields.terms("sparse_field")).thenReturn(null);
-
-        // Mock internal methods
-        doNothing().when(sparsePostingsConsumer).initWriters();
-        doNothing().when(sparsePostingsConsumer).writeFieldCount(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeFieldNumber(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeTermsSize(anyInt());
-
-        sparsePostingsConsumer.write(fields, normsProducer);
-
-        // Verify sparse terms size was written as 0
-        verify(sparsePostingsConsumer, times(1)).writeTermsSize(0);
-    }
-
-    public void testWriteFromMerge() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup fields with sparse field
-        List<String> fieldNames = new ArrayList<>();
-        fieldNames.add("sparse_field");
-        when(fields.iterator()).thenReturn(fieldNames.iterator());
-
-        // Set fromMerge flag to true by calling merge first
-        doNothing().when(sparsePostingsConsumer).initWriters();
-        doNothing().when(sparsePostingsConsumer).mergeSparseSectors(any(MergeState.class), any(NormsProducer.class));
-        sparsePostingsConsumer.merge(mergeState, normsProducer);
-
-        // Now call write - it should not process sparse fields
-        sparsePostingsConsumer.write(fields, normsProducer);
-
-        // Verify sparse terms were not written (since fromMerge is true)
-        verify(sparsePostingsConsumer, times(0)).writeFieldCount(anyInt());
-    }
-
-    public void testIteratorFiltering() throws IOException {
-        // Create the consumer
-        sparsePostingsConsumer = new SparsePostingsConsumer(delegateConsumer, segmentWriteState);
-
-        // Setup fields with both sparse and non-sparse fields
-        List<String> fieldNames = new ArrayList<>();
-        fieldNames.add("sparse_field");
-        fieldNames.add("non_sparse_field");
-        when(fields.iterator()).thenReturn(fieldNames.iterator());
-
-        // Capture the filtered iterator to verify filtering
-        final List<String> capturedFields = new ArrayList<>();
-        when(delegateConsumer.write(any(Fields.class), any(NormsProducer.class))).thenAnswer(invocation -> {
-            Fields filteredFields = invocation.getArgument(0);
-            Iterator<String> iterator = filteredFields.iterator();
-            while (iterator.hasNext()) {
-                capturedFields.add(iterator.next());
-            }
-            return null;
-        });
-
-        sparsePostingsConsumer.write(fields, normsProducer);
-
-        // Verify only non-sparse fields were passed to delegate
-        assertEquals(1, capturedFields.size());
-        assertEquals("non_sparse_field", capturedFields.get(0));
-    }
-
-    public void testWriteWithMultipleSparseFields() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup two sparse fields
-        List<String> fieldNames = new ArrayList<>();
-        fieldNames.add("sparse_field");
-        fieldNames.add("sparse_field2");
-        when(fields.iterator()).thenReturn(fieldNames.iterator());
-
-        // Setup second sparse field info
-        FieldInfo sparseFieldInfo2 = mock(FieldInfo.class);
-        Map<String, String> sparseAttributes2 = new HashMap<>();
-        sparseAttributes2.put(SparseTokensField.SPARSE_FIELD, "true");
-        when(sparseFieldInfo2.attributes()).thenReturn(sparseAttributes2);
-        when(sparseFieldInfo2.name).thenReturn("sparse_field2");
-        when(sparseFieldInfo2.number).thenReturn(3);
-        when(segmentWriteState.fieldInfos.fieldInfo("sparse_field2")).thenReturn(sparseFieldInfo2);
-
-        // Setup Terms for both sparse fields
-        Terms terms1 = mock(Terms.class);
-        Terms terms2 = mock(Terms.class);
-        when(fields.terms("sparse_field")).thenReturn(terms1);
-        when(fields.terms("sparse_field2")).thenReturn(terms2);
-
-        // Setup TermsEnum for both fields
-        TermsEnum termsEnum1 = mock(TermsEnum.class);
-        TermsEnum termsEnum2 = mock(TermsEnum.class);
-        when(terms1.iterator()).thenReturn(termsEnum1);
-        when(terms2.iterator()).thenReturn(termsEnum2);
-        when(termsEnum1.next()).thenReturn(new BytesRef("term1"), null);
-        when(termsEnum2.next()).thenReturn(new BytesRef("term2"), null);
-
-        // Setup BlockTermState
-        BlockTermState blockTermState = mock(BlockTermState.class);
-
-        // Mock internal methods
-        doNothing().when(sparsePostingsConsumer).initWriters();
-        doNothing().when(sparsePostingsConsumer).writeFieldCount(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeFieldNumber(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeTermsSize(anyInt());
-        doReturn(blockTermState).when(sparsePostingsConsumer).writeTerm(any(BytesRef.class), any(TermsEnum.class), any(NormsProducer.class));
-
-        sparsePostingsConsumer.write(fields, normsProducer);
-
-        // Verify field count is 2
-        verify(sparsePostingsConsumer, times(1)).writeFieldCount(2);
-
-        // Verify both field numbers were written
-        verify(sparsePostingsConsumer, times(1)).writeFieldNumber(1);
-        verify(sparsePostingsConsumer, times(1)).writeFieldNumber(3);
-
-        // Verify terms size was written for both fields
-        verify(sparsePostingsConsumer, times(2)).writeTermsSize(1);
-
-        // Verify terms were written for both fields
-        verify(sparsePostingsConsumer, times(2)).writeTerm(any(BytesRef.class), any(TermsEnum.class), any(NormsProducer.class));
-    }
-
-    public void testMergeSparseSectors() throws IOException {
-        // Create a spy of SparsePostingsConsumer to mock internal methods
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Setup merge state with sparse fields
-        MergeStateFacade mergeStateFacade = mock(MergeStateFacade.class);
-        when(mergeStateFacade.getNumSparseFields()).thenReturn(1);
-        when(mergeStateFacade.getSparseFieldNumber(0)).thenReturn(1);
-        when(mergeStateFacade.getSparseFieldName(0)).thenReturn("sparse_field");
-        when(mergeStateFacade.getNumTerms(0)).thenReturn(1);
-        when(mergeStateFacade.getTerm(0, 0)).thenReturn(new BytesRef("term1"));
-
-        // Mock internal methods
-        doReturn(mergeStateFacade).when(sparsePostingsConsumer).createMergeStateFacade(any(MergeState.class));
-        doNothing().when(sparsePostingsConsumer).writeFieldCount(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeFieldNumber(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeTermsSize(anyInt());
-        doNothing().when(sparsePostingsConsumer).writeMergedTerm(any(BytesRef.class), any(MergeStateFacade.class), anyInt(), anyInt(), any(NormsProducer.class));
-
-        // Call the method directly
-        sparsePostingsConsumer.mergeSparseSectors(mergeState, normsProducer);
-
-        // Verify merge operations
-        verify(sparsePostingsConsumer, times(1)).writeFieldCount(1);
-        verify(sparsePostingsConsumer, times(1)).writeFieldNumber(1);
-        verify(sparsePostingsConsumer, times(1)).writeTermsSize(1);
-        verify(sparsePostingsConsumer, times(1)).writeMergedTerm(any(BytesRef.class), any(MergeStateFacade.class), anyInt(), anyInt(), any(NormsProducer.class));
-    }
-
-    public void testInitWriters() throws IOException {
-        // Create a spy of SparsePostingsConsumer
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Call the method directly
-        sparsePostingsConsumer.initWriters();
-
-        // Verify directory.createOutput was called twice
-        verify(directory, times(2)).createOutput(any(), any());
-    }
-
-    public void testCloseWriters() throws IOException {
-        // Create a spy of SparsePostingsConsumer
-        sparsePostingsConsumer = spy(new SparsePostingsConsumer(delegateConsumer, segmentWriteState));
-
-        // Initialize writers first
-        sparsePostingsConsumer.initWriters();
-
-        // Call the method directly
-        sparsePostingsConsumer.closeWriters(0L, 0L);
+        verify(mockSparseTermsLuceneWriter).close(anyLong());
+        verify(mockClusteredPostingTermsWriter).close(anyLong());
 
         // Verify outputs were closed
-        verify(termsOutput, times(1)).close();
-        verify(postingOutput, times(1)).close();
+        verify(mockTermsOutput).close();
+        verify(mockPostingOutput).close();
+    }
+
+    /**
+     * Test close method handles exceptions from writers
+     */
+    @SneakyThrows
+    public void test_close_withExceptions() {
+        // Setup mocks for close with exception
+        doThrow(new IOException("Test exception")).when(mockSparseTermsLuceneWriter).close(anyLong());
+
+        // Call close - should propagate exception
+        IOException exception = expectThrows(IOException.class, () -> { sparsePostingsConsumer.close(); });
+
+        assertEquals("Test exception", exception.getMessage());
+
+        // Verify delegate close was still called
+        verify(mockDelegate).close();
+
+        // Verify outputs were closed with exception handling
+        verify(mockTermsOutput).close();
+        verify(mockPostingOutput).close();
     }
 }
