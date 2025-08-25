@@ -31,6 +31,8 @@ import static org.mockito.Mockito.when;
 
 public class SparseTermsTests extends AbstractSparseTestBase {
 
+    private static final String TEST_FIELD = "test_field";
+
     @Mock
     private CacheKey mockCacheKey;
     @Mock
@@ -38,7 +40,6 @@ public class SparseTermsTests extends AbstractSparseTestBase {
 
     private Set<BytesRef> terms;
     private SparseTerms sparseTerms;
-    private final String field = "test_field";
 
     @Before
     @Override
@@ -49,9 +50,9 @@ public class SparseTermsTests extends AbstractSparseTestBase {
 
         terms = new HashSet<>();
         terms.add(new BytesRef("term"));
-        when(mockReader.getTerms(field)).thenReturn(terms);
+        when(mockReader.getTerms(TEST_FIELD)).thenReturn(terms);
         ClusteredPostingCache.getInstance().getOrCreate(mockCacheKey);
-        sparseTerms = new SparseTerms(mockCacheKey, mockReader, field);
+        sparseTerms = new SparseTerms(mockCacheKey, mockReader, TEST_FIELD);
     }
 
     @After
@@ -62,10 +63,13 @@ public class SparseTermsTests extends AbstractSparseTestBase {
         super.tearDown();
     }
 
+    @SneakyThrows
     public void testConstructor() {
-        SparseTerms sparseTerms = new SparseTerms(mockCacheKey, mockReader, field);
+        SparseTerms sparseTerms = new SparseTerms(mockCacheKey, mockReader, TEST_FIELD);
         assertNotNull(sparseTerms);
         assertEquals(mockCacheKey, sparseTerms.getCacheKey());
+        // verify that sparseTerms.reader creates successfully by calling size
+        assertEquals(1, sparseTerms.size());
     }
 
     public void testIterator() throws IOException {
@@ -79,7 +83,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
         int expectedSize = terms.size();
 
         assertEquals(expectedSize, sparseTerms.size());
-        verify(mockReader, times(1)).getTerms(field);
+        verify(mockReader, times(1)).getTerms(TEST_FIELD);
     }
 
     public void testGetSumTotalTermFreq() throws IOException {
@@ -114,43 +118,43 @@ public class SparseTermsTests extends AbstractSparseTestBase {
         TermsEnum termsEnum = sparseTerms.iterator();
 
         assertNotNull(termsEnum);
-        verify(mockReader, times(1)).getTerms(field);
+        verify(mockReader, times(1)).getTerms(TEST_FIELD);
         assertNotNull(termsEnum.next());
     }
 
     public void testSparseTermsEnum_constructor_NullTerms() throws IOException {
-        when(mockReader.getTerms(field)).thenReturn(null);
+        when(mockReader.getTerms(TEST_FIELD)).thenReturn(null);
 
         TermsEnum termsEnum = sparseTerms.iterator();
 
         assertNotNull(termsEnum);
-        verify(mockReader, times(1)).getTerms(field);
+        verify(mockReader, times(1)).getTerms(TEST_FIELD);
         assertNull(termsEnum.next());
     }
 
     public void testSparseTermsEnum_seekCeil_notFound() throws IOException {
         BytesRef term = new BytesRef("term");
-        when(mockReader.read(field, term)).thenReturn(null);
+        when(mockReader.read(TEST_FIELD, term)).thenReturn(null);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         TermsEnum.SeekStatus status = termsEnum.seekCeil(term);
 
         assertEquals(TermsEnum.SeekStatus.NOT_FOUND, status);
         assertNull(termsEnum.term());
-        verify(mockReader, times(1)).read(field, term);
+        verify(mockReader, times(1)).read(TEST_FIELD, term);
     }
 
     public void testSparseTermsEnum_seekCeil_found() throws IOException {
         BytesRef term = new BytesRef("term");
         PostingClusters mockClusters = mock(PostingClusters.class);
-        when(mockReader.read(field, term)).thenReturn(mockClusters);
+        when(mockReader.read(TEST_FIELD, term)).thenReturn(mockClusters);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         TermsEnum.SeekStatus status = termsEnum.seekCeil(term);
 
         assertEquals(TermsEnum.SeekStatus.FOUND, status);
         assertEquals(term, termsEnum.term());
-        verify(mockReader, times(1)).read(field, term);
+        verify(mockReader, times(1)).read(TEST_FIELD, term);
     }
 
     public void testSparseTermsEnum_seekExact() throws IOException {
@@ -163,7 +167,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
     public void testSparseTermsEnum_term() throws IOException {
         BytesRef term = new BytesRef("term1");
         PostingClusters mockClusters = mock(PostingClusters.class);
-        when(mockReader.read(field, term)).thenReturn(mockClusters);
+        when(mockReader.read(TEST_FIELD, term)).thenReturn(mockClusters);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         termsEnum.seekCeil(term);
@@ -174,21 +178,21 @@ public class SparseTermsTests extends AbstractSparseTestBase {
     public void testSparseTermsEnum_ord() throws IOException {
         TermsEnum termsEnum = sparseTerms.iterator();
 
-        Exception exception = expectThrows(UnsupportedOperationException.class, () -> termsEnum.ord());
+        Exception exception = expectThrows(UnsupportedOperationException.class, termsEnum::ord);
         assertNull(exception.getMessage());
     }
 
     public void testSparseTermsEnum_docFreq() throws IOException {
         TermsEnum termsEnum = sparseTerms.iterator();
 
-        Exception exception = expectThrows(UnsupportedOperationException.class, () -> termsEnum.docFreq());
+        Exception exception = expectThrows(UnsupportedOperationException.class, termsEnum::docFreq);
         assertNull(exception.getMessage());
     }
 
     public void testSparseTermsEnum_totalTermFreq() throws IOException {
         TermsEnum termsEnum = sparseTerms.iterator();
 
-        Exception exception = expectThrows(UnsupportedOperationException.class, () -> termsEnum.totalTermFreq());
+        Exception exception = expectThrows(UnsupportedOperationException.class, termsEnum::totalTermFreq);
         assertNull(exception.getMessage());
     }
 
@@ -202,7 +206,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
 
     public void testSparseTermsEnum_postings_nullClusters() throws IOException {
         BytesRef term = new BytesRef("term");
-        when(mockReader.read(field, term)).thenReturn(null);
+        when(mockReader.read(TEST_FIELD, term)).thenReturn(null);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         termsEnum.next();
@@ -210,13 +214,13 @@ public class SparseTermsTests extends AbstractSparseTestBase {
         PostingsEnum postingsEnum = termsEnum.postings(null, 0);
 
         assertNull(postingsEnum);
-        verify(mockReader, times(1)).read(field, term);
+        verify(mockReader, times(1)).read(TEST_FIELD, term);
     }
 
     public void testSparseTermsEnum_postings_withClusters() throws IOException {
         BytesRef term = new BytesRef("term");
         PostingClusters mockClusters = preparePostingClusters();
-        when(mockReader.read(field, term)).thenReturn(mockClusters);
+        when(mockReader.read(TEST_FIELD, term)).thenReturn(mockClusters);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         termsEnum.next();
@@ -224,7 +228,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
         PostingsEnum postingsEnum = termsEnum.postings(null, 0);
 
         assertNotNull(postingsEnum);
-        verify(mockReader, times(1)).read(field, term);
+        verify(mockReader, times(1)).read(TEST_FIELD, term);
     }
 
     public void testSparseTermsEnum_impacts() throws IOException {
@@ -238,7 +242,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
         Set<BytesRef> terms = new HashSet<>();
         BytesRef term1 = new BytesRef("term1");
         terms.add(term1);
-        when(mockReader.getTerms(field)).thenReturn(terms);
+        when(mockReader.getTerms(TEST_FIELD)).thenReturn(terms);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         BytesRef nextTerm = termsEnum.next();
@@ -249,7 +253,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
 
     public void testSparseTermsEnum_next_noMoreTerms() throws IOException {
         Set<BytesRef> terms = new HashSet<>();
-        when(mockReader.getTerms(field)).thenReturn(terms);
+        when(mockReader.getTerms(TEST_FIELD)).thenReturn(terms);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         BytesRef nextTerm = termsEnum.next();
@@ -258,7 +262,7 @@ public class SparseTermsTests extends AbstractSparseTestBase {
     }
 
     public void testSparseTermsEnum_next_nullIterator() throws IOException {
-        when(mockReader.getTerms(field)).thenReturn(null);
+        when(mockReader.getTerms(TEST_FIELD)).thenReturn(null);
 
         TermsEnum termsEnum = sparseTerms.iterator();
         BytesRef nextTerm = termsEnum.next();
