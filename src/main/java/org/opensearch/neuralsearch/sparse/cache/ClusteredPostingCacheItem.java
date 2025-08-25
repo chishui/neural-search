@@ -43,7 +43,7 @@ public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable 
      * @param circuitBreakerHandler A consumer to handle circuit breaker triggering differently
      * @return the ClusteredPostingWriter instance
      */
-    public ClusteredPostingWriter getWriter(Consumer<Long> circuitBreakerHandler) {
+    public CacheableClusteredPostingWriter getWriter(Consumer<Long> circuitBreakerHandler) {
         return new CacheClusteredPostingWriter(circuitBreakerHandler);
     }
 
