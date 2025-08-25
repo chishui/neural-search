@@ -49,6 +49,8 @@ import static org.opensearch.neuralsearch.sparse.mapper.SparseTokensField.SPARSE
 
 public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
 
+    private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
+
     @Mock
     private FieldsConsumer mockDelegate;
 
@@ -121,7 +123,8 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
      * Test constructor with specific version
      */
     public void test_constructor_withSpecificVersion() throws IOException {
-        SparsePostingsConsumer consumer = new SparsePostingsConsumer(mockDelegate, mockWriteState, 1);
+        int version = 1;
+        SparsePostingsConsumer consumer = new SparsePostingsConsumer(mockDelegate, mockWriteState, version);
         assertNotNull("Consumer should be created", consumer);
     }
 
@@ -173,7 +176,7 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
     }
 
     /**
-     * Test write method with sparse fields and empty terms
+     * Test write method with sparse fields and terms
      */
     @SneakyThrows
     public void test_write_withSparseFields_andTerms() {
@@ -190,12 +193,12 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
         when(mockFieldInfos.fieldInfo(anyString())).thenReturn(mockFieldInfo);
 
         // Setup fields mock
-        List<String> fieldNames = List.of("sparse_field");
+        List<String> fieldNames = List.of(TEST_SPARSE_FIELD_NAME);
         when(mockFields.iterator()).thenReturn(fieldNames.iterator());
 
         // Setup terms mock
         Terms mockedTerms = mock(Terms.class);
-        when(mockFields.terms("sparse_field")).thenReturn(mockedTerms);
+        when(mockFields.terms(TEST_SPARSE_FIELD_NAME)).thenReturn(mockedTerms);
         TermsEnum mockedTermsEnum = mock(TermsEnum.class);
         when(mockedTerms.iterator()).thenReturn(mockedTermsEnum);
         BytesRef term1 = new BytesRef("term1");
@@ -210,7 +213,7 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
     }
 
     /**
-     * Test write method with sparse fields and terms
+     * Test write method with sparse fields and empty terms
      */
     @SneakyThrows
     public void test_write_withSparseFields_andEmptyTerms() {
@@ -227,9 +230,9 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
         when(mockFieldInfos.fieldInfo(anyString())).thenReturn(mockFieldInfo);
 
         // Setup fields mock
-        List<String> fieldNames = List.of("sparse_field");
+        List<String> fieldNames = List.of(TEST_SPARSE_FIELD_NAME);
         when(mockFields.iterator()).thenReturn(fieldNames.iterator());
-        when(mockFields.terms("sparse_field")).thenReturn(null);
+        when(mockFields.terms(TEST_SPARSE_FIELD_NAME)).thenReturn(null);
 
         // Call write
         sparsePostingsConsumer.write(mockFields, mockNormsProducer);

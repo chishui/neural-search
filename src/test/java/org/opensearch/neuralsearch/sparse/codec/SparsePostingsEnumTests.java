@@ -132,6 +132,7 @@ public class SparsePostingsEnumTests extends AbstractSparseTestBase {
 
         sparsePostingsEnum = new SparsePostingsEnum(mockClusters, mockCacheKey);
 
+        // -1 is the default value when current doc weight is null
         assertEquals(-1, sparsePostingsEnum.docID());
         verify(mockDocWeightIterator, never()).docID();
     }
