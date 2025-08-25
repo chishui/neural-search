@@ -57,8 +57,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
     @SneakyThrows
     public void tearDown() {
         updateClusterSettings(NeuralSearchSettings.NEURAL_STATS_ENABLED.getKey(), false);
-        Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
-        client().performRequest(request);
+        cleanUp();
         super.tearDown();
     }
 
