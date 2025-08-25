@@ -176,6 +176,8 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         // effective number of replica is capped by the number of OpenSearch nodes minus 1
         int replicas = Math.min(3, getNodeCount() - 1);
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, replicas);
+        // Verify index exists
+        assertTrue(indexExists(TEST_INDEX_NAME));
         // Ingest documents
         List<Map<String, Float>> docs = new ArrayList<>();
         for (int i = 0; i < docCount; ++i) {
@@ -204,6 +206,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         forceMerge(TEST_INDEX_NAME);
         // wait until force merge complete
         waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
+        assertEquals(shards * (replicas + 1), getSegmentCount(TEST_INDEX_NAME));
     }
 
     @SneakyThrows
