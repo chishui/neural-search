@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Value;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -52,11 +53,12 @@ public class LruDocumentCache extends AbstractLruCache<LruDocumentCache.Document
     /**
      * Key class that combines a cache key and a document id for tracking LRU access.
      */
+    @Value
     @Getter
     @EqualsAndHashCode
     public static class DocumentKey implements LruCacheKey {
-        private final CacheKey cacheKey;
-        private final int docId;
+        CacheKey cacheKey;
+        int docId;
 
         public DocumentKey(CacheKey cacheKey, int docId) {
             this.cacheKey = cacheKey;

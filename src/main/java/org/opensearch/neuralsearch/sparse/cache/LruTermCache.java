@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.cache;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Value;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.BytesRef;
 
@@ -53,11 +54,12 @@ public class LruTermCache extends AbstractLruCache<LruTermCache.TermKey> {
     /**
      * Key class that combines a cache key and term for tracking LRU access.
      */
+    @Value
     @Getter
     @EqualsAndHashCode
     public static class TermKey implements LruCacheKey {
-        private final CacheKey cacheKey;
-        private final BytesRef term;
+        CacheKey cacheKey;
+        BytesRef term;
 
         public TermKey(CacheKey cacheKey, BytesRef term) {
             this.cacheKey = cacheKey;
