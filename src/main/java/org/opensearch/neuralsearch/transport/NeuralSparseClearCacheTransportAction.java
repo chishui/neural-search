@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.transport;
 
-import lombok.SneakyThrows;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
 import org.opensearch.cluster.ClusterState;
@@ -22,12 +21,11 @@ import org.opensearch.index.IndexService;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.neuralsearch.sparse.NeuralSparseIndexShard;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.List;
-
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 
 /**
  * Transport Action to evict neural-sparse indices from Cache. TransportBroadcastByNodeAction will distribute the request to
@@ -38,7 +36,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     NeuralSparseClearCacheRequest,
     NeuralSparseClearCacheResponse,
     TransportBroadcastByNodeAction.EmptyResult> {
-    private IndicesService indicesService;
+    private final IndicesService indicesService;
 
     /**
      * Constructor
@@ -64,7 +62,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseClearCacheRequest::new,
-            ClusterTrainingExecutor.THREAD_POOL_NAME
+            SparseConstants.THREAD_POOL_NAME
         );
         this.indicesService = indicesService;
     }
@@ -80,11 +78,11 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
 
     /**
      * @param request ClearCacheRequest
-     * @param totalShards total number of shards on which ClearCache was performed
-     * @param successfulShards number of shards that succeeded
-     * @param failedShards number of shards that failed
+     * @param totalShards Total number of shards on which ClearCache was performed
+     * @param successfulShards Number of shards that succeeded
+     * @param failedShards Number of shards that failed
      * @param emptyResults List of EmptyResult
-     * @param shardFailures list of shard failure exceptions
+     * @param shardFailures List of shard failure exceptions
      * @param clusterState ClusterState
      * @return {@link NeuralSparseClearCacheResponse} Response containing results of the cache clear operation
      */
@@ -104,7 +102,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     /**
      * @param streamInput Input stream to read the serialized request from
      * @return {@link NeuralSparseClearCacheRequest} Cache clear request deserialized from the input stream
-     * @throws IOException
+     * @throws IOException Throws exception if there is error with stream input
      */
     @Override
     protected NeuralSparseClearCacheRequest readRequestFrom(StreamInput streamInput) throws IOException {
@@ -119,8 +117,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
      * @return Empty result object indicating operation completion
      */
     @Override
-    @SneakyThrows
-    protected EmptyResult shardOperation(NeuralSparseClearCacheRequest request, ShardRouting shardRouting) {
+    protected EmptyResult shardOperation(NeuralSparseClearCacheRequest request, ShardRouting shardRouting) throws IOException {
         Index index = shardRouting.shardId().getIndex();
         IndexService indexService = indicesService.indexServiceSafe(index);
         IndexShard indexShard = indexService.getShard(shardRouting.shardId().id());
@@ -141,7 +138,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
     }
 
     /**
-     * @param clusterState  ClusterState
+     * @param clusterState ClusterState
      * @param request NeuralSparseClearCacheRequest
      * @return ClusterBlockException if there is any global cluster block at a cluster block level of "METADATA_WRITE"
      */

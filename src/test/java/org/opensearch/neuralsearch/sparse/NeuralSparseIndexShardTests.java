@@ -8,6 +8,8 @@ import org.junit.Before;
 import org.opensearch.core.index.Index;
 import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.index.engine.Engine;
+import org.opensearch.index.engine.EngineException;
+import org.opensearch.index.shard.IllegalIndexShardStateException;
 import org.opensearch.index.shard.IndexShard;
 
 import java.io.IOException;
@@ -22,16 +24,14 @@ public class NeuralSparseIndexShardTests extends AbstractSparseTestBase {
     private Engine.Searcher searcher;
     private NeuralSparseIndexShard neuralSparseIndexShard;
     private String expectedIndexName;
-    private Index testIndex;
-    private ShardId testShardId;
 
     @Before
     @Override
     public void setUp() {
         super.setUp();
         expectedIndexName = "test-index";
-        testIndex = new Index(expectedIndexName, "uuid");
-        testShardId = new ShardId(testIndex, 0);
+        Index testIndex = new Index(expectedIndexName, "uuid");
+        ShardId testShardId = new ShardId(testIndex, 0);
 
         indexShard = mock(IndexShard.class);
         searcher = mock(Engine.Searcher.class);
@@ -108,5 +108,49 @@ public class NeuralSparseIndexShardTests extends AbstractSparseTestBase {
         // Verify
         verify(indexShard).acquireSearcher("clear-cache-searcher-source");
         verify(searcher).close();
+    }
+
+    public void testWarmUpThrowsIllegalIndexShardStateException() throws IOException {
+        // Setup to throw IllegalIndexShardStateException when acquiring searcher
+        when(indexShard.acquireSearcher("warm-up-searcher-source")).thenThrow(new IllegalIndexShardStateException(new ShardId("test", "uuid", 0), null, "test exception"));
+
+        neuralSparseIndexShard = new NeuralSparseIndexShard(indexShard);
+
+        // Execute and verify exception is thrown
+        expectThrows(IllegalIndexShardStateException.class, () -> neuralSparseIndexShard.warmUp());
+        verify(indexShard).acquireSearcher("warm-up-searcher-source");
+    }
+
+    public void testWarmUpThrowsEngineException() throws IOException {
+        // Setup to throw EngineException when acquiring searcher
+        when(indexShard.acquireSearcher("warm-up-searcher-source")).thenThrow(new EngineException(new ShardId("test", "uuid", 0), "test engine exception"));
+
+        neuralSparseIndexShard = new NeuralSparseIndexShard(indexShard);
+
+        // Execute and verify exception is thrown
+        expectThrows(EngineException.class, () -> neuralSparseIndexShard.warmUp());
+        verify(indexShard).acquireSearcher("warm-up-searcher-source");
+    }
+
+    public void testClearCacheThrowsIllegalIndexShardStateException() throws IOException {
+        // Setup to throw IllegalIndexShardStateException when acquiring searcher
+        when(indexShard.acquireSearcher("clear-cache-searcher-source")).thenThrow(new IllegalIndexShardStateException(new ShardId("test", "uuid", 0), null, "test exception"));
+
+        neuralSparseIndexShard = new NeuralSparseIndexShard(indexShard);
+
+        // Execute and verify exception is thrown
+        expectThrows(IllegalIndexShardStateException.class, () -> neuralSparseIndexShard.clearCache());
+        verify(indexShard).acquireSearcher("clear-cache-searcher-source");
+    }
+
+    public void testClearCacheThrowsEngineException() throws IOException {
+        // Setup to throw EngineException when acquiring searcher
+        when(indexShard.acquireSearcher("clear-cache-searcher-source")).thenThrow(new EngineException(new ShardId("test", "uuid", 0), "test engine exception"));
+
+        neuralSparseIndexShard = new NeuralSparseIndexShard(indexShard);
+
+        // Execute and verify exception is thrown
+        expectThrows(EngineException.class, () -> neuralSparseIndexShard.clearCache());
+        verify(indexShard).acquireSearcher("clear-cache-searcher-source");
     }
 }

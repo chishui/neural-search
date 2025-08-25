@@ -11,7 +11,6 @@ public class NeuralSparseClearCacheActionTests extends AbstractSparseTestBase {
 
     public void testInstance() {
         assertNotNull(NeuralSparseClearCacheAction.INSTANCE);
-        assertSame(NeuralSparseClearCacheAction.INSTANCE, NeuralSparseClearCacheAction.INSTANCE);
     }
 
     public void testName() {

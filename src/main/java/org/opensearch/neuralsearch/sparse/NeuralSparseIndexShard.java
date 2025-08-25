@@ -73,7 +73,6 @@ public class NeuralSparseIndexShard {
     /**
      * Load all the neural-sparse segments for this shard into the cache.
      * Preloads sparse field data to improve query performance.
-     * Uses read lock to allow concurrent warmup operations but prevent conflicts with clear cache.
      * Early stop to save resources if this is a repeated request
      */
     public void warmUp() throws IOException {
@@ -100,7 +99,6 @@ public class NeuralSparseIndexShard {
     /**
      * Clear all cached neural-sparse data for this shard.
      * Removes sparse field data from memory to free up resources.
-     * Uses write lock to ensure exclusive access during cache clearing.
      */
     public void clearCache() throws IOException {
         try (Engine.Searcher searcher = indexShard.acquireSearcher(CLEAR_CACHE_SEARCHER_SOURCE)) {
@@ -124,6 +122,9 @@ public class NeuralSparseIndexShard {
         for (CacheOperationContext context : contexts) {
             BinaryDocValues binaryDocValues = context.binaryDocValues;
             CacheGatedForwardIndexReader forwardIndexReader = context.forwardIndexReader;
+            if (forwardIndexReader == null) {
+                continue;
+            }
 
             int docId = binaryDocValues.nextDoc();
             while (docId != DocIdSetIterator.NO_MORE_DOCS) {
@@ -199,7 +200,7 @@ public class NeuralSparseIndexShard {
             // If we get compound file, we will set directory as csf file
             cfsDir = codec.compoundFormat().getCompoundReader(segmentInfo.dir, segmentInfo);
         } else {
-            /*Otherwise, we set directory as dir coming from segmentInfo*/
+            // Otherwise, we set directory as dir coming from segmentInfo
             cfsDir = segmentInfo.dir;
         }
         coreFieldInfos = codec.fieldInfosFormat().read(cfsDir, segmentInfo, "", IOContext.DEFAULT);
@@ -226,16 +227,14 @@ public class NeuralSparseIndexShard {
                 }
 
                 final BinaryDocValues binaryDocValues = leafReader.getBinaryDocValues(fieldInfo.name);
+                CacheGatedForwardIndexReader forwardIndexReader;
                 if (binaryDocValues == null) {
                     log.error("[Neural Sparse] No binary doc values found for field: {}", fieldInfo.name);
-                    continue;
+                    forwardIndexReader = null;
+                } else {
+                    forwardIndexReader = getCacheGatedForwardIndexReader(binaryDocValues, key, segmentInfo.maxDoc());
                 }
 
-                final CacheGatedForwardIndexReader forwardIndexReader = getCacheGatedForwardIndexReader(
-                    binaryDocValues,
-                    key,
-                    segmentInfo.maxDoc()
-                );
                 final CacheGatedPostingsReader postingsReader = getCacheGatedPostingReader(fieldInfo, key, segmentInfo);
 
                 contexts.add(new CacheOperationContext(binaryDocValues, forwardIndexReader, postingsReader, key));

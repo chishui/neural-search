@@ -36,6 +36,7 @@ import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
@@ -241,10 +242,10 @@ public class NeuralSearch extends Plugin
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
                 settings,
-                ClusterTrainingExecutor.THREAD_POOL_NAME,
+                SparseConstants.THREAD_POOL_NAME,
                 allocatedProcessors,
                 -1,
-                ClusterTrainingExecutor.THREAD_POOL_NAME,
+                SparseConstants.THREAD_POOL_NAME,
                 false
             )
         );

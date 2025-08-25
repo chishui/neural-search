@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.rest;
 
-import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.neuralsearch.sparse.common.exception.NeuralSparseInvalidIndicesException;
@@ -20,7 +19,6 @@ import java.util.stream.Collectors;
 /**
  * A Utils class for REST API operations
  */
-@Log4j2
 public class RestUtils {
     /**
      * @param indices An array of indices related to the request

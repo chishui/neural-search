@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.transport;
 
-import lombok.SneakyThrows;
 import org.opensearch.neuralsearch.sparse.NeuralSparseIndexShard; // This to change
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.core.action.support.DefaultShardOperationFailedException;
@@ -19,12 +18,11 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.indices.IndicesService;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.List;
-
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 
 /**
  * Transport Action for warming up neural-sparse indices. TransportBroadcastByNodeAction will distribute the request to
@@ -36,7 +34,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
     NeuralSparseWarmupResponse,
     TransportBroadcastByNodeAction.EmptyResult> {
 
-    private IndicesService indicesService;
+    private final IndicesService indicesService;
 
     /**
      * Constructor
@@ -62,7 +60,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
             actionFilters,
             indexNameExpressionResolver,
             NeuralSparseWarmupRequest::new,
-            ClusterTrainingExecutor.THREAD_POOL_NAME
+            SparseConstants.THREAD_POOL_NAME
         );
         this.indicesService = indicesService;
     }
@@ -70,7 +68,6 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
     /**
      * @param in Input stream to read the serialized result from
      * @return Empty result object read from the input stream
-     * @throws IOException
      */
     @Override
     protected EmptyResult readShardResult(StreamInput in) throws IOException {
@@ -79,11 +76,11 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
 
     /**
      * @param request WarmupRequest
-     * @param totalShards total number of shards on which Warmup was performed
-     * @param successfulShards number of shards that succeeded
-     * @param failedShards number of shards that failed
+     * @param totalShards Total number of shards on which Warmup was performed
+     * @param successfulShards Number of shards that succeeded
+     * @param failedShards Number of shards that failed
      * @param emptyResults List of EmptyResult
-     * @param shardFailures list of shard failure exceptions
+     * @param shardFailures List of shard failure exceptions
      * @param clusterState ClusterState
      * @return {@link NeuralSparseWarmupResponse} Response containing results of the warmup operation
      */
@@ -103,7 +100,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
     /**
      * @param in Input stream to read the serialized request from
      * @return {@link NeuralSparseWarmupRequest} Warmup request deserialized from the input stream
-     * @throws IOException
+     * @throws IOException Throws exception if there is error with stream input
      */
     @Override
     protected NeuralSparseWarmupRequest readRequestFrom(StreamInput in) throws IOException {
@@ -119,8 +116,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
      * @return Empty result object indicating operation completion
      */
     @Override
-    @SneakyThrows
-    protected EmptyResult shardOperation(NeuralSparseWarmupRequest request, ShardRouting shardRouting) {
+    protected EmptyResult shardOperation(NeuralSparseWarmupRequest request, ShardRouting shardRouting) throws IOException {
         NeuralSparseIndexShard neuralSparseIndexShard = new NeuralSparseIndexShard(
             indicesService.indexServiceSafe(shardRouting.shardId().getIndex()).getShard(shardRouting.shardId().id())
         );
@@ -140,7 +136,7 @@ public class NeuralSparseWarmupTransportAction extends TransportBroadcastByNodeA
     }
 
     /**
-     * @param state  ClusterState
+     * @param state ClusterState
      * @param request NeuralSparseWarmupRequest
      * @return ClusterBlockException if there is any global cluster block at a cluster block level of "METADATA_READ"
      */

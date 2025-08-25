@@ -40,6 +40,7 @@ import org.opensearch.neuralsearch.query.OpenSearchQueryTestCase;
 import org.opensearch.neuralsearch.search.query.HybridQueryPhaseSearcher;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.plugins.SearchPipelinePlugin;
 import org.opensearch.plugins.SearchPlugin;
 import org.opensearch.plugins.SearchPlugin.SearchExtSpec;
@@ -224,7 +225,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         ThreadPool mockThreadPool = mock(ThreadPool.class);
         OpenSearchThreadPoolExecutor mockExecutor = mock(OpenSearchThreadPoolExecutor.class);
 
-        when(mockThreadPool.executor(ClusterTrainingExecutor.THREAD_POOL_NAME)).thenReturn(mockExecutor);
+        when(mockThreadPool.executor(SparseConstants.THREAD_POOL_NAME)).thenReturn(mockExecutor);
         when(mockExecutor.getCorePoolSize()).thenReturn(CURRENT_THREAD_COUNT);
         when(mockExecutor.getMaximumPoolSize()).thenReturn(CURRENT_THREAD_COUNT);
 
@@ -235,7 +236,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         verify(mockThreadPool).setThreadPool(settingsCaptor.capture());
 
         Settings capturedSettings = settingsCaptor.getValue();
-        assertEquals(String.valueOf(NEW_THREAD_COUNT), capturedSettings.get(ClusterTrainingExecutor.THREAD_POOL_NAME + ".size"));
+        assertEquals(String.valueOf(NEW_THREAD_COUNT), capturedSettings.get(SparseConstants.THREAD_POOL_NAME + ".size"));
     }
 
     public void testThreadPoolSettingRegistration() {

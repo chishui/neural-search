@@ -11,7 +11,6 @@ public class NeuralSparseWarmupActionTests extends AbstractSparseTestBase {
 
     public void testInstance() {
         assertNotNull(NeuralSparseWarmupAction.INSTANCE);
-        assertSame(NeuralSparseWarmupAction.INSTANCE, NeuralSparseWarmupAction.INSTANCE);
     }
 
     public void testName() {

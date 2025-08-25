@@ -16,9 +16,9 @@ import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -77,6 +77,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
         Response warmUpResponse = client().performRequest(warmUpRequest);
 
+        assertEquals(RestStatus.OK, RestStatus.fromCode(clearCacheResponse.getStatusLine().getStatusCode()));
         assertEquals(RestStatus.OK, RestStatus.fromCode(warmUpResponse.getStatusLine().getStatusCode()));
 
         // Verify response structure
@@ -95,6 +96,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertTrue(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -135,6 +137,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertTrue(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -153,7 +156,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
         client().performRequest(request);
         // Create Sparse Index
-        prepareMultiShardReplicasIndex();
+        prepareMultiShardReplicasIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
 
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -165,6 +168,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
         Response warmUpResponse = client().performRequest(warmUpRequest);
 
+        assertEquals(RestStatus.OK, RestStatus.fromCode(clearCacheResponse.getStatusLine().getStatusCode()));
         assertEquals(RestStatus.OK, RestStatus.fromCode(warmUpResponse.getStatusLine().getStatusCode()));
 
         // Verify response structure
@@ -183,6 +187,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertTrue(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -201,7 +206,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
         client().performRequest(request);
         // Create Sparse Index
-        prepareMultiShardReplicasIndex();
+        prepareMultiShardReplicasIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
         long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
 
@@ -227,6 +232,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertTrue(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -245,7 +251,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
         client().performRequest(request);
         // Create Sparse Index
-        prepareMixSeismicRankFeaturesIndex();
+        prepareMixSeismicRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
 
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -257,6 +263,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
         Response warmUpResponse = client().performRequest(warmUpRequest);
 
+        assertEquals(RestStatus.OK, RestStatus.fromCode(clearCacheResponse.getStatusLine().getStatusCode()));
         assertEquals(RestStatus.OK, RestStatus.fromCode(warmUpResponse.getStatusLine().getStatusCode()));
 
         // Verify response structure
@@ -275,6 +282,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertTrue(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -293,7 +301,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
         client().performRequest(request);
         // Create Sparse Index
-        prepareMixSeismicRankFeaturesIndex();
+        prepareMixSeismicRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
         long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
 
@@ -319,6 +327,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertTrue(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -337,7 +346,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
         client().performRequest(request);
         // Create Sparse Index
-        prepareOnlyRankFeaturesIndex();
+        prepareOnlyRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
 
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -349,6 +358,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
         Response warmUpResponse = client().performRequest(warmUpRequest);
 
+        assertEquals(RestStatus.OK, RestStatus.fromCode(clearCacheResponse.getStatusLine().getStatusCode()));
         assertEquals(RestStatus.OK, RestStatus.fromCode(warmUpResponse.getStatusLine().getStatusCode()));
 
         // Verify response structure
@@ -367,6 +377,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertEquals(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should not change after warm up (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -386,7 +397,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request request = new Request("DELETE", "/" + TEST_INDEX_NAME);
         client().performRequest(request);
         // Create Sparse Index
-        prepareOnlyRankFeaturesIndex();
+        prepareOnlyRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
         long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
 
@@ -412,6 +423,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
             assertEquals(
                 String.format(
+                    Locale.ROOT,
                     "Memory usage for node %d should not change after clear cache (before: %d, after: %d)",
                     i,
                     originalSparseMemoryUsageStats[i],
@@ -441,7 +453,6 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertEquals(RestStatus.INTERNAL_SERVER_ERROR, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
         String responseBody = EntityUtils.toString(exception.getResponse().getEntity());
         assertTrue(responseBody.contains("don't support neural_sparse_warmup_action operation"));
-
     }
 
     /**
@@ -465,82 +476,82 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
 
     }
 
-    @SneakyThrows
-    private void prepareMultiShardReplicasIndex() {
-        int shards = 3;
-        int docCount = 100;
-        // effective number of replica is capped by the number of OpenSearch nodes minus 1
-        int replicas = Math.min(3, getNodeCount() - 1);
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, replicas);
-        // Ingest documents
-        List<Map<String, Float>> docs = new ArrayList<>();
-        for (int i = 0; i < docCount; ++i) {
-            Map<String, Float> tokens = new HashMap<>();
-            tokens.put("1000", randomFloat());
-            tokens.put("2000", randomFloat());
-            tokens.put("3000", randomFloat());
-            tokens.put("4000", randomFloat());
-            tokens.put("5000", randomFloat());
-            docs.add(tokens);
-        }
+    // @SneakyThrows
+    // private void prepareMultiShardReplicasIndex() {
+    // int shards = 3;
+    // int docCount = 100;
+    // // effective number of replica is capped by the number of OpenSearch nodes minus 1
+    // int replicas = Math.min(3, getNodeCount() - 1);
+    // createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, replicas);
+    // // Ingest documents
+    // List<Map<String, Float>> docs = new ArrayList<>();
+    // for (int i = 0; i < docCount; ++i) {
+    // Map<String, Float> tokens = new HashMap<>();
+    // tokens.put("1000", randomFloat());
+    // tokens.put("2000", randomFloat());
+    // tokens.put("3000", randomFloat());
+    // tokens.put("4000", randomFloat());
+    // tokens.put("5000", randomFloat());
+    // docs.add(tokens);
+    // }
+    //
+    // List<String> routingIds = generateUniqueRoutingIds(shards);
+    // for (int i = 0; i < shards; ++i) {
+    // ingestDocuments(
+    // TEST_INDEX_NAME,
+    // TEST_TEXT_FIELD_NAME,
+    // TEST_SPARSE_FIELD_NAME,
+    // docs,
+    // Collections.emptyList(),
+    // i * docCount + 1,
+    // routingIds.get(i)
+    // );
+    // }
+    //
+    // forceMerge(TEST_INDEX_NAME);
+    // // wait until force merge complete
+    // waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
+    // }
 
-        List<String> routingIds = generateUniqueRoutingIds(shards);
-        for (int i = 0; i < shards; ++i) {
-            ingestDocuments(
-                TEST_INDEX_NAME,
-                TEST_TEXT_FIELD_NAME,
-                TEST_SPARSE_FIELD_NAME,
-                docs,
-                Collections.emptyList(),
-                i * docCount + 1,
-                routingIds.get(i)
-            );
-        }
+    // @SneakyThrows
+    // private void prepareMixSeismicRankFeaturesIndex() {
+    // createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+    //
+    // ingestDocuments(
+    // TEST_INDEX_NAME,
+    // TEST_TEXT_FIELD_NAME,
+    // TEST_SPARSE_FIELD_NAME,
+    // List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+    // null,
+    // 1
+    // );
+    // ingestDocuments(
+    // TEST_INDEX_NAME,
+    // TEST_TEXT_FIELD_NAME,
+    // TEST_SPARSE_FIELD_NAME,
+    // List.of(
+    // Map.of("1000", 0.4f, "2000", 0.4f),
+    // Map.of("1000", 0.5f, "2000", 0.5f),
+    // Map.of("1000", 0.6f, "2000", 0.6f),
+    // Map.of("1000", 0.7f, "2000", 0.7f),
+    // Map.of("1000", 0.8f, "2000", 0.8f)
+    // ),
+    // null,
+    // 4
+    // );
+    // }
 
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
-    }
-
-    @SneakyThrows
-    private void prepareMixSeismicRankFeaturesIndex() {
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
-
-        ingestDocuments(
-            TEST_INDEX_NAME,
-            TEST_TEXT_FIELD_NAME,
-            TEST_SPARSE_FIELD_NAME,
-            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
-            null,
-            1
-        );
-        ingestDocuments(
-            TEST_INDEX_NAME,
-            TEST_TEXT_FIELD_NAME,
-            TEST_SPARSE_FIELD_NAME,
-            List.of(
-                Map.of("1000", 0.4f, "2000", 0.4f),
-                Map.of("1000", 0.5f, "2000", 0.5f),
-                Map.of("1000", 0.6f, "2000", 0.6f),
-                Map.of("1000", 0.7f, "2000", 0.7f),
-                Map.of("1000", 0.8f, "2000", 0.8f)
-            ),
-            null,
-            4
-        );
-    }
-
-    @SneakyThrows
-    private void prepareOnlyRankFeaturesIndex() {
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
-
-        ingestDocuments(
-            TEST_INDEX_NAME,
-            TEST_TEXT_FIELD_NAME,
-            TEST_SPARSE_FIELD_NAME,
-            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
-            null,
-            1
-        );
-    }
+    // @SneakyThrows
+    // private void prepareOnlyRankFeaturesIndex() {
+    // createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+    //
+    // ingestDocuments(
+    // TEST_INDEX_NAME,
+    // TEST_TEXT_FIELD_NAME,
+    // TEST_SPARSE_FIELD_NAME,
+    // List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+    // null,
+    // 1
+    // );
+    // }
 }

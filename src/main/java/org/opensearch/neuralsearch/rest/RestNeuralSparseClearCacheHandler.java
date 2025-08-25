@@ -6,7 +6,6 @@ package org.opensearch.neuralsearch.rest;
 
 import com.google.common.collect.ImmutableList;
 import lombok.AllArgsConstructor;
-import lombok.extern.log4j.Log4j2;
 import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.transport.NeuralSparseClearCacheAction;
 import org.opensearch.neuralsearch.transport.NeuralSparseClearCacheRequest;
@@ -29,7 +28,6 @@ import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
  * RestHandler for SEISMIC Clear Cache API.
  * API provides the ability for a user to evict those indices from Cache.
  */
-@Log4j2
 @AllArgsConstructor
 public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {
     private static final String URL_PATH = "/clear_cache/{index}";

@@ -5,38 +5,19 @@
 package org.opensearch.neuralsearch.rest;
 
 import org.junit.Before;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.opensearch.cluster.ClusterState;
-import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.index.Index;
 import org.opensearch.neuralsearch.sparse.common.exception.NeuralSparseInvalidIndicesException;
-import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
-public class RestUtilsTests extends OpenSearchTestCase {
+public class RestUtilsTests extends RestNeuralSparseTestCase {
 
-    @Mock
-    private ClusterService clusterService;
-
-    @Mock
-    private ClusterState clusterState;
-
-    @Mock
-    private Metadata metadata;
-
-    @Mock
-    private IndexMetadata indexMetadata;
-
-    private static final String SPARSE_INDEX_SETTING = "index.sparse";
     private static final String API_OPERATION = "test_operation";
 
     @Before
@@ -53,7 +34,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         setupValidSparseIndices();
 
         // Execute - should not throw exception
-        RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION);
+        RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION);
     }
 
     public void testValidateSparseIndicesWithInvalidSparseIndices() {
@@ -65,7 +46,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         List<String> invalidIndices = exception.getInvalidIndices();
@@ -85,7 +66,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         List<String> invalidIndices = exception.getInvalidIndices();
@@ -99,7 +80,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         Index[] indices = {};
 
         // Execute - should not throw exception
-        RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION);
+        RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION);
     }
 
     public void testValidateSparseIndicesWithNullClusterService() {
@@ -109,7 +90,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, null, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, null, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
@@ -124,7 +105,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
@@ -140,7 +121,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
@@ -157,7 +138,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
@@ -175,7 +156,7 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
@@ -188,12 +169,12 @@ public class RestUtilsTests extends OpenSearchTestCase {
         when(clusterService.state()).thenReturn(clusterState);
         when(clusterState.metadata()).thenReturn(metadata);
         when(metadata.getIndexSafe(any(Index.class))).thenReturn(indexMetadata);
-        when(indexMetadata.getSettings()).thenReturn(Settings.builder().put(SPARSE_INDEX_SETTING, "false").build());
+        when(indexMetadata.getSettings()).thenReturn(Settings.builder().put(SPARSE_INDEX, "false").build());
 
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
@@ -211,44 +192,10 @@ public class RestUtilsTests extends OpenSearchTestCase {
         // Execute & Verify
         NeuralSparseInvalidIndicesException exception = expectThrows(
             NeuralSparseInvalidIndicesException.class,
-            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX_SETTING, API_OPERATION)
+            () -> RestUtils.validateSparseIndices(indices, clusterService, SPARSE_INDEX, API_OPERATION)
         );
 
         assertEquals(1, exception.getInvalidIndices().size());
         assertTrue(exception.getInvalidIndices().contains("test-index"));
-    }
-
-    private void setupValidSparseIndices() {
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-        when(metadata.getIndexSafe(any(Index.class))).thenReturn(indexMetadata);
-        when(indexMetadata.getSettings()).thenReturn(Settings.builder().put(SPARSE_INDEX_SETTING, "true").build());
-    }
-
-    private void setupInvalidSparseIndices() {
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-        when(metadata.getIndexSafe(any(Index.class))).thenReturn(indexMetadata);
-        when(indexMetadata.getSettings()).thenReturn(Settings.builder().put(SPARSE_INDEX_SETTING, "false").build());
-    }
-
-    private void setupMixedSparseIndices() {
-        when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.metadata()).thenReturn(metadata);
-
-        IndexMetadata validIndexMetadata = mock(IndexMetadata.class);
-        IndexMetadata invalidIndexMetadata = mock(IndexMetadata.class);
-
-        when(validIndexMetadata.getSettings()).thenReturn(Settings.builder().put(SPARSE_INDEX_SETTING, "true").build());
-        when(invalidIndexMetadata.getSettings()).thenReturn(Settings.builder().put(SPARSE_INDEX_SETTING, "false").build());
-
-        when(metadata.getIndexSafe(any(Index.class))).thenAnswer(invocation -> {
-            Index index = invocation.getArgument(0);
-            if ("valid-index".equals(index.getName())) {
-                return validIndexMetadata;
-            } else {
-                return invalidIndexMetadata;
-            }
-        });
     }
 }

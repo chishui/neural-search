@@ -26,6 +26,8 @@ import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -165,6 +167,85 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
             .endObject()
             .endObject();
         return mappingBuilder.toString();
+    }
+
+    @SneakyThrows
+    protected void prepareMultiShardReplicasIndex(String TEST_INDEX_NAME, String TEST_SPARSE_FIELD_NAME, String TEST_TEXT_FIELD_NAME) {
+        int shards = 3;
+        int docCount = 100;
+        // effective number of replica is capped by the number of OpenSearch nodes minus 1
+        int replicas = Math.min(3, getNodeCount() - 1);
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, replicas);
+        // Ingest documents
+        List<Map<String, Float>> docs = new ArrayList<>();
+        for (int i = 0; i < docCount; ++i) {
+            Map<String, Float> tokens = new HashMap<>();
+            tokens.put("1000", randomFloat());
+            tokens.put("2000", randomFloat());
+            tokens.put("3000", randomFloat());
+            tokens.put("4000", randomFloat());
+            tokens.put("5000", randomFloat());
+            docs.add(tokens);
+        }
+
+        List<String> routingIds = generateUniqueRoutingIds(shards);
+        for (int i = 0; i < shards; ++i) {
+            ingestDocuments(
+                TEST_INDEX_NAME,
+                TEST_TEXT_FIELD_NAME,
+                TEST_SPARSE_FIELD_NAME,
+                docs,
+                Collections.emptyList(),
+                i * docCount + 1,
+                routingIds.get(i)
+            );
+        }
+
+        forceMerge(TEST_INDEX_NAME);
+        // wait until force merge complete
+        waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
+    }
+
+    @SneakyThrows
+    protected void prepareMixSeismicRankFeaturesIndex(String TEST_INDEX_NAME, String TEST_SPARSE_FIELD_NAME, String TEST_TEXT_FIELD_NAME) {
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+            null,
+            1
+        );
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(
+                Map.of("1000", 0.4f, "2000", 0.4f),
+                Map.of("1000", 0.5f, "2000", 0.5f),
+                Map.of("1000", 0.6f, "2000", 0.6f),
+                Map.of("1000", 0.7f, "2000", 0.7f),
+                Map.of("1000", 0.8f, "2000", 0.8f)
+            ),
+            null,
+            4
+        );
+    }
+
+    @SneakyThrows
+    protected void prepareOnlyRankFeaturesIndex(String TEST_INDEX_NAME, String TEST_SPARSE_FIELD_NAME, String TEST_TEXT_FIELD_NAME) {
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
+            null,
+            1
+        );
     }
 
     protected void waitForSegmentMerge(String index) throws InterruptedException {
