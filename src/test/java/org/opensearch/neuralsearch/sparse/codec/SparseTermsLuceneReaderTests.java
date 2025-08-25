@@ -5,16 +5,21 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.SneakyThrows;
+import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentReadState;
+import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.BytesRef;
+import org.junit.After;
 import org.junit.Before;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
@@ -25,6 +30,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +55,8 @@ public class SparseTermsLuceneReaderTests extends AbstractSparseTestBase {
     @Mock
     private SegmentReadState segmentReadState;
 
+    private MockedStatic<CodecUtil> codecUtilMock;
+
     @Before
     @SneakyThrows
     public void setUp() {
@@ -62,6 +70,19 @@ public class SparseTermsLuceneReaderTests extends AbstractSparseTestBase {
         segmentReadState = new SegmentReadState(mockDirectory, mockSegmentInfo, mockFieldInfos, IOContext.DEFAULT, "test_suffix");
 
         when(mockDirectory.openInput(anyString(), any(IOContext.class))).thenReturn(mockTermsInput).thenReturn(mockPostingInput);
+        codecUtilMock = Mockito.mockStatic(CodecUtil.class);
+        codecUtilMock.when(
+            () -> CodecUtil.checkIndexHeader(any(DataInput.class), anyString(), anyInt(), anyInt(), any(byte[].class), anyString())
+        ).thenReturn(0);
+    }
+
+    @After
+    @Override
+    public void tearDown() throws Exception {
+        if (codecUtilMock != null) {
+            codecUtilMock.close();
+        }
+        super.tearDown();
     }
 
     @SneakyThrows
