@@ -29,8 +29,10 @@ import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -185,9 +187,12 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
         SparseTermsLuceneWriter sparseTermsWriter = sparseTermsWriters.get(0);
 
         // Setup field info with sparse fields
-        FieldInfo mockFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-        mockFieldInfo.attributes().put(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(1));
-        mockFieldInfo.attributes().put(SPARSE_FIELD, String.valueOf(true));
+        FieldInfo mockFieldInfo = mock(FieldInfo.class);
+        when(mockFieldInfo.getName()).thenReturn(SPARSE_FIELD);
+        Map<String, String> sparseAttributes = new HashMap<>();
+        sparseAttributes.put(SPARSE_FIELD, String.valueOf(true));
+        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(1));
+        when(mockFieldInfo.attributes()).thenReturn(sparseAttributes);
 
         // Setup fieldInfos mock
         when(mockFieldInfos.fieldInfo(anyString())).thenReturn(mockFieldInfo);
@@ -222,9 +227,12 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
         SparseTermsLuceneWriter sparseTermsWriter = sparseTermsWriters.get(0);
 
         // Setup field info with sparse fields
-        FieldInfo mockFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
-        mockFieldInfo.attributes().put(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(1));
-        mockFieldInfo.attributes().put(SPARSE_FIELD, String.valueOf(true));
+        FieldInfo mockFieldInfo = mock(FieldInfo.class);
+        when(mockFieldInfo.getName()).thenReturn(SPARSE_FIELD);
+        Map<String, String> sparseAttributes = new HashMap<>();
+        sparseAttributes.put(SPARSE_FIELD, String.valueOf(true));
+        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(1));
+        when(mockFieldInfo.attributes()).thenReturn(sparseAttributes);
 
         // Setup fieldInfos mock
         when(mockFieldInfos.fieldInfo(anyString())).thenReturn(mockFieldInfo);
