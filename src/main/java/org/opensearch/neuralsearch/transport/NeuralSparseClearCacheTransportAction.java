@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.transport;
 
+import lombok.SneakyThrows;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
 import org.opensearch.cluster.ClusterState;
@@ -118,6 +119,7 @@ public class NeuralSparseClearCacheTransportAction extends TransportBroadcastByN
      * @return Empty result object indicating operation completion
      */
     @Override
+    @SneakyThrows
     protected EmptyResult shardOperation(NeuralSparseClearCacheRequest request, ShardRouting shardRouting) {
         Index index = shardRouting.shardId().getIndex();
         IndexService indexService = indicesService.indexServiceSafe(index);
