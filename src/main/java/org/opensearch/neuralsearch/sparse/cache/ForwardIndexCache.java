@@ -17,7 +17,9 @@ public class ForwardIndexCache extends SparseCache<ForwardIndexCacheItem> {
     private static final ForwardIndexCache INSTANCE = new ForwardIndexCache();
 
     private ForwardIndexCache() {
-        CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(cacheMap));
+        MemoryUsageManager.getInstance()
+            .getMemoryUsageTracker()
+            .safeRecord(RamUsageEstimator.shallowSizeOf(cacheMap), CircuitBreakerManager::addWithoutBreaking);
     }
 
     public static ForwardIndexCache getInstance() {
@@ -26,9 +28,10 @@ public class ForwardIndexCache extends SparseCache<ForwardIndexCacheItem> {
 
     @NonNull
     public ForwardIndexCacheItem getOrCreate(@NonNull CacheKey key, int docCount) {
+        RamBytesRecorder globalRecorder = MemoryUsageManager.getInstance().getMemoryUsageTracker();
         return cacheMap.computeIfAbsent(key, k -> {
-            ForwardIndexCacheItem forwardIndexCacheItem = new ForwardIndexCacheItem(key, docCount);
-            CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(key));
+            ForwardIndexCacheItem forwardIndexCacheItem = new ForwardIndexCacheItem(key, docCount, globalRecorder);
+            globalRecorder.safeRecord(RamUsageEstimator.shallowSizeOf(key), CircuitBreakerManager::addWithoutBreaking);
             return forwardIndexCacheItem;
         });
     }

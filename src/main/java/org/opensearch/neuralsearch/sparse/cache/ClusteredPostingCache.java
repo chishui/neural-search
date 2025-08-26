@@ -14,21 +14,33 @@ import org.apache.lucene.util.RamUsageEstimator;
  */
 public class ClusteredPostingCache extends SparseCache<ClusteredPostingCacheItem> {
 
-    private static final ClusteredPostingCache INSTANCE = new ClusteredPostingCache();
+    private static ClusteredPostingCache INSTANCE;
 
     private ClusteredPostingCache() {
-        CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(cacheMap));
+        MemoryUsageManager.getInstance()
+            .getMemoryUsageTracker()
+            .safeRecord(RamUsageEstimator.shallowSizeOf(cacheMap), CircuitBreakerManager::addWithoutBreaking);
     }
 
     public static ClusteredPostingCache getInstance() {
+        if (INSTANCE == null) {
+            synchronized (ClusteredPostingCache.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = new ClusteredPostingCache();
+                }
+            }
+        }
         return INSTANCE;
     }
 
     @NonNull
     public ClusteredPostingCacheItem getOrCreate(@NonNull CacheKey key) {
+        RamBytesRecorder globalRecorder = MemoryUsageManager.getInstance().getMemoryUsageTracker();
         return cacheMap.computeIfAbsent(key, k -> {
-            ClusteredPostingCacheItem clusteredPostingCacheItem = new ClusteredPostingCacheItem(key);
-            CircuitBreakerManager.addWithoutBreaking(RamUsageEstimator.shallowSizeOf(key));
+            ClusteredPostingCacheItem clusteredPostingCacheItem = new ClusteredPostingCacheItem(key, globalRecorder);
+            MemoryUsageManager.getInstance()
+                .getMemoryUsageTracker()
+                .safeRecord(RamUsageEstimator.shallowSizeOf(key), CircuitBreakerManager::addWithoutBreaking);
             return clusteredPostingCacheItem;
         });
     }

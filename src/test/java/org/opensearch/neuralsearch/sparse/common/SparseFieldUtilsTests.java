@@ -74,7 +74,7 @@ public class SparseFieldUtilsTests extends OpenSearchTestCase {
         Map<String, Object> properties = createFieldMappingProperties(true);
         configureIndexMappingProperties(properties);
 
-        assertEquals(Set.of(TEST_SPARSE_FIELD_NAME), SparseFieldUtils.getSparseAnnFields(TEST_INDEX_NAME).size());
+        assertEquals(Set.of(TEST_SPARSE_FIELD_NAME), SparseFieldUtils.getSparseAnnFields(TEST_INDEX_NAME));
     }
 
     private void initializeMockClusterService() {
