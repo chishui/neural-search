@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.opensearch.core.common.breaker.CircuitBreaker;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecServiceFactory;
@@ -34,6 +35,7 @@ import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
+import org.opensearch.neuralsearch.sparse.cache.MemoryUsageManager;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
@@ -377,5 +379,6 @@ public class NeuralSearch extends Plugin
     @Override
     public void setCircuitBreaker(CircuitBreaker circuitBreaker) {
         CircuitBreakerManager.setCircuitBreaker(circuitBreaker);
+        MemoryUsageManager.getInstance().setLimit(new ByteSizeValue(circuitBreaker.getLimit()));
     }
 }

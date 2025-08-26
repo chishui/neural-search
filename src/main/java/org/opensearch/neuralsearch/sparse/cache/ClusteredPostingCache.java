@@ -38,9 +38,7 @@ public class ClusteredPostingCache extends SparseCache<ClusteredPostingCacheItem
         RamBytesRecorder globalRecorder = MemoryUsageManager.getInstance().getMemoryUsageTracker();
         return cacheMap.computeIfAbsent(key, k -> {
             ClusteredPostingCacheItem clusteredPostingCacheItem = new ClusteredPostingCacheItem(key, globalRecorder);
-            MemoryUsageManager.getInstance()
-                .getMemoryUsageTracker()
-                .safeRecord(RamUsageEstimator.shallowSizeOf(key), CircuitBreakerManager::addWithoutBreaking);
+            globalRecorder.safeRecord(RamUsageEstimator.shallowSizeOf(key), CircuitBreakerManager::addWithoutBreaking);
             return clusteredPostingCacheItem;
         });
     }
