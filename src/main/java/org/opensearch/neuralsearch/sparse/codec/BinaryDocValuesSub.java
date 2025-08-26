@@ -36,5 +36,4 @@ public class BinaryDocValuesSub extends DocIDMerger.Sub {
         docId = values.nextDoc();
         return docId;
     }
-
 }
