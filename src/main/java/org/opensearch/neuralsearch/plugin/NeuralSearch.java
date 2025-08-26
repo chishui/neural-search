@@ -28,6 +28,7 @@ import org.opensearch.neuralsearch.highlight.SemanticHighlighterEngine;
 import org.opensearch.neuralsearch.highlight.extractor.QueryTextExtractorRegistry;
 import com.google.common.collect.ImmutableList;
 import org.opensearch.action.ActionRequest;
+import org.opensearch.neuralsearch.rest.RestNeuralSparseClearCacheHandler;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettingsAccessor;
 import org.opensearch.neuralsearch.sparse.SparseIndexEventListener;
@@ -35,10 +36,13 @@ import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
+import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
 import org.opensearch.plugins.CircuitBreakerPlugin;
+import org.opensearch.neuralsearch.transport.NeuralSparseClearCacheAction;
+import org.opensearch.neuralsearch.transport.NeuralSparseClearCacheTransportAction;
 import org.opensearch.plugins.EnginePlugin;
 import org.opensearch.plugins.MapperPlugin;
 import org.opensearch.threadpool.FixedExecutorBuilder;
@@ -111,6 +115,9 @@ import org.opensearch.search.query.QueryPhaseSearcher;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
+import org.opensearch.neuralsearch.rest.RestNeuralSparseWarmupHandler;
+import org.opensearch.neuralsearch.transport.NeuralSparseWarmupAction;
+import org.opensearch.neuralsearch.transport.NeuralSparseWarmupTransportAction;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -205,12 +212,24 @@ public class NeuralSearch extends Plugin
         Supplier<DiscoveryNodes> nodesInCluster
     ) {
         RestNeuralStatsAction restNeuralStatsAction = new RestNeuralStatsAction(settingsAccessor);
-        return ImmutableList.of(restNeuralStatsAction);
+        RestNeuralSparseWarmupHandler restNeuralSparseWarmupCacheHandler = new RestNeuralSparseWarmupHandler(
+            NeuralSearchClusterUtil.instance().getClusterService(),
+            indexNameExpressionResolver
+        );
+        RestNeuralSparseClearCacheHandler restNeuralSparseClearCacheHandler = new RestNeuralSparseClearCacheHandler(
+            NeuralSearchClusterUtil.instance().getClusterService(),
+            indexNameExpressionResolver
+        );
+        return ImmutableList.of(restNeuralStatsAction, restNeuralSparseWarmupCacheHandler, restNeuralSparseClearCacheHandler);
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return Arrays.asList(new ActionHandler<>(NeuralStatsAction.INSTANCE, NeuralStatsTransportAction.class));
+        return Arrays.asList(
+            new ActionHandler<>(NeuralStatsAction.INSTANCE, NeuralStatsTransportAction.class),
+            new ActionHandler<>(NeuralSparseWarmupAction.INSTANCE, NeuralSparseWarmupTransportAction.class),
+            new ActionHandler<>(NeuralSparseClearCacheAction.INSTANCE, NeuralSparseClearCacheTransportAction.class)
+        );
     }
 
     @Override
@@ -220,10 +239,10 @@ public class NeuralSearch extends Plugin
             HybridQueryExecutor.getExecutorBuilder(settings),
             new FixedExecutorBuilder(
                 settings,
-                ClusterTrainingExecutor.THREAD_POOL_NAME,
+                SparseConstants.THREAD_POOL_NAME,
                 allocatedProcessors,
                 -1,
-                ClusterTrainingExecutor.THREAD_POOL_NAME,
+                SparseConstants.THREAD_POOL_NAME,
                 false
             )
         );
