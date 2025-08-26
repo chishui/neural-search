@@ -18,7 +18,6 @@ import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,51 +119,13 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
      */
     @SneakyThrows
     public void testMemoryStatsIncreaseWithSeismicAndMultiShard() {
-        // Create Sparse Index
-        int shards = 3;
-        int docCount = 100;
-        // effective number of replica is capped by the number of OpenSearch nodes minus 1
-        int replicas = Math.min(3, getNodeCount() - 1);
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount, shards, replicas);
-
-        // Verify index exists
-        assertTrue(indexExists(TEST_INDEX_NAME));
-
         // Fetch original memory stats
         long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
         assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
-        // Ingest documents
-        List<Map<String, Float>> docs = new ArrayList<>();
-        for (int i = 0; i < docCount; ++i) {
-            Map<String, Float> tokens = new HashMap<>();
-            tokens.put("1000", randomFloat());
-            tokens.put("2000", randomFloat());
-            tokens.put("3000", randomFloat());
-            tokens.put("4000", randomFloat());
-            tokens.put("5000", randomFloat());
-            docs.add(tokens);
-        }
-
-        List<String> routingIds = generateUniqueRoutingIds(shards);
-        for (int i = 0; i < shards; ++i) {
-            ingestDocuments(
-                TEST_INDEX_NAME,
-                TEST_TEXT_FIELD_NAME,
-                TEST_SPARSE_FIELD_NAME,
-                docs,
-                Collections.emptyList(),
-                i * docCount + 1,
-                routingIds.get(i)
-            );
-        }
-
-        forceMerge(TEST_INDEX_NAME);
-        // wait until force merge complete
-        waitForSegmentMerge(TEST_INDEX_NAME, shards, replicas);
-        // there are replica segments
-        assertEquals(shards * (replicas + 1), getSegmentCount(TEST_INDEX_NAME));
+        // Create Sparse Index
+        prepareMultiShardReplicasIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
 
         // Verify memory stats increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
@@ -195,32 +156,35 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
      */
     @SneakyThrows
     public void testMemoryStatsDoNotIncreaseWithAllRankFeatures() {
-        // Create Sparse Index
-        int docCount = 100;
-        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount * 2);
-
-        // Verify index exists
-        assertTrue(indexExists(TEST_INDEX_NAME));
-
         // Fetch original memory stats
         long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
         assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
-        // Ingest documents
-        List<Map<String, Float>> docs = new ArrayList<>();
-        for (int i = 0; i < docCount; ++i) {
-            Map<String, Float> tokens = new HashMap<>();
-            tokens.put("1000", randomFloat());
-            tokens.put("2000", randomFloat());
-            tokens.put("3000", randomFloat());
-            tokens.put("4000", randomFloat());
-            tokens.put("5000", randomFloat());
-            docs.add(tokens);
-        }
+        // Create Sparse Index
+        // int docCount = 100;
+        // createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount * 2);
+        //
+        // // Verify index exists
+        // assertTrue(indexExists(TEST_INDEX_NAME));
+        //
+        //
+        //
+        // // Ingest documents
+        // List<Map<String, Float>> docs = new ArrayList<>();
+        // for (int i = 0; i < docCount; ++i) {
+        // Map<String, Float> tokens = new HashMap<>();
+        // tokens.put("1000", randomFloat());
+        // tokens.put("2000", randomFloat());
+        // tokens.put("3000", randomFloat());
+        // tokens.put("4000", randomFloat());
+        // tokens.put("5000", randomFloat());
+        // docs.add(tokens);
+        // }
+        //
+        // ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
-        ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
+        prepareOnlyRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
         // Verify memory stats do not increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long[] currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();

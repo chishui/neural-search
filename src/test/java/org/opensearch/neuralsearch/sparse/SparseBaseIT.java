@@ -241,13 +241,11 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     protected void prepareOnlyRankFeaturesIndex(String TEST_INDEX_NAME, String TEST_SPARSE_FIELD_NAME, String TEST_TEXT_FIELD_NAME) {
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
 
-        ingestDocuments(
+        ingestDocumentsAndForceMerge(
             TEST_INDEX_NAME,
             TEST_TEXT_FIELD_NAME,
             TEST_SPARSE_FIELD_NAME,
-            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f)),
-            null,
-            1
+            List.of(Map.of("1000", 0.1f, "2000", 0.1f), Map.of("1000", 0.2f, "2000", 0.2f), Map.of("1000", 0.3f, "2000", 0.3f))
         );
     }
 
