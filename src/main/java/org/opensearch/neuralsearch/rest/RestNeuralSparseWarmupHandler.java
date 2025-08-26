@@ -25,7 +25,7 @@ import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
 /**
  * RestHandler for SEISMIC index warmup API.
- * API provides the ability for a user to load specific indices' SEISMIC index
+ * API provides the ability for a user to load forward index and clustered posting for SEISMIC indices
  * into memory.
  */
 public class RestNeuralSparseWarmupHandler extends BaseRestHandler {

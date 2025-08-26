@@ -26,7 +26,7 @@ import static org.opensearch.neuralsearch.sparse.SparseSettings.SPARSE_INDEX;
 
 /**
  * RestHandler for SEISMIC Clear Cache API.
- * API provides the ability for a user to evict those indices from Cache.
+ * API provides the ability for a user to evict index data from Cache.
  */
 @AllArgsConstructor
 public class RestNeuralSparseClearCacheHandler extends BaseRestHandler {

@@ -150,8 +150,6 @@ public class NeuralSearch extends Plugin
     public static final String EXPLANATION_RESPONSE_KEY = "explanation_response";
     public static final String NEURAL_BASE_URI = "/_plugins/_neural";
 
-    private ClusterService clusterService;
-
     public NeuralSearch() {
         this.semanticHighlighter = new SemanticHighlighter();
     }
@@ -170,7 +168,6 @@ public class NeuralSearch extends Plugin
         final IndexNameExpressionResolver indexNameExpressionResolver,
         final Supplier<RepositoriesService> repositoriesServiceSupplier
     ) {
-        this.clusterService = clusterService;
         NeuralSearchClusterUtil.instance().initialize(clusterService);
         NeuralQueryBuilder.initialize(clientAccessor);
         NeuralSparseQueryBuilder.initialize(clientAccessor);
@@ -216,11 +213,11 @@ public class NeuralSearch extends Plugin
     ) {
         RestNeuralStatsAction restNeuralStatsAction = new RestNeuralStatsAction(settingsAccessor);
         RestNeuralSparseWarmupHandler restNeuralSparseWarmupCacheHandler = new RestNeuralSparseWarmupHandler(
-            clusterService,
+            NeuralSearchClusterUtil.instance().getClusterService(),
             indexNameExpressionResolver
         );
         RestNeuralSparseClearCacheHandler restNeuralSparseClearCacheHandler = new RestNeuralSparseClearCacheHandler(
-            clusterService,
+            NeuralSearchClusterUtil.instance().getClusterService(),
             indexNameExpressionResolver
         );
         return ImmutableList.of(restNeuralStatsAction, restNeuralSparseWarmupCacheHandler, restNeuralSparseClearCacheHandler);
