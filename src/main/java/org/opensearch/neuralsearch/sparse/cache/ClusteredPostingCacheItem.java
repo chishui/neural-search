@@ -9,8 +9,8 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.opensearch.neuralsearch.sparse.accessor.ClusteredPosting;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
-import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingWriter;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
@@ -26,26 +26,28 @@ import java.util.function.Consumer;
  * It is used by the SparsePostingsConsumer and SparsePostingsReader classes.
  */
 @Log4j2
-public class ClusteredPostingCacheItem implements Accountable {
+public class ClusteredPostingCacheItem implements ClusteredPosting, Accountable {
 
     private static final String CIRCUIT_BREAKER_LABEL = "Cache Clustered Posting";
+    private final CacheKey cacheKey;
     private final Map<BytesRef, PostingClusters> clusteredPostings = new ConcurrentHashMap<>();
     private final AtomicLong usedRamBytes = new AtomicLong(RamUsageEstimator.shallowSizeOf(clusteredPostings));
     @Getter
     private final ClusteredPostingReader reader = new CacheClusteredPostingReader();
     @Getter
-    private final ClusteredPostingWriter writer = new CacheClusteredPostingWriter();
+    private final CacheableClusteredPostingWriter writer = new CacheClusteredPostingWriter();
 
     /**
      * Returns the writer instance.
      * @param circuitBreakerHandler A consumer to handle circuit breaker triggering differently
      * @return the ClusteredPostingWriter instance
      */
-    public ClusteredPostingWriter getWriter(Consumer<Long> circuitBreakerHandler) {
+    public CacheableClusteredPostingWriter getWriter(Consumer<Long> circuitBreakerHandler) {
         return new CacheClusteredPostingWriter(circuitBreakerHandler);
     }
 
-    public ClusteredPostingCacheItem() {
+    public ClusteredPostingCacheItem(CacheKey cacheKey) {
+        this.cacheKey = cacheKey;
         CircuitBreakerManager.addWithoutBreaking(usedRamBytes.get());
     }
 
@@ -57,7 +59,13 @@ public class ClusteredPostingCacheItem implements Accountable {
     private class CacheClusteredPostingReader implements ClusteredPostingReader {
         @Override
         public PostingClusters read(BytesRef term) {
-            return clusteredPostings.get(term);
+            PostingClusters clusters = clusteredPostings.get(term);
+            if (clusters != null) {
+                // Record access to update LRU status
+                LruTermCache.TermKey termKey = new LruTermCache.TermKey(cacheKey, term.clone());
+                LruTermCache.getInstance().updateAccess(termKey);
+            }
+            return clusters;
         }
 
         @Override
@@ -73,17 +81,24 @@ public class ClusteredPostingCacheItem implements Accountable {
         }
     }
 
-    private class CacheClusteredPostingWriter implements ClusteredPostingWriter {
+    private class CacheClusteredPostingWriter implements CacheableClusteredPostingWriter {
+
         private final Consumer<Long> circuitBreakerTriggerHandler;
+
+        // Default handler: perform cache eviction when memory limit is reached
+        private CacheClusteredPostingWriter() {
+            this.circuitBreakerTriggerHandler = (ramBytesUsed) -> {
+                synchronized (LruTermCache.getInstance()) {
+                    LruTermCache.getInstance().evict(ramBytesUsed);
+                }
+            };
+        }
 
         private CacheClusteredPostingWriter(Consumer<Long> circuitBreakerTriggerHandler) {
             this.circuitBreakerTriggerHandler = circuitBreakerTriggerHandler;
         }
 
-        private CacheClusteredPostingWriter() {
-            this.circuitBreakerTriggerHandler = null;
-        }
-
+        @Override
         public void insert(BytesRef term, List<DocumentCluster> clusters) {
             if (clusters == null || clusters.isEmpty() || term == null) {
                 return;
@@ -96,20 +111,47 @@ public class ClusteredPostingCacheItem implements Accountable {
             long ramBytesUsed = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
 
             if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
-                // TODO: cache eviction
                 if (circuitBreakerTriggerHandler != null) {
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
                 }
-                return;
+
+                // Try again after eviction
+                if (!CircuitBreakerManager.addMemoryUsage(ramBytesUsed, CIRCUIT_BREAKER_LABEL)) {
+                    log.warn("Failed to add to cache even after eviction, term will not be cached");
+                    return;
+                }
             }
 
             // Update the clusters with putIfAbsent for thread safety
             PostingClusters existingClusters = clusteredPostings.putIfAbsent(clonedTerm, postingClusters);
+            // Record access to update LRU status
+            LruTermCache.TermKey termKey = new LruTermCache.TermKey(cacheKey, clonedTerm);
+            LruTermCache.getInstance().updateAccess(termKey);
 
             // Only update memory usage if we actually inserted a new entry
             if (existingClusters == null) {
                 usedRamBytes.addAndGet(ramBytesUsed);
             }
+        }
+
+        @Override
+        public long erase(BytesRef term) {
+            if (term == null) {
+                return 0;
+            }
+            PostingClusters postingClusters = clusteredPostings.get(term);
+            if (postingClusters == null) {
+                return 0;
+            }
+            // Clone a new BytesRef object to avoid offset change
+            BytesRef clonedTerm = term.clone();
+            long ramBytesReleased = postingClusters.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(clonedTerm) + clonedTerm.bytes.length;
+            if (clusteredPostings.remove(clonedTerm) != null) {
+                usedRamBytes.addAndGet(-ramBytesReleased);
+                CircuitBreakerManager.releaseBytes(ramBytesReleased);
+                return ramBytesReleased;
+            }
+            return 0;
         }
     }
 }

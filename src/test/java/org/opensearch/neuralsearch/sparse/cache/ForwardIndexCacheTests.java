@@ -39,7 +39,9 @@ public class ForwardIndexCacheTests extends AbstractSparseTestBase {
 
         forwardIndexCache = ForwardIndexCache.getInstance();
         emptyForwardIndexCacheSize = forwardIndexCache.ramBytesUsed();
-        emptyForwardIndexCacheItemSize = new ForwardIndexCacheItem(TEST_DOC_COUNT).ramBytesUsed();
+
+        CacheKey cacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), TestsPrepareUtils.prepareKeyFieldInfo());
+        emptyForwardIndexCacheItemSize = new ForwardIndexCacheItem(cacheKey, TEST_DOC_COUNT).ramBytesUsed();
     }
 
     /**

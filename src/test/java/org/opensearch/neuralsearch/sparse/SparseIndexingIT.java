@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 import static org.opensearch.neuralsearch.util.TestUtils.createRandomTokenWeightMap;
 
 /**
@@ -606,6 +607,42 @@ public class SparseIndexingIT extends SparseBaseIT {
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 20);
         assertNotNull(searchResults);
         assertTrue(getHitCount(searchResults) <= 15);
+    }
+
+    public void testSearchDocumentsWithTwoPhaseSearchProcessorThenThrowException() throws Exception {
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 8);
+
+        ingestDocumentsAndForceMerge(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            List.of(
+                Map.of("1000", 0.1f, "2000", 0.1f),
+                Map.of("1000", 0.2f, "2000", 0.2f),
+                Map.of("1000", 0.3f, "2000", 0.3f),
+                Map.of("1000", 0.4f, "2000", 0.4f),
+                Map.of("1000", 0.5f, "2000", 0.5f),
+                Map.of("1000", 0.6f, "2000", 0.6f),
+                Map.of("1000", 0.7f, "2000", 0.7f),
+                Map.of("1000", 0.8f, "2000", 0.8f)
+            )
+        );
+
+        String twoPhaseSearchPipeline = "two-phase-search-pipeline";
+        createNeuralSparseTwoPhaseSearchProcessor(twoPhaseSearchPipeline);
+        updateIndexSettings(TEST_INDEX_NAME, Settings.builder().put("index.search.default_pipeline", twoPhaseSearchPipeline));
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f)
+        );
+
+        Exception exception = assertThrows(Exception.class, () -> search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
+        assert (exception.getMessage()
+            .contains(String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] field for now", SEISMIC)));
     }
 
     private List<String> getDocIDs(Map<String, Object> searchResults) {

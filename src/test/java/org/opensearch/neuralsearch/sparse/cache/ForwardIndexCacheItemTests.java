@@ -59,72 +59,6 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
     }
 
     /**
-     * Tests that getOrCreate returns the same instance when called with an existing key.
-     * This verifies the caching behavior of the ForwardIndexCache.
-     */
-    public void test_getOrCreate_withExistingKey() {
-        ForwardIndexCacheItem createdIndex = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
-        ForwardIndexCacheItem retrievedIndex = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
-
-        assertSame("Should return the same index instance", createdIndex, retrievedIndex);
-    }
-
-    /**
-     * Tests that getOrCreate throws NullPointerException when called with a null key.
-     * This verifies the @NonNull annotation on the key parameter.
-     */
-    public void test_getOrCreate_withNullKey() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> {
-            ForwardIndexCache.getInstance().getOrCreate(null, testDocCount);
-        });
-
-        assertEquals("key is marked non-null but is null", exception.getMessage());
-    }
-
-    /**
-     * Tests that get returns the same instance that was created with getOrCreate.
-     * This verifies the retrieval functionality of the ForwardIndexCache.
-     */
-    public void tes_get_withExistingKey() {
-        ForwardIndexCacheItem createdIndex = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
-        ForwardIndexCacheItem retrievedIndex = ForwardIndexCache.getInstance().get(cacheKey);
-
-        assertSame("Should return the same index instance", createdIndex, retrievedIndex);
-    }
-
-    /**
-     * Tests that get returns null when called with a key that doesn't exist in the cache.
-     * This verifies the behavior for non-existent keys.
-     */
-    public void test_get_withNonExistingKey() {
-        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().get(cacheKey);
-
-        assertNull("Index should be null for non-existent key", index);
-    }
-
-    /**
-     * Tests that get throws NullPointerException when called with a null key.
-     * This verifies the @NonNull annotation on the key parameter.
-     */
-    public void test_get_withNullKey() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> { ForwardIndexCache.getInstance().get(null); });
-
-        assertEquals("key is marked non-null but is null", exception.getMessage());
-    }
-
-    /**
-     * Tests that removeIndex correctly removes an item from the cache.
-     * This verifies the removal functionality of the ForwardIndexCache.
-     */
-    public void test_removeIndex() {
-        ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
-        assertNotNull("Index should exist", ForwardIndexCache.getInstance().get(cacheKey));
-
-        ForwardIndexCache.getInstance().removeIndex(cacheKey);
-        assertNull("Index should be removed", ForwardIndexCache.getInstance().get(cacheKey));
-    }
-
-    /**
      * Tests that reading a vector with an out-of-bounds index returns null.
      * This verifies the bounds checking in the SparseVectorReader.
      */
@@ -265,6 +199,112 @@ public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
         long ramBytesUsed2 = cacheItem.ramBytesUsed();
 
         assertTrue("Initial RAM usage should increase when the size of forward index increases", ramBytesUsed2 > ramBytesUsed1);
+    }
+
+    /**
+     * Tests that erasing a vector with an out-of-bounds index returns 0 bytes freed.
+     * This verifies the bounds checking in the erase method.
+     */
+    @SneakyThrows
+    public void test_writerErase_withOutOfBoundVector() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        CacheableSparseVectorWriter writer = cacheItem.getWriter();
+
+        long bytesFreed = writer.erase(testDocCount + 1);
+        assertEquals("Erasing out of bounds vector should free 0 bytes", 0, bytesFreed);
+    }
+
+    /**
+     * Tests that erasing a null vector (one that doesn't exist) returns 0 bytes freed.
+     * This verifies the null checking in the erase method.
+     */
+    @SneakyThrows
+    public void test_writerErase_withNullVector() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        CacheableSparseVectorWriter writer = cacheItem.getWriter();
+
+        long bytesFreed = writer.erase(0);
+        assertEquals("Erasing null vector should free 0 bytes", 0, bytesFreed);
+    }
+
+    /**
+     * Tests that a vector can be successfully erased and memory is properly released.
+     * This verifies the basic functionality of the erase method.
+     */
+    @SneakyThrows
+    public void test_writerErase_withValidVector() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        SparseVectorReader reader = cacheItem.getReader();
+        CacheableSparseVectorWriter writer = cacheItem.getWriter();
+
+        // Insert a vector
+        SparseVector vector = createVector(1, 2, 3, 4);
+        writer.insert(0, vector);
+        assertEquals("Vector should be inserted", vector, reader.read(0));
+
+        long initialRam = cacheItem.ramBytesUsed();
+        long vectorSize = vector.ramBytesUsed();
+
+        // Erase the vector
+        long bytesFreed = writer.erase(0);
+
+        // Verify the vector was erased
+        assertNull("Vector should be erased", reader.read(0));
+        assertEquals("Bytes freed should match vector size", vectorSize, bytesFreed);
+        assertEquals("RAM usage should decrease by vector size", initialRam - vectorSize, cacheItem.ramBytesUsed());
+
+        // Verify CircuitBreakerManager was called to release bytes
+        verify(mockedCircuitBreaker).addWithoutBreaking(-vectorSize);
+    }
+
+    /**
+     * Tests that erasing a vector that was already erased returns 0 bytes freed.
+     * This verifies the compareAndSet logic in the erase method.
+     */
+    @SneakyThrows
+    public void test_writerErase_withAlreadyErasedVector() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        SparseVectorReader reader = cacheItem.getReader();
+        CacheableSparseVectorWriter writer = cacheItem.getWriter();
+
+        // Insert and then erase a vector
+        SparseVector vector = createVector(1, 2, 3, 4);
+        writer.insert(0, vector);
+        long firstErase = writer.erase(0);
+
+        // Try to erase it again
+        long secondErase = writer.erase(0);
+
+        assertEquals("First erase should return vector size", vector.ramBytesUsed(), firstErase);
+        assertEquals("Second erase should return 0 bytes", 0, secondErase);
+    }
+
+    /**
+     * Tests that multiple vectors can be inserted and erased correctly.
+     * This verifies the erase method works with multiple vectors.
+     */
+    @SneakyThrows
+    public void test_writerErase_withMultipleVectors() {
+        ForwardIndexCacheItem cacheItem = ForwardIndexCache.getInstance().getOrCreate(cacheKey, testDocCount);
+        SparseVectorReader reader = cacheItem.getReader();
+        CacheableSparseVectorWriter writer = cacheItem.getWriter();
+
+        // Insert multiple vectors
+        SparseVector vector1 = createVector(1, 2, 3, 4);
+        SparseVector vector2 = createVector(5, 6, 7, 8);
+        writer.insert(0, vector1);
+        writer.insert(1, vector2);
+
+        long initialRam = cacheItem.ramBytesUsed();
+
+        // Erase one vector
+        long bytesFreed = writer.erase(0);
+
+        // Verify only the specified vector was erased
+        assertNull("Vector 0 should be erased", reader.read(0));
+        assertEquals("Vector 1 should still exist", vector2, reader.read(1));
+        assertEquals("Bytes freed should match vector1 size", vector1.ramBytesUsed(), bytesFreed);
+        assertEquals("RAM usage should decrease by vector1 size", initialRam - vector1.ramBytesUsed(), cacheItem.ramBytesUsed());
     }
 
     /**

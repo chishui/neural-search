@@ -9,6 +9,7 @@ import com.google.common.collect.Multimap;
 import lombok.Getter;
 import lombok.Setter;
 import org.opensearch.action.search.SearchRequest;
+import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.ingest.ConfigurationUtils;
@@ -25,6 +26,9 @@ import org.opensearch.search.rescore.RescorerBuilder;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 
 /**
  * A SearchRequestProcessor to generate two-phase NeuralSparseQueryBuilder,
@@ -98,6 +102,7 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
         if (queryBuilderMap.isEmpty()) {
             return request;
         }
+        validateSeismicQuery(request.indices(), queryBuilderMap);
         // Make a nestedQueryBuilder which includes all the two-phase QueryBuilder.
         QueryBuilder nestedTwoPhaseQueryBuilder = getNestedQueryBuilderFromNeuralSparseQueryBuilderMap(queryBuilderMap);
         nestedTwoPhaseQueryBuilder.boost(getOriginQueryWeightAfterRescore(request.source()));
@@ -191,11 +196,27 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
         return twoPhaseRescorer;
     }
 
+    private void validateSeismicQuery(String[] indices, Multimap<NeuralSparseQueryBuilder, Float> queryBuilderMap) {
+        for (String index : indices) {
+            Set<String> sparseAnnFields = SparseFieldUtils.getSparseAnnFields(index);
+            for (Map.Entry<NeuralSparseQueryBuilder, Float> entry : queryBuilderMap.entries()) {
+                NeuralSparseQueryBuilder neuralSparseQueryBuilder = entry.getKey();
+                String fieldName = neuralSparseQueryBuilder.fieldName();
+                if (sparseAnnFields.contains(fieldName)) {
+                    throw new IllegalArgumentException(
+                        String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] field for now", SEISMIC)
+                    );
+                }
+            }
+        }
+    }
+
     /**
      * Factory to create NeuralSparseTwoPhaseProcessor, provide default parameter,
      *
      */
     public static class Factory implements Processor.Factory<SearchRequestProcessor> {
+
         @Override
         public NeuralSparseTwoPhaseProcessor create(
             Map<String, Processor.Factory<SearchRequestProcessor>> processorFactories,

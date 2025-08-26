@@ -70,7 +70,9 @@ public class SparsePostingsProducer extends FieldsProducer {
             return delegate.terms(field);
         }
         CacheKey key = new CacheKey(this.state.segmentInfo, fieldInfo);
-        reader = readerSupplier.get();
+        if (reader == null) {
+            reader = readerSupplier.get();
+        }
         return new SparseTerms(key, reader, field);
     }
 

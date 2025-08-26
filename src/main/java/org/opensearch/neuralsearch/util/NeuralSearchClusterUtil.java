@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.util;
 
+import lombok.Getter;
 import org.opensearch.Version;
 import org.opensearch.cluster.service.ClusterService;
 
@@ -17,9 +18,11 @@ import lombok.extern.log4j.Log4j2;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Log4j2
 public class NeuralSearchClusterUtil {
-    private ClusterService clusterService;
 
     private static NeuralSearchClusterUtil instance;
+
+    @Getter
+    private ClusterService clusterService;
 
     /**
      * Return instance of the cluster context, must be initialized first for proper usage
@@ -47,5 +50,4 @@ public class NeuralSearchClusterUtil {
     public Version getClusterMinVersion() {
         return this.clusterService.state().getNodes().getMinNodeVersion();
     }
-
 }
