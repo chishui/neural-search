@@ -5,13 +5,16 @@
 package org.opensearch.neuralsearch.sparse.query;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import lombok.Builder;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.lucene.search.Query;
@@ -33,7 +36,6 @@ import org.opensearch.index.query.QueryShardContext;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -49,7 +51,6 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 @Setter
 @Accessors(chain = true, fluent = true)
 @NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBuilder> {
     public static final String NAME = "sparse_ann";
@@ -69,11 +70,30 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
     private Float heapFactor;
     private QueryBuilder filter;
     private Query fallbackQuery;
+    @Setter(lombok.AccessLevel.NONE)
     private Map<String, Float> queryTokens;
 
     private static final Version MINIMAL_SUPPORTED_VERSION_DEFAULT_MODEL_ID = Version.V_2_13_0;
     private static final int DEFAULT_TOP_K = 10;
     private static final float DEFAULT_HEAP_FACTOR = 1.0f;
+
+    public SparseAnnQueryBuilder(
+        String fieldName,
+        Integer queryCut,
+        Integer k,
+        Float heapFactor,
+        QueryBuilder filter,
+        Query fallbackQuery,
+        Map<String, Float> queryTokens
+    ) {
+        this.fieldName = fieldName;
+        this.queryCut = queryCut;
+        this.k = k;
+        this.heapFactor = heapFactor;
+        this.filter = filter;
+        this.fallbackQuery = fallbackQuery;
+        this.queryTokens = preprocessQueryTokens(queryTokens);
+    }
 
     /**
      * Constructor from stream input
@@ -87,6 +107,15 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
         this.k = in.readOptionalInt();
         this.heapFactor = in.readOptionalFloat();
         this.filter = in.readOptionalNamedWriteable(QueryBuilder.class);
+    }
+
+    public SparseAnnQueryBuilder queryTokens(Map<String, Float> queryTokens) {
+        this.queryTokens = preprocessQueryTokens(queryTokens);
+        return this;
+    }
+
+    public void setQueryTokens(Map<String, Float> queryTokens) {
+        this.queryTokens = preprocessQueryTokens(queryTokens);
     }
 
     public static SparseAnnQueryBuilder fromXContent(XContentParser parser) throws IOException {
@@ -240,4 +269,21 @@ public class SparseAnnQueryBuilder extends AbstractQueryBuilder<SparseAnnQueryBu
     public String getWriteableName() {
         return NAME;
     }
+
+    private Map<String, Float> preprocessQueryTokens(Map<String, Float> tokens) {
+        if (MapUtils.isEmpty(tokens)) return Collections.emptyMap();
+        Map<Integer, Float> intTokens = new HashMap<>();
+        for (Map.Entry<String, Float> entry : tokens.entrySet()) {
+            int token = Integer.parseInt(entry.getKey());
+            float value = entry.getValue();
+            int tokenHash = SparseVector.prepareTokenForShortType(token);
+            if (intTokens.containsKey(tokenHash)) {
+                intTokens.put(tokenHash, Math.max(intTokens.get(tokenHash), value));
+            } else {
+                intTokens.put(tokenHash, value);
+            }
+        }
+        return intTokens.entrySet().stream().collect(Collectors.toMap(e -> String.valueOf(e.getKey()), Map.Entry::getValue));
+    }
+
 }

@@ -389,7 +389,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
             .fieldName(field)
-            .queryTokensSupplier(() -> query);
+            .queryTokensMapSupplier(() -> query);
         return neuralSparseQueryBuilder;
     }
 

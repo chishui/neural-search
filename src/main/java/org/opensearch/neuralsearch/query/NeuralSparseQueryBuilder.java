@@ -636,6 +636,5 @@ public class NeuralSparseQueryBuilder extends AbstractNeuralQueryBuilder<NeuralS
 
     private boolean isSeismicFieldType(MappedFieldType fieldType) {
         return isSeismicSupported() && Objects.nonNull(fieldType) && SparseTokensFieldType.isSparseTokensType(fieldType.typeName());
-        ;
     }
 }

@@ -9,15 +9,19 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.lucene.search.Query;
 import org.junit.Before;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.common.ParsingException;
+import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.mapper.MappedFieldType;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryShardContext;
+import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 
@@ -155,7 +159,7 @@ public class SparseAnnQueryBuilderTests extends AbstractSparseTestBase {
     }
 
     public void testDoWriteTo_writesCorrectly() throws IOException {
-        org.opensearch.core.common.io.stream.StreamOutput streamOutput = mock(org.opensearch.core.common.io.stream.StreamOutput.class);
+        StreamOutput streamOutput = mock(StreamOutput.class);
 
         queryBuilder.doWriteTo(streamOutput);
 
@@ -206,7 +210,7 @@ public class SparseAnnQueryBuilderTests extends AbstractSparseTestBase {
     }
 
     public void testDoRewrite_returnsNewInstance() {
-        org.opensearch.index.query.TermQueryBuilder filter = new org.opensearch.index.query.TermQueryBuilder("status", "active");
+        TermQueryBuilder filter = new TermQueryBuilder("status", "active");
         queryBuilder.filter(filter);
 
         SparseAnnQueryBuilder rewritten = (SparseAnnQueryBuilder) queryBuilder.doRewrite(null);
@@ -226,14 +230,28 @@ public class SparseAnnQueryBuilderTests extends AbstractSparseTestBase {
         when(fieldType.typeName()).thenReturn(SparseTokensFieldMapper.CONTENT_TYPE);
         when(context.fieldMapper("test_field")).thenReturn(fieldType);
 
-        org.opensearch.index.query.QueryBuilder filter = mock(org.opensearch.index.query.QueryBuilder.class);
-        org.apache.lucene.search.Query filterQuery = mock(org.apache.lucene.search.Query.class);
+        QueryBuilder filter = mock(QueryBuilder.class);
+        Query filterQuery = mock(Query.class);
         when(filter.toQuery(context)).thenReturn(filterQuery);
 
         queryBuilder.filter(filter);
-        queryBuilder.fallbackQuery(mock(org.apache.lucene.search.Query.class));
+        queryBuilder.fallbackQuery(mock(Query.class));
 
         assertNotNull(queryBuilder.doToQuery(context));
         verify(filter).toQuery(context);
+    }
+
+    public void testQueryTokens_SetterCanProcessTokens() {
+        Map<String, Float> queryTokens = Map.of("1", 1.0f, "65537", 2.0f, "2", 100f, "65538", 1.0f);
+        SparseAnnQueryBuilder builder = SparseAnnQueryBuilder.builder().queryTokens(queryTokens).build();
+        Map<String, Float> expectedQueryTokens = Map.of("1", 2.0f, "2", 100f);
+        assertEquals(expectedQueryTokens, builder.queryTokens());
+
+        SparseAnnQueryBuilder builder2 = new SparseAnnQueryBuilder();
+        builder2.setQueryTokens(queryTokens);
+        assertEquals(expectedQueryTokens, builder2.queryTokens());
+
+        SparseAnnQueryBuilder builder3 = new SparseAnnQueryBuilder("name", 3, 10, 1.0f, null, null, queryTokens);
+        assertEquals(expectedQueryTokens, builder3.queryTokens());
     }
 }
