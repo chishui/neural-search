@@ -101,7 +101,8 @@ public class NeuralSparseQueryBuilder extends AbstractNeuralQueryBuilder<NeuralS
 
     private static final Version MINIMAL_SUPPORTED_VERSION_DEFAULT_MODEL_ID = Version.V_2_13_0;
     private static final Version MINIMAL_SUPPORTED_VERSION_ANALYZER = Version.V_3_1_0;
-    private static final Version MINIMAL_SUPPORTED_VERSION_SEISMIC = Version.V_3_3_0;
+    // TODO: update this to 3.3 after version is increased
+    private static final Version MINIMAL_SUPPORTED_VERSION_SEISMIC = Version.V_3_2_0;
 
     /**
      * Constructor from stream input
@@ -356,14 +357,14 @@ public class NeuralSparseQueryBuilder extends AbstractNeuralQueryBuilder<NeuralS
                 sparseEncodingQueryBuilder.queryTokensMapSupplier(() -> queryTokens);
             } else if (METHOD_PARAMETERS_FIELD.match(currentFieldName, parser.getDeprecationHandler())
                 && sparseEncodingQueryBuilder.isSeismicSupported()) {
-                SparseAnnQueryBuilder builder = SparseAnnQueryBuilder.fromXContent(parser);
-                sparseEncodingQueryBuilder.sparseAnnQueryBuilder(builder);
-            } else {
-                throw new ParsingException(
-                    parser.getTokenLocation(),
-                    String.format(Locale.ROOT, "[%s] unknown token [%s] after [%s]", NAME, token, currentFieldName)
-                );
-            }
+                    SparseAnnQueryBuilder builder = SparseAnnQueryBuilder.fromXContent(parser);
+                    sparseEncodingQueryBuilder.sparseAnnQueryBuilder(builder);
+                } else {
+                    throw new ParsingException(
+                        parser.getTokenLocation(),
+                        String.format(Locale.ROOT, "[%s] unknown token [%s] after [%s]", NAME, token, currentFieldName)
+                    );
+                }
         }
     }
 
