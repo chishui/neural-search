@@ -380,8 +380,12 @@ public class NeuralSearch extends Plugin
 
     @Override
     public Map<String, Mapper.TypeParser> getMappers() {
-        return Map.of(SemanticFieldMapper.CONTENT_TYPE, new SemanticFieldMapper.TypeParser(),
-            SparseTokensFieldMapper.CONTENT_TYPE, new SparseTokensFieldMapper.SparseTypeParser());
+        return Map.of(
+            SemanticFieldMapper.CONTENT_TYPE,
+            new SemanticFieldMapper.TypeParser(),
+            SparseTokensFieldMapper.CONTENT_TYPE,
+            new SparseTokensFieldMapper.SparseTypeParser()
+        );
     }
 
     @Override

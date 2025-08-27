@@ -9,6 +9,7 @@ import com.google.common.collect.Multimap;
 import lombok.Getter;
 import lombok.Setter;
 import org.opensearch.action.search.SearchRequest;
+import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
@@ -214,11 +215,11 @@ public class NeuralSparseTwoPhaseProcessor extends AbstractProcessor implements 
         return twoPhaseRescorer;
     }
 
-    private void validateSeismicQuery(String[] indices, Multimap<NeuralSparseQueryBuilder, Float> queryBuilderMap) {
+    private void validateSeismicQuery(String[] indices, Multimap<AbstractNeuralQueryBuilder<?>, Float> queryBuilderMap) {
         for (String index : indices) {
             Set<String> sparseAnnFields = SparseFieldUtils.getSparseAnnFields(index);
-            for (Map.Entry<NeuralSparseQueryBuilder, Float> entry : queryBuilderMap.entries()) {
-                NeuralSparseQueryBuilder neuralSparseQueryBuilder = entry.getKey();
+            for (Map.Entry<AbstractNeuralQueryBuilder<?>, Float> entry : queryBuilderMap.entries()) {
+                NeuralSparseQueryBuilder neuralSparseQueryBuilder = (NeuralSparseQueryBuilder) entry.getKey();
                 String fieldName = neuralSparseQueryBuilder.fieldName();
                 if (sparseAnnFields.contains(fieldName)) {
                     throw new IllegalArgumentException(
