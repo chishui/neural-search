@@ -1030,8 +1030,9 @@ public class NeuralSparseQueryBuilderTests extends OpenSearchTestCase {
 
     @SneakyThrows
     public void testGetQueryTokens_useAnalyzerWithMalformedTokenWeights_thenFail() {
-        NeuralSparseQueryBuilder sparseEncodingQueryBuilder =
-            new NeuralSparseQueryBuilder().fieldName(FIELD_NAME).queryText("hello world").searchAnalyzer("default");
+        NeuralSparseQueryBuilder sparseEncodingQueryBuilder = new NeuralSparseQueryBuilder().fieldName(FIELD_NAME)
+            .queryText("hello world")
+            .searchAnalyzer("default");
 
         QueryShardContext mockedQueryShardContext = mock(QueryShardContext.class);
         Analyzer mockedAnalyzer = new Analyzer() {
@@ -1065,16 +1066,17 @@ public class NeuralSparseQueryBuilderTests extends OpenSearchTestCase {
             }
         };
 
-        IndexAnalyzers mockIndexAnalyzers =
-            new IndexAnalyzers(
-                Map.of("default", new NamedAnalyzer("default", AnalyzerScope.INDEX, mockedAnalyzer)),
-                Collections.emptyMap(),
-                Collections.emptyMap()
-            );
+        IndexAnalyzers mockIndexAnalyzers = new IndexAnalyzers(
+            Map.of("default", new NamedAnalyzer("default", AnalyzerScope.INDEX, mockedAnalyzer)),
+            Collections.emptyMap(),
+            Collections.emptyMap()
+        );
         when(mockedQueryShardContext.getIndexAnalyzers()).thenReturn(mockIndexAnalyzers);
 
-        OpenSearchException exception =
-            assertThrows(OpenSearchException.class, () -> sparseEncodingQueryBuilder.getQueryTokens(mockedQueryShardContext));
+        OpenSearchException exception = assertThrows(
+            OpenSearchException.class,
+            () -> sparseEncodingQueryBuilder.getQueryTokens(mockedQueryShardContext)
+        );
         assertEquals("failed to parse query token weight from analyzer. ", exception.getMessage());
     }
 
