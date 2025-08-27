@@ -19,11 +19,19 @@ public class RamBytesRecorder {
     private BiPredicate<Long, Long> canRecordIncrementChecker;
 
     /**
+     * Default constructor
+     */
+    public RamBytesRecorder() {
+        this.totalBytes = new AtomicLong(0L);
+        this.canRecordIncrementChecker = null;
+    }
+
+    /**
      * Creates recorder with increment validation.
      * @param canRecordIncrementChecker predicate to validate increments (increment, newTotal)
      */
     public RamBytesRecorder(BiPredicate<Long, Long> canRecordIncrementChecker) {
-        totalBytes = new AtomicLong(0L);
+        this.totalBytes = new AtomicLong(0L);
         this.canRecordIncrementChecker = canRecordIncrementChecker;
     }
 
@@ -32,7 +40,7 @@ public class RamBytesRecorder {
      * @param initialBytes starting byte count
      */
     public RamBytesRecorder(long initialBytes) {
-        totalBytes = new AtomicLong(initialBytes);
+        this.totalBytes = new AtomicLong(initialBytes);
         this.canRecordIncrementChecker = null;
     }
 
@@ -41,7 +49,7 @@ public class RamBytesRecorder {
      * @param bytes byte count to add (can be negative)
      * @return true if recorded, false if validation failed
      */
-    synchronized public boolean record(long bytes) {
+    public synchronized boolean record(long bytes) {
         if (canRecordIncrementChecker != null && bytes > 0) {
             if (!canRecordIncrementChecker.test(bytes, totalBytes.get() + bytes)) {
                 return false;
@@ -56,7 +64,7 @@ public class RamBytesRecorder {
      * @param bytes byte count to add
      * @param postAction action to execute after recording
      */
-    synchronized public void safeRecord(long bytes, Consumer<Long> postAction) {
+    public synchronized void safeRecord(long bytes, Consumer<Long> postAction) {
         totalBytes.addAndGet(bytes);
         if (postAction != null) {
             postAction.accept(bytes);

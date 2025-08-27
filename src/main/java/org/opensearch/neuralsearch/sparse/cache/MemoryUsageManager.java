@@ -23,7 +23,7 @@ public class MemoryUsageManager {
     private RamBytesRecorder memoryUsageTracker;
 
     private MemoryUsageManager() {
-        memoryUsageTracker = new RamBytesRecorder(null);
+        memoryUsageTracker = new RamBytesRecorder();
     }
 
     /**
