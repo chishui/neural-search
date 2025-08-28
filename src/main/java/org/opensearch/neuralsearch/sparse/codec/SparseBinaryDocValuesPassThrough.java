@@ -53,10 +53,13 @@ public class SparseBinaryDocValuesPassThrough extends BinaryDocValues implements
 
     @Override
     public SparseVector read(int docId) throws IOException {
-        if (!advanceExact(docId)) {
-            return null;
+        BytesRef bytesRef;
+        synchronized (this) {
+            if (!advanceExact(docId)) {
+                return null;
+            }
+            bytesRef = binaryValue();
         }
-        BytesRef bytesRef = binaryValue();
         if (bytesRef == null) {
             return null;
         }
