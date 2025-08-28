@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 
 import static org.apache.lucene.tests.util.LuceneTestCase.random;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -377,7 +378,7 @@ public class TestsPrepareUtils {
 
         // Create a DocValuesProducer that returns the passThrough
         DocValuesProducer mockProducer = mock(DocValuesProducer.class);
-        when(mockProducer.getBinary(fieldInfo)).thenReturn(passThrough);
+        when(mockProducer.getBinary(any(FieldInfo.class))).thenReturn(passThrough);
 
         DocValuesProducer[] docValuesProducers = new DocValuesProducer[1];
         docValuesProducers[0] = mockProducer;
