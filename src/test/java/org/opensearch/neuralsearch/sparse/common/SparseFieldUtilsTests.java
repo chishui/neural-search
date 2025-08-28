@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.common;
 
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.service.ClusterService;
@@ -28,12 +29,14 @@ public class SparseFieldUtilsTests extends OpenSearchTestCase {
 
     private IndexMetadata indexMetadata;
     private ClusterService clusterService;
+    private IndexNameExpressionResolver indexNameExpressionResolver;
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
         clusterService = mock(ClusterService.class);
-        NeuralSearchClusterUtil.instance().initialize(clusterService);
+        indexNameExpressionResolver = mock(IndexNameExpressionResolver.class);
+        NeuralSearchClusterUtil.instance().initialize(clusterService, indexNameExpressionResolver);
     }
 
     public void testGetSparseAnnFields_whenNullSparseIndex_thenReturnEmptySet() {

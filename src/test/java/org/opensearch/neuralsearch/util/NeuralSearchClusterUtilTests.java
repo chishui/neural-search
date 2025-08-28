@@ -152,9 +152,9 @@ public class NeuralSearchClusterUtilTests extends OpenSearchTestCase {
 
     public void testGetClusterService_thenSuccess() {
         ClusterService clusterService = mockClusterService(Version.V_2_3_0);
-
+        final IndexNameExpressionResolver indexNameExpressionResolver = new IndexNameExpressionResolver(new ThreadContext(Settings.EMPTY));
         final NeuralSearchClusterUtil neuralSearchClusterUtil = NeuralSearchClusterUtil.instance();
-        neuralSearchClusterUtil.initialize(clusterService);
+        neuralSearchClusterUtil.initialize(clusterService, indexNameExpressionResolver);
 
         assertSame(clusterService, neuralSearchClusterUtil.getClusterService());
     }

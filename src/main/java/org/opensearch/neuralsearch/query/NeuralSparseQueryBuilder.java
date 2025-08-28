@@ -31,7 +31,9 @@ import org.opensearch.Version;
 import org.opensearch.neuralsearch.processor.NeuralQueryEnricherProcessor;
 import org.opensearch.neuralsearch.stats.events.EventStatName;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
-import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
+import org.opensearch.ml.common.input.parameter.textembedding.AsymmetricTextEmbeddingParameters;
+import org.opensearch.ml.common.input.parameter.textembedding.SparseEmbeddingFormat;
+import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldType;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.opensearch.transport.client.Client;
 import org.opensearch.common.SetOnce;
@@ -386,9 +388,10 @@ public class NeuralSparseQueryBuilder extends AbstractNeuralQueryBuilder<NeuralS
             return this;
         }
 
+        boolean withTokenId = shouldInferenceWithTokenIdResponse(queryRewriteContext.convertToShardContext());
         validateForRewrite(queryText, modelId);
         SetOnce<Map<String, Float>> queryTokensSetOnce = new SetOnce<>();
-        queryRewriteContext.registerAsyncAction(getModelInferenceAsync(queryTokensSetOnce));
+        queryRewriteContext.registerAsyncAction(getModelInferenceAsync(queryTokensSetOnce, withTokenId));
         return new NeuralSparseQueryBuilder().fieldName(fieldName)
             .queryText(queryText)
             .modelId(modelId)
@@ -426,14 +429,26 @@ public class NeuralSparseQueryBuilder extends AbstractNeuralQueryBuilder<NeuralS
         return false;
     }
 
-    private BiConsumer<Client, ActionListener<?>> getModelInferenceAsync(SetOnce<Map<String, Float>> setOnce) {
+    private boolean shouldInferenceWithTokenIdResponse(QueryShardContext queryShardContext) {
+        if (queryShardContext == null) {
+            return false;
+        }
+        MappedFieldType fieldType = queryShardContext.fieldMapper(fieldName);
+        return isSeismicFieldType(fieldType);
+    }
+
+    private BiConsumer<Client, ActionListener<?>> getModelInferenceAsync(SetOnce<Map<String, Float>> setOnce, boolean withTokenId) {
         // When Two-phase shared query tokens is null,
         // it set queryTokensSupplier to the inference result which has all query tokens with score.
         // When Two-phase shared query tokens exist,
         // it splits the tokens using a threshold defined by a ratio of the maximum score of tokens, updating the token set
         // accordingly.
+        final AsymmetricTextEmbeddingParameters parameters = withTokenId
+            ? AsymmetricTextEmbeddingParameters.builder().sparseEmbeddingFormat(SparseEmbeddingFormat.TOKEN_ID).build()
+            : null;
         return ((client, actionListener) -> ML_CLIENT.inferenceSentencesWithMapResult(
             TextInferenceRequest.builder().modelId(modelId()).inputTexts(List.of(queryText)).build(),
+            parameters,
             ActionListener.wrap(mapResultList -> {
                 Map<String, Float> queryTokens = TokenWeightUtil.fetchListOfTokenWeightMap(mapResultList).get(0);
                 if (isSparseTwoPhaseOne()) {
@@ -620,6 +635,6 @@ public class NeuralSparseQueryBuilder extends AbstractNeuralQueryBuilder<NeuralS
     }
 
     private boolean isSeismicFieldType(MappedFieldType fieldType) {
-        return isSeismicSupported() && Objects.nonNull(fieldType) && SparseTokensFieldMapper.CONTENT_TYPE.equals(fieldType.typeName());
+        return isSeismicSupported() && Objects.nonNull(fieldType) && SparseTokensFieldType.isSparseTokensType(fieldType.typeName());
     }
 }
