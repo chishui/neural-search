@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.stats.metrics;
 
 import lombok.Getter;
 import org.apache.commons.lang.StringUtils;
+import org.opensearch.Version;
 import org.opensearch.neuralsearch.stats.common.StatName;
 
 import java.util.Arrays;
@@ -18,15 +19,16 @@ import java.util.stream.Collectors;
  */
 @Getter
 public enum MetricStatName implements StatName {
-    MEMORY_SPARSE_MEMORY_USAGE("sparse_memory_usage", "memory.sparse", MetricStatType.MEMORY),
-    MEMORY_SPARSE_MEMORY_USAGE_PERCENTAGE("sparse_memory_usage_percentage", "memory.sparse", MetricStatType.MEMORY),
-    MEMORY_SPARSE_FORWARD_INDEX_USAGE("forward_index_usage", "memory.sparse", MetricStatType.MEMORY),
-    MEMORY_SPARSE_CLUSTERED_POSTING_USAGE("clustered_posting_usage", "memory.sparse", MetricStatType.MEMORY);
+    MEMORY_SPARSE_MEMORY_USAGE("sparse_memory_usage", "memory.sparse", MetricStatType.MEMORY, Version.V_3_3_0),
+    MEMORY_SPARSE_MEMORY_USAGE_PERCENTAGE("sparse_memory_usage_percentage", "memory.sparse", MetricStatType.MEMORY, Version.V_3_3_0),
+    MEMORY_SPARSE_FORWARD_INDEX_USAGE("forward_index_usage", "memory.sparse", MetricStatType.MEMORY, Version.V_3_3_0),
+    MEMORY_SPARSE_CLUSTERED_POSTING_USAGE("clustered_posting_usage", "memory.sparse", MetricStatType.MEMORY, Version.V_3_3_0);
 
     private final String nameString;
     private final String path;
     private final MetricStatType statType;
     private MetricStat metricStat;
+    private final Version version;
 
     /**
      * Enum lookup table by nameString
@@ -40,10 +42,11 @@ public enum MetricStatName implements StatName {
      * @param path the unique path of the stat
      * @param statType the category of stat
      */
-    MetricStatName(String nameString, String path, MetricStatType statType) {
+    MetricStatName(String nameString, String path, MetricStatType statType, Version version) {
         this.nameString = nameString;
         this.path = path;
         this.statType = statType;
+        this.version = version;
 
         switch (statType) {
             case MetricStatType.MEMORY:
@@ -78,6 +81,15 @@ public enum MetricStatName implements StatName {
     }
 
     /**
+     * Determines whether a given string is a valid stat name
+     * @param name metric name
+     * @return whether the name is valid
+     */
+    public static boolean isValidName(String name) {
+        return BY_NAME.containsKey(name);
+    }
+
+    /**
      * Gets the full dot notation path of the stat, defining its location in the response body
      * @return the destination dot notation path of the stat value
      */
@@ -86,6 +98,11 @@ public enum MetricStatName implements StatName {
             return nameString;
         }
         return String.join(".", path, nameString);
+    }
+
+    @Override
+    public Version version() {
+        return this.version;
     }
 
     @Override
