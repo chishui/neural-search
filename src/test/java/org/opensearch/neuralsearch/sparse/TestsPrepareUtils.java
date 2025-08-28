@@ -50,6 +50,8 @@ import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensField;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -584,16 +586,12 @@ public class TestsPrepareUtils {
     public static BytesRef prepareValidSparseVectorBytes() {
         // Create a valid sparse vector BytesRef with token "1" -> 0.5f
         try {
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
 
             // Write one token-value pair: "1" -> 0.5f
-            String token = "1";
-            byte[] tokenBytes = token.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            dos.writeInt(tokenBytes.length);
-            dos.write(tokenBytes);
+            dos.writeInt(1);
             dos.writeFloat(0.5f);
-
             dos.close();
             return new BytesRef(baos.toByteArray());
         } catch (Exception e) {

@@ -37,7 +37,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     private MLCommonsClientAccessor clientAccessor;
     private Environment environment;
 
-    private ClusterService clusterService = mock(ClusterService.class, RETURNS_DEEP_STUBS);
+    private final ClusterService mockClusterService = mock(ClusterService.class, RETURNS_DEEP_STUBS);
 
     private static final String TAG = "tag";
     private static final String TYPE = "type";
@@ -186,7 +186,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
         List<List<String>> allInferenceInputs = new ArrayList<>();
 
         public TestInferenceProcessor(List<?> vectors, int batchSize, Exception exception) {
-            super(TAG, DESCRIPTION, batchSize, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, clusterService);
+            super(TAG, DESCRIPTION, batchSize, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, mockClusterService);
             this.vectors = vectors;
             this.exception = exception;
         }
