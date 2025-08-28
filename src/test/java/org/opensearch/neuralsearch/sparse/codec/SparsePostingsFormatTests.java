@@ -6,6 +6,7 @@ package org.opensearch.neuralsearch.sparse.codec;
 
 import lombok.SneakyThrows;
 import org.apache.lucene.codecs.FieldsConsumer;
+import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
@@ -68,6 +69,32 @@ public class SparsePostingsFormatTests extends AbstractSparseTestBase {
 
         // Execute & Verify
         IOException exception = expectThrows(IOException.class, () -> { this.sparsePostingsFormat.fieldsConsumer(mockWriteState); });
+        assertEquals("Test exception", exception.getMessage());
+    }
+
+    @SneakyThrows
+    public void testFieldsProducer() {
+        // Setup
+        FieldsProducer mockDelegateProducer = mock(FieldsProducer.class);
+        when(mockDelegate.fieldsProducer(mockReadState)).thenReturn(mockDelegateProducer);
+
+        // Execute
+        FieldsProducer result = this.sparsePostingsFormat.fieldsProducer(mockReadState);
+
+        // Verify
+        assertNotNull(result);
+        assertTrue(result instanceof SparsePostingsProducer);
+        verify(mockDelegate).fieldsProducer(mockReadState);
+    }
+
+    @SneakyThrows
+    public void testFieldsProducerIOException() {
+        // Setup
+        IOException expectedException = new IOException("Test exception");
+        when(mockDelegate.fieldsProducer(mockReadState)).thenThrow(expectedException);
+
+        // Execute & Verify
+        IOException exception = expectThrows(IOException.class, () -> { this.sparsePostingsFormat.fieldsProducer(mockReadState); });
         assertEquals("Test exception", exception.getMessage());
     }
 }

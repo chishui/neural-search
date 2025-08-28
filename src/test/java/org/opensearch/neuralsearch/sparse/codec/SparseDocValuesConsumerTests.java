@@ -24,8 +24,10 @@ import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -58,8 +60,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         // Setup sparse field
         sparseFieldInfo = mock(FieldInfo.class);
         Map<String, String> sparseAttributes = new HashMap<>();
-        sparseAttributes.put(SPARSE_FIELD, "true");
-        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, "50");
+        sparseAttributes.put(SPARSE_FIELD, String.valueOf(true));
+        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(50));
         when(sparseFieldInfo.attributes()).thenReturn(sparseAttributes);
         when(sparseFieldInfo.getDocValuesType()).thenReturn(DocValuesType.BINARY);
 
@@ -175,30 +177,45 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
 
     @SneakyThrows
     public void testMerge_WithSparseField() {
-        MergeState mergeState = mock(MergeState.class);
-        FieldInfos mergeFieldInfos = mock(FieldInfos.class);
-        when(mergeFieldInfos.iterator()).thenReturn(java.util.Arrays.asList(sparseFieldInfo).iterator());
-        mergeState.mergeFieldInfos = mergeFieldInfos;
+        FieldInfo mergeFieldInfo = TestsPrepareUtils.prepareKeyFieldInfo();
+        mergeFieldInfo.putAttribute(SPARSE_FIELD, String.valueOf(true));
+        mergeFieldInfo.putAttribute(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(10));
 
-        // Mock SparseDocValuesReader
-        SparseDocValuesReader reader = mock(SparseDocValuesReader.class);
-        SparseBinaryDocValues sparseBinaryDocValues = mock(SparseBinaryDocValues.class);
-        when(sparseBinaryDocValues.nextDoc()).thenReturn(0, SparseBinaryDocValues.NO_MORE_DOCS);
-        when(sparseBinaryDocValues.cachedSparseVector()).thenReturn(createVector(1, 2, 3, 4));
-        when(reader.getBinary(sparseFieldInfo)).thenReturn(sparseBinaryDocValues);
-        when(reader.getMergeState()).thenReturn(mergeState);
+        MergeState mergeState = TestsPrepareUtils.prepareMergeStateWithMockedBinaryDocValues(true, false);
 
-        // Use reflection or create a custom consumer to test merge
+        // Need a second binary doc values object because getLiveDocsCount consumes the pointer
+        SparseBinaryDocValuesPassThrough sparseBinaryDocValues1 = mock(SparseBinaryDocValuesPassThrough.class);
+        when(sparseBinaryDocValues1.docID()).thenReturn(-1);
+        when(sparseBinaryDocValues1.nextDoc()).thenReturn(0, SparseBinaryDocValues.NO_MORE_DOCS);
+        when(sparseBinaryDocValues1.getSegmentInfo()).thenReturn(segmentInfo);
+
+        SparseBinaryDocValues sparseBinaryDocValues2 = mock(SparseBinaryDocValues.class);
+        when(sparseBinaryDocValues2.docID()).thenReturn(-1);
+        when(sparseBinaryDocValues2.nextDoc()).thenReturn(0, SparseBinaryDocValues.NO_MORE_DOCS);
+
+        // write cached vector
+        SparseVector vector = createVector(1, 2, 3, 4);
+        cacheKey = new CacheKey(segmentInfo, mergeFieldInfo);
+        ForwardIndexCacheItem index = ForwardIndexCache.getInstance().getOrCreate(cacheKey, 10);
+        index.getWriter().insert(0, vector);
+
+        when(docValuesProducer.getBinary(any(FieldInfo.class))).thenReturn(sparseBinaryDocValues1, sparseBinaryDocValues2);
+
+        mergeState.mergeFieldInfos = new FieldInfos(new FieldInfo[] { mergeFieldInfo });
+        mergeState.docValuesProducers[0] = docValuesProducer;
+
         sparseDocValuesConsumer.merge(mergeState);
 
+        // verify cache is written
         verify(delegate, times(1)).merge(mergeState);
+        assertEquals(vector, index.getReader().read(0));
     }
 
     @SneakyThrows
     public void testMerge_WithNonSparseField() {
         MergeState mergeState = mock(MergeState.class);
         FieldInfos mergeFieldInfos = mock(FieldInfos.class);
-        when(mergeFieldInfos.iterator()).thenReturn(java.util.Arrays.asList(nonSparseFieldInfo).iterator());
+        when(mergeFieldInfos.iterator()).thenReturn(List.of(nonSparseFieldInfo).iterator());
         mergeState.mergeFieldInfos = mergeFieldInfos;
 
         sparseDocValuesConsumer.merge(mergeState);
@@ -300,7 +317,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         // Create MergeState with sparse field
         MergeState mergeState = mock(MergeState.class);
         FieldInfos mergeFieldInfos = mock(FieldInfos.class);
-        when(mergeFieldInfos.iterator()).thenReturn(java.util.Arrays.asList(sparseFieldInfo).iterator());
+        when(mergeFieldInfos.iterator()).thenReturn(List.of(sparseFieldInfo).iterator());
         mergeState.mergeFieldInfos = mergeFieldInfos;
 
         // This will trigger the merge logic with sparse field processing
