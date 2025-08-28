@@ -230,40 +230,34 @@ public class RestNeuralStatsAction extends BaseRestHandler {
 
         String[] stats = optionalStats.get();
         Set<String> invalidStatNames = new HashSet<>();
-        boolean includeEvents = neuralStatsInput.isIncludeEvents();
+        boolean includeEventsAndMetrics = neuralStatsInput.includeEventsAndMetrics();
         boolean includeInfo = neuralStatsInput.isIncludeInfo();
 
         for (String stat : stats) {
             // Validate parameter
             String normalizedStat = stat.toLowerCase(Locale.ROOT);
-            if (isValidParamString(normalizedStat) == false || isValidEventOrInfoStatName(normalizedStat) == false) {
+            if (!isValidParamString(normalizedStat) || !isValidEventOrInfoStatName(normalizedStat)) {
                 invalidStatNames.add(normalizedStat);
                 continue;
             }
-            // TODO: update by @yuyezhu
-            // <<<<<<< HEAD
-            // if (includeInfo && InfoStatName.isValidName(normalizedStat)) {
-            // InfoStatName infoStatName = InfoStatName.from(normalizedStat);
-            // if (infoStatName.version().onOrBefore(minClusterVersion)) {
-            // neuralStatsInput.getInfoStatNames().add(InfoStatName.from(normalizedStat));
-            // }
-            // } else if (includeEvents && EventStatName.isValidName(normalizedStat)) {
-            // EventStatName eventStatName = EventStatName.from(normalizedStat);
-            // if (eventStatName.version().onOrBefore(minClusterVersion)) {
-            // neuralStatsInput.getEventStatNames().add(EventStatName.from(normalizedStat));
-            // }
-            // =======
-            // if (EVENT_STAT_NAMES.contains(normalizedStat)) {
-            // neuralStatsInput.getEventStatNames().add(EventStatName.from(normalizedStat));
-            // statAdded = true;
-            // } else if (STATE_STAT_NAMES.contains(normalizedStat)) {
-            // neuralStatsInput.getInfoStatNames().add(InfoStatName.from(normalizedStat));
-            // statAdded = true;
-            // } else if (METRIC_STAT_NAMES.contains(normalizedStat)) {
-            // neuralStatsInput.getMetricStatNames().add(MetricStatName.from(normalizedStat));
-            // statAdded = true;
-            // >>>>>>> 4e21ecfb (Add FieldMapper for sparse tokens (#10))
-            // }
+            if (includeInfo && InfoStatName.isValidName(normalizedStat)) {
+                InfoStatName infoStatName = InfoStatName.from(normalizedStat);
+                if (infoStatName.version().onOrBefore(minClusterVersion)) {
+                    neuralStatsInput.getInfoStatNames().add(InfoStatName.from(normalizedStat));
+                }
+            } else if (includeEventsAndMetrics) {
+                if (EventStatName.isValidName(normalizedStat)) {
+                    EventStatName eventStatName = EventStatName.from(normalizedStat);
+                    if (eventStatName.version().onOrBefore(minClusterVersion)) {
+                        neuralStatsInput.getEventStatNames().add(EventStatName.from(normalizedStat));
+                    }
+                } else if (MetricStatName.isValidName(normalizedStat)) {
+                    MetricStatName metricStatName = MetricStatName.from(normalizedStat);
+                    if (metricStatName.version().onOrBefore(minClusterVersion)) {
+                        neuralStatsInput.getMetricStatNames().add(MetricStatName.from(normalizedStat));
+                    }
+                }
+            }
         }
 
         // When we reach this block, we must have added at least one stat to the input, or else invalid stats will be
@@ -275,44 +269,43 @@ public class RestNeuralStatsAction extends BaseRestHandler {
         }
     }
 
-    // TODO: update by @yuyezhu
-    // <<<<<<< HEAD
-    // private void addAllStats(NeuralStatsInput neuralStatsInput, Version minVersion) {
-    // if (minVersion == Version.CURRENT) {
-    // if (neuralStatsInput.isIncludeInfo()) {
-    // neuralStatsInput.getInfoStatNames().addAll(EnumSet.allOf(InfoStatName.class));
-    // }
-    // if (neuralStatsInput.isIncludeEvents()) {
-    // neuralStatsInput.getEventStatNames().addAll(EnumSet.allOf(EventStatName.class));
-    // }
-    // } else {
-    // // Use a separate case here to save on version comparison if not necessary
-    // if (neuralStatsInput.isIncludeInfo()) {
-    // neuralStatsInput.getInfoStatNames()
-    // .addAll(
-    // EnumSet.allOf(InfoStatName.class)
-    // .stream()
-    // .filter(statName -> statName.version().onOrBefore(minVersion))
-    // .collect(Collectors.toCollection(() -> EnumSet.noneOf(InfoStatName.class)))
-    // );
-    // }
-    // if (neuralStatsInput.isIncludeEvents()) {
-    // neuralStatsInput.getEventStatNames()
-    // .addAll(
-    // EnumSet.allOf(EventStatName.class)
-    // .stream()
-    // .filter(statName -> statName.version().onOrBefore(minVersion))
-    // .collect(Collectors.toCollection(() -> EnumSet.noneOf(EventStatName.class)))
-    // );
-    // }
-    // }
-    // =======
-    // private void addAllStats(NeuralStatsInput neuralStatsInput) {
-    // neuralStatsInput.getEventStatNames().addAll(EnumSet.allOf(EventStatName.class));
-    // neuralStatsInput.getInfoStatNames().addAll(EnumSet.allOf(InfoStatName.class));
-    // neuralStatsInput.getMetricStatNames().addAll(EnumSet.allOf(MetricStatName.class));
-    // >>>>>>> 4e21ecfb (Add FieldMapper for sparse tokens (#10))
-    // }
+    private void addAllStats(NeuralStatsInput neuralStatsInput, Version minVersion) {
+        if (minVersion == Version.CURRENT) {
+            if (neuralStatsInput.isIncludeInfo()) {
+                neuralStatsInput.getInfoStatNames().addAll(EnumSet.allOf(InfoStatName.class));
+            }
+            if (neuralStatsInput.includeEventsAndMetrics()) {
+                neuralStatsInput.getEventStatNames().addAll(EnumSet.allOf(EventStatName.class));
+                neuralStatsInput.getMetricStatNames().addAll(EnumSet.allOf(MetricStatName.class));
+            }
+        } else {
+            if (neuralStatsInput.isIncludeInfo()) {
+                neuralStatsInput.getInfoStatNames()
+                    .addAll(
+                        EnumSet.allOf(InfoStatName.class)
+                            .stream()
+                            .filter(statName -> statName.version().onOrBefore(minVersion))
+                            .collect(Collectors.toCollection(() -> EnumSet.noneOf(InfoStatName.class)))
+                    );
+            }
+            if (neuralStatsInput.includeEventsAndMetrics()) {
+                neuralStatsInput.getEventStatNames()
+                    .addAll(
+                        EnumSet.allOf(EventStatName.class)
+                            .stream()
+                            .filter(statName -> statName.version().onOrBefore(minVersion))
+                            .collect(Collectors.toCollection(() -> EnumSet.noneOf(EventStatName.class)))
+                    );
+                neuralStatsInput.getMetricStatNames()
+                    .addAll(
+                        EnumSet.allOf(MetricStatName.class)
+                            .stream()
+                            .filter(statName -> statName.version().onOrBefore(minVersion))
+                            .collect(Collectors.toCollection(() -> EnumSet.noneOf(MetricStatName.class)))
+                    );
+            }
+        }
+    }
 
     private Optional<String[]> splitCommaSeparatedParam(RestRequest request, String paramName) {
         return Optional.ofNullable(request.param(paramName)).map(s -> s.split(","));
