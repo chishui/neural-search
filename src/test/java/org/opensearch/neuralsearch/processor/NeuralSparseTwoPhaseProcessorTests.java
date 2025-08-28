@@ -294,7 +294,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
         SearchRequest processedRequest = processor.processRequest(searchRequest);
         assertNotNull(processedRequest);
         NeuralSparseQueryBuilder queryBuilder = (NeuralSparseQueryBuilder) processedRequest.source().query();
-        assertEquals(queryBuilder.twoPhasePruneRatio(), 0.5f, 1e-3);
+        assertEquals(queryBuilder.getNeuralSparseQueryTwoPhaseInfo().getTwoPhasePruneRatio(), 0.5f, 1e-3);
         assertNotNull(processedRequest.source().rescores());
     }
 

@@ -20,9 +20,11 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 import static org.opensearch.neuralsearch.util.TestUtils.createRandomTokenWeightMap;
@@ -38,6 +40,7 @@ public class SparseIndexingIT extends SparseBaseIT {
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final List<String> TEST_TOKENS = List.of("hello", "world", "test", "sparse", "index");
+    private static final String PIPELINE_NAME = "seismic_test_pipeline";
 
     @Before
     public void setUp() throws Exception {
@@ -643,6 +646,40 @@ public class SparseIndexingIT extends SparseBaseIT {
         Exception exception = assertThrows(Exception.class, () -> search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
         assert (exception.getMessage()
             .contains(String.format(Locale.ROOT, "Two phase search processor is not compatible with [%s] field for now", SEISMIC)));
+    }
+
+    public void testSeismicWithModelInferencing() throws Exception {
+        String modelId = prepareSparseEncodingModel();
+        String sparseFieldName = "title_sparse"; // configured in SparseEncodingPipelineConfiguration.json
+        createPipelineProcessor(modelId, PIPELINE_NAME, ProcessorType.SPARSE_ENCODING);
+        createSparseIndex(TEST_INDEX_NAME, sparseFieldName, 4, 0.4f, 0.5f, 8);
+        String payload = prepareSparseBulkIngestPayload(
+            TEST_INDEX_NAME,
+            "title",
+            null,
+            List.of(),
+            List.of("one", "two", "three", "four", "five", "six", "seven", "eight", "night", "ten"),
+            1
+        );
+        bulkIngest(payload, PIPELINE_NAME);
+        forceMerge(TEST_INDEX_NAME);
+        waitForSegmentMerge(TEST_INDEX_NAME);
+
+        assertEquals(10, getDocCount(TEST_INDEX_NAME));
+
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            sparseFieldName,
+            2,
+            1.0f,
+            9,
+            Map.of("67564", 0.1f, "2048", 0.3f), // one -> 2028, two -> 2048, 67564 % 65535 = 2028
+            null
+        );
+        Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+        assertNotNull(searchResults);
+        assertEquals(2, getHitCount(searchResults));
+        Set<String> actualIds = new HashSet<>(getDocIDs(searchResults));
+        assertEquals(Set.of("1", "2"), actualIds);
     }
 
     private List<String> getDocIDs(Map<String, Object> searchResults) {

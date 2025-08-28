@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse;
 
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.junit.Before;
@@ -319,6 +320,36 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         ingestDocuments(index, textField, sparseField, docTokens, text, startingId, null);
     }
 
+    protected String prepareSparseBulkIngestPayload(
+        String index,
+        String textField,
+        String sparseField,
+        List<Map<String, Float>> docTokens,
+        List<String> docTexts,
+        int startingId
+    ) {
+        StringBuilder payloadBuilder = new StringBuilder();
+        int size = (StringUtils.isEmpty(sparseField) && docTokens.isEmpty()) ? docTexts.size() : docTokens.size();
+        for (int i = 0; i < size; i++) {
+            payloadBuilder.append(
+                String.format(Locale.ROOT, "{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i)
+            );
+            payloadBuilder.append(System.lineSeparator());
+            String text = CollectionUtils.isEmpty(docTexts) ? "text" : docTexts.get(i);
+            if (StringUtils.isEmpty(sparseField)) {
+                payloadBuilder.append(String.format(Locale.ROOT, "{\"%s\": \"%s\"}", textField, text));
+            } else {
+                Map<String, Float> docToken = docTokens.get(i);
+                String strTokens = convertTokensToText(docToken);
+                payloadBuilder.append(
+                    String.format(Locale.ROOT, "{\"%s\": \"%s\", \"%s\": {%s}}", textField, text, sparseField, strTokens)
+                );
+            }
+            payloadBuilder.append(System.lineSeparator());
+        }
+        return payloadBuilder.toString();
+    }
+
     protected void ingestDocuments(
         String index,
         String textField,
@@ -328,19 +359,8 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         int startingId,
         String routing
     ) {
-        StringBuilder payloadBuilder = new StringBuilder();
-        for (int i = 0; i < docTokens.size(); i++) {
-            Map<String, Float> docToken = docTokens.get(i);
-            payloadBuilder.append(
-                String.format(Locale.ROOT, "{ \"index\": { \"_index\": \"%s\", \"_id\": \"%d\"} }", index, startingId + i)
-            );
-            payloadBuilder.append(System.lineSeparator());
-            String strTokens = convertTokensToText(docToken);
-            String text = CollectionUtils.isEmpty(docTexts) ? "text" : docTexts.get(i);
-            payloadBuilder.append(String.format(Locale.ROOT, "{\"%s\": \"%s\", \"%s\": {%s}}", textField, text, sparseField, strTokens));
-            payloadBuilder.append(System.lineSeparator());
-        }
-        bulkIngest(payloadBuilder.toString(), null, routing);
+        String payload = prepareSparseBulkIngestPayload(index, textField, sparseField, docTokens, docTexts, startingId);
+        bulkIngest(payload, null, routing);
     }
 
     /**
@@ -389,7 +409,7 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
 
         NeuralSparseQueryBuilder neuralSparseQueryBuilder = new NeuralSparseQueryBuilder().sparseAnnQueryBuilder(annQueryBuilder)
             .fieldName(field)
-            .queryTokensSupplier(() -> query);
+            .queryTokensMapSupplier(() -> query);
         return neuralSparseQueryBuilder;
     }
 

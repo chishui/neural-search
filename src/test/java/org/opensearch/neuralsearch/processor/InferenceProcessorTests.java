@@ -201,7 +201,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
         List<List<String>> allInferenceInputs = new ArrayList<>();
 
         public TestInferenceProcessor(List<?> vectors, int batchSize, Exception exception) {
-            super(TAG, DESCRIPTION, batchSize, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, clusterService);
+            super(TAG, DESCRIPTION, batchSize, TYPE, MAP_KEY, MODEL_ID, FIELD_MAP, clientAccessor, environment, mockClusterService);
             this.vectors = vectors;
             this.exception = exception;
         }
