@@ -168,5 +168,4 @@ public class SparsePostingsReaderTests extends AbstractSparseTestBase {
         verify(mockSparseTermsWriter, times(1)).writeTermsSize(1L);
         verify(mockExecutor, never()).execute(any(Runnable.class));
     }
-
 }

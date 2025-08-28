@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 
 import static org.apache.lucene.tests.util.LuceneTestCase.random;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
