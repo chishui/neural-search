@@ -214,6 +214,7 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
     public void testMerge_WithSparseField() {
         sparseDocValuesConsumer.merge(mergeState);
 
+        // verify cache is written
         verify(delegate, times(1)).merge(mergeState);
         verify(binaryDocValues).cachedSparseVector();
     }
