@@ -31,6 +31,7 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.util.NeuralSearchClusterTestUtils.setUpClusterService;
@@ -242,6 +243,7 @@ public class NeuralSparseTwoPhaseProcessorTests extends OpenSearchTestCase {
 
         when(neuralQueryBuilder.isTargetSparseEmbedding(searchRequest)).thenReturn(true);
         when(neuralQueryBuilder.prepareTwoPhaseQuery(eq(0.5f), eq(PruneType.MAX_RATIO))).thenReturn(copy);
+        when(copy.boost(anyFloat())).thenReturn(copy);
 
         processor.processRequest(searchRequest);
 
