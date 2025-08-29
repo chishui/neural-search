@@ -24,7 +24,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
 
     /**
      * Map to track access with LRU ordering
-     * We use Map instead of set because only linked hash map supports tracking the access order ot tiems
+     * We use Map instead of set because only linked hash map supports tracking the access order of items
      */
     protected final Map<Key, Boolean> accessRecencyMap;
 
@@ -62,7 +62,10 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
 
     /**
      * Evicts least recently used items from cache until the specified amount of RAM has been freed.
+<<<<<<< HEAD
      * For thread safety, please use synchronized when calling this method
+=======
+>>>>>>> 0c0f74dc (Seismic: cache basic classes (#1524))
      *
      * @param ramBytesToRelease Number of bytes to evict
      */
@@ -73,6 +76,7 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
 
         long ramBytesReleased = 0;
 
+<<<<<<< HEAD
         // Continue evicting until we've freed enough memory or the cache is empty
         while (ramBytesReleased < ramBytesToRelease) {
             // Get the least recently used item
@@ -85,6 +89,23 @@ public abstract class AbstractLruCache<Key extends LruCacheKey> {
 
             // Evict the item and track bytes freed
             ramBytesReleased += evictItem(leastRecentlyUsedKey);
+=======
+        // Synchronizing the access recency map for thread safety
+        synchronized (accessRecencyMap) {
+            // Continue evicting until we've freed enough memory or the cache is empty
+            while (ramBytesReleased < ramBytesToRelease) {
+                // Get the least recently used item
+                Key leastRecentlyUsedKey = getLeastRecentlyUsedItem();
+
+                if (leastRecentlyUsedKey == null) {
+                    // Cache is empty, nothing more to evict
+                    break;
+                }
+
+                // Evict the item and track bytes freed
+                ramBytesReleased += evictItem(leastRecentlyUsedKey);
+            }
+>>>>>>> 0c0f74dc (Seismic: cache basic classes (#1524))
         }
 
         log.debug("Freed {} bytes of memory", ramBytesReleased);

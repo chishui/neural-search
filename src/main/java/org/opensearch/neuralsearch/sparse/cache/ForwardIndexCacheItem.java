@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Consumer;
 
 /**
- * This class is used to store/read sparse vector in cache
+ * This class stores sparse vector in cache and provides read/write operations.
  */
 @Log4j2
 public class ForwardIndexCacheItem extends AccountableTracker implements SparseVectorForwardIndex {
@@ -54,7 +54,7 @@ public class ForwardIndexCacheItem extends AccountableTracker implements SparseV
     private class CacheSparseVectorReader implements SparseVectorReader {
         @Override
         public SparseVector read(int docId) throws IOException {
-            if (docId >= sparseVectors.length()) {
+            if (docId < 0 || docId >= sparseVectors.length()) {
                 return null;
             }
             SparseVector vector = sparseVectors.get(docId);
@@ -73,11 +73,7 @@ public class ForwardIndexCacheItem extends AccountableTracker implements SparseV
 
         // Default handler: perform cache eviction when memory limit is reached
         private CacheSparseVectorWriter() {
-            this.circuitBreakerTriggerHandler = (ramBytesUsed) -> {
-                synchronized (LruDocumentCache.getInstance()) {
-                    LruDocumentCache.getInstance().evict(ramBytesUsed);
-                }
-            };
+            this.circuitBreakerTriggerHandler = (ramBytesUsed) -> { LruDocumentCache.getInstance().evict(ramBytesUsed); };
         }
 
         private CacheSparseVectorWriter(Consumer<Long> circuitBreakerTriggerHandler) {
@@ -86,7 +82,7 @@ public class ForwardIndexCacheItem extends AccountableTracker implements SparseV
 
         @Override
         public void insert(int docId, SparseVector vector) {
-            if (vector == null || docId >= sparseVectors.length() || sparseVectors.get(docId) != null) {
+            if (vector == null || docId < 0 || docId >= sparseVectors.length() || sparseVectors.get(docId) != null) {
                 return;
             }
 
@@ -110,6 +106,8 @@ public class ForwardIndexCacheItem extends AccountableTracker implements SparseV
             // Only update memory usage if we actually inserted a new document
             if (sparseVectors.compareAndSet(docId, null, vector)) {
                 recordUsedBytes(ramBytesUsed);
+            } else {
+                globalRamBytes.safeRecord(-ramBytesUsed, CircuitBreakerManager::addWithoutBreaking);
             }
         }
 
@@ -121,7 +119,7 @@ public class ForwardIndexCacheItem extends AccountableTracker implements SparseV
          */
         @Override
         public long erase(int docId) {
-            if (docId >= sparseVectors.length()) {
+            if (docId < 0 || docId >= sparseVectors.length()) {
                 return 0;
             }
 

@@ -8,6 +8,8 @@ import lombok.SneakyThrows;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.junit.Before;
+import org.opensearch.core.common.breaker.CircuitBreaker;
+import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.accessor.ClusteredPostingReader;
@@ -24,6 +26,9 @@ import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -138,6 +143,24 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
 
         assertEquals("Cache should be empty", 0, reader.size());
         assertEquals("RAM usage should not change", initialRam, cacheItem.ramBytesUsed());
+    }
+
+    /**
+     * Tests that cluster insertion fails gracefully when the circuit breaker throws an exception.
+     * This verifies the error handling in the ClusteredPostingWriter.
+     */
+    @SneakyThrows
+    public void test_writerInsert_whenCircuitBreakerThrowException() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        ClusteredPostingWriter writer = cacheItem.getWriter();
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should be empty when circuit breaker trips", 0, reader.size());
+        assertNull("Term should not exist when circuit breaker trips", reader.read(testTerm));
     }
 
     /**
@@ -343,6 +366,62 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
         assertNull("Term should not exist when record fails", reader.read(testTerm));
         verify(mockHandler).accept(anyLong());
         verify(globalRecorder, times(2)).record(anyLong());
+    }
+    
+    /**
+     * Tests that circuitBreakerHandler is called when circuit breaker trips.
+     * This verifies the circuit breaker handler functionality.
+     */
+    @SneakyThrows
+    public void test_writerInsert_withCircuitBreakerHandler_whenCircuitBreakerTrips() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        ClusteredPostingWriter writer = cacheItem.getWriter(mockHandler);
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should be empty when circuit breaker trips", 0, reader.size());
+        assertNull("Term should not exist when circuit breaker trips", reader.read(testTerm));
+        verify(mockHandler).accept(anyLong());
+    }
+
+    /**
+     * Tests that circuitBreakerHandler is not called when circuit breaker doesn't trip.
+     * This verifies the conditional calling of the handler.
+     */
+    @SneakyThrows
+    public void test_writerInsert_withCircuitBreakerHandler_whenCircuitBreakerDoesNotTrip() {
+        Consumer<Long> mockHandler = mock(Consumer.class);
+        ClusteredPostingWriter writer = cacheItem.getWriter(mockHandler);
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should have one entry", 1, reader.size());
+        assertNotNull("Term should exist", reader.read(testTerm));
+        verify(mockHandler, never()).accept(anyLong());
+    }
+
+    /**
+     * Tests that default writer (without handler) works correctly when circuit breaker trips.
+     * This verifies backward compatibility.
+     */
+    @SneakyThrows
+    public void test_defaultWriter_whenCircuitBreakerTrips() {
+        doThrow(new CircuitBreakingException("Memory limit exceeded", CircuitBreaker.Durability.PERMANENT)).when(mockedCircuitBreaker)
+            .addEstimateBytesAndMaybeBreak(anyLong(), anyString());
+
+        ClusteredPostingWriter writer = cacheItem.getWriter();
+        ClusteredPostingReader reader = cacheItem.getReader();
+
+        // Should not throw exception even without handler
+        writer.insert(testTerm, testClusters);
+
+        assertEquals("Cache should be empty when circuit breaker trips", 0, reader.size());
+        assertNull("Term should not exist when circuit breaker trips", reader.read(testTerm));
     }
 
     /**

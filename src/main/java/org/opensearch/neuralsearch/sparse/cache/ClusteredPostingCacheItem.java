@@ -81,11 +81,7 @@ public class ClusteredPostingCacheItem extends AccountableTracker implements Clu
 
         // Default handler: perform cache eviction when memory limit is reached
         private CacheClusteredPostingWriter() {
-            this.circuitBreakerTriggerHandler = (ramBytesUsed) -> {
-                synchronized (LruTermCache.getInstance()) {
-                    LruTermCache.getInstance().evict(ramBytesUsed);
-                }
-            };
+            this.circuitBreakerTriggerHandler = (ramBytesUsed) -> { LruTermCache.getInstance().evict(ramBytesUsed); };
         }
 
         private CacheClusteredPostingWriter(Consumer<Long> circuitBreakerTriggerHandler) {
@@ -125,6 +121,8 @@ public class ClusteredPostingCacheItem extends AccountableTracker implements Clu
             // Only update memory usage if we actually inserted a new entry
             if (existingClusters == null) {
                 recordUsedBytes(ramBytesUsed);
+            } else {
+                globalTracker.safeRecord(-ramBytesUsed, CircuitBreakerManager::addWithoutBreaking);
             }
         }
 

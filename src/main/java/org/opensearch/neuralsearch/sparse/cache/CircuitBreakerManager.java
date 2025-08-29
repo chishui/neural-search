@@ -42,7 +42,7 @@ public class CircuitBreakerManager {
             log.debug(
                 String.format(
                     Locale.ROOT,
-                    "Cannot insert cluster into cache due to circuit breaker exception: %s",
+                    "Cannot insert data into cache due to circuit breaker exception: %s",
                     circuitBreakingException.getMessage()
                 )
             );
@@ -62,6 +62,8 @@ public class CircuitBreakerManager {
 
     /**
      * Decreases the tracked memory usage
+     *
+     * @param bytes The number of bytes to release from the circuit breaker
      */
     public static void releaseBytes(long bytes) {
         circuitBreaker.addWithoutBreaking(-bytes);
@@ -69,6 +71,9 @@ public class CircuitBreakerManager {
 
     /**
      * Set the circuit breaker memory limit and overhead
+     *
+     * @param limit The limit of the circuit breaker
+     * @param overhead The overhead of the circuit breaker
      */
     public static void setLimitAndOverhead(ByteSizeValue limit, double overhead) {
         circuitBreaker.setLimitAndOverhead(limit.getBytes(), overhead);

@@ -29,10 +29,6 @@ public class ForwardIndexCache extends SparseCache<ForwardIndexCacheItem> {
     @NonNull
     public ForwardIndexCacheItem getOrCreate(@NonNull CacheKey key, int docCount) {
         RamBytesRecorder globalRecorder = MemoryUsageManager.getInstance().getMemoryUsageTracker();
-        return cacheMap.computeIfAbsent(key, k -> {
-            ForwardIndexCacheItem forwardIndexCacheItem = new ForwardIndexCacheItem(key, docCount, globalRecorder);
-            globalRecorder.safeRecord(RamUsageEstimator.shallowSizeOf(key), CircuitBreakerManager::addWithoutBreaking);
-            return forwardIndexCacheItem;
-        });
+        return super.getOrCreate(key, k -> new ForwardIndexCacheItem(k, docCount, globalRecorder));
     }
 }

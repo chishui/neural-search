@@ -12,34 +12,22 @@ import java.io.IOException;
 
 /**
  * A cache-gated forward index reader that implements a two-tier read strategy for sparse vectors.
- *
- * This reader acts as a caching layer between clients and the underlying Lucene storage,
- * providing improved read performance through cache. It follows a read-through
- * cache pattern where cache misses are automatically populated from the underlying storage.
+ * Cache misses are automatically populated from the underlying storage.
  */
 public class CacheGatedForwardIndexReader implements SparseVectorReader {
 
     /**
      * A no-op implementation of SparseVectorReader that always returns null.
-     * Used as a fallback when a null reader is provided to the constructor.
-     * This follows the Null Object pattern to avoid null checks in the code.
      */
-    private static final SparseVectorReader emptySparseVectorReader = docId -> null;
+    private static final SparseVectorReader NOOP_READER = docId -> null;
 
     /**
      * A no-op implementation of SparseVectorWriter that ignores all write operations.
-     * Used as a fallback when a null writer is provided to the constructor.
-     * This follows the Null Object pattern to avoid null checks in the code.
      */
-    private static final SparseVectorWriter emptySparseVectorWriter = (docId, vector) -> {};
+    private static final SparseVectorWriter NOOP_WRITER = (docId, vector) -> {};
 
-    /** Cache reader for fast cache lookups */
     private final SparseVectorReader cacheReader;
-
-    /** Cache writer for cache population on misses */
     private final SparseVectorWriter cacheWriter;
-
-    /** Lucene-based reader for persistent storage access */
     private final SparseVectorReader luceneReader;
 
     /**
@@ -48,12 +36,11 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      * @param cacheReader the reader for accessing cached sparse vectors in cache
      * @param cacheWriter the writer for populating the cache
      * @param luceneReader the reader for accessing sparse vectors from Lucene storage
-     * @throws NullPointerException if any parameter is null
      */
     public CacheGatedForwardIndexReader(SparseVectorReader cacheReader, SparseVectorWriter cacheWriter, SparseVectorReader luceneReader) {
-        this.cacheReader = cacheReader == null ? emptySparseVectorReader : cacheReader;
-        this.cacheWriter = cacheWriter == null ? emptySparseVectorWriter : cacheWriter;
-        this.luceneReader = luceneReader == null ? emptySparseVectorReader : luceneReader;
+        this.cacheReader = cacheReader == null ? NOOP_READER : cacheReader;
+        this.cacheWriter = cacheWriter == null ? NOOP_WRITER : cacheWriter;
+        this.luceneReader = luceneReader == null ? NOOP_READER : luceneReader;
     }
 
     /**
@@ -68,15 +55,15 @@ public class CacheGatedForwardIndexReader implements SparseVectorReader {
      * @return the sparse vector associated with the document ID, or null if the vector does not exist
      * @throws IOException if an I/O error occurs while reading
      */
+    @Override
     public SparseVector read(int docId) throws IOException {
         SparseVector vector = cacheReader.read(docId);
         if (vector != null) {
             return vector;
         }
 
-        synchronized (luceneReader) {
-            vector = luceneReader.read(docId);
-        }
+        vector = luceneReader.read(docId);
+
         if (vector != null) {
             cacheWriter.insert(docId, vector);
         }

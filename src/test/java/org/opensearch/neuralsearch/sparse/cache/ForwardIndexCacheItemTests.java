@@ -7,6 +7,10 @@ package org.opensearch.neuralsearch.sparse.cache;
 import lombok.SneakyThrows;
 import org.apache.lucene.index.SegmentInfo;
 import org.junit.Before;
+import org.junit.After;
+import org.junit.Before;
+import org.opensearch.core.common.breaker.CircuitBreaker;
+import org.opensearch.core.common.breaker.CircuitBreakingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
@@ -23,6 +27,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 public class ForwardIndexCacheItemTests extends AbstractSparseTestBase {
 
