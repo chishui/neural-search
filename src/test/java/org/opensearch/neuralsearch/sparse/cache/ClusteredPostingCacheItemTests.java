@@ -367,7 +367,7 @@ public class ClusteredPostingCacheItemTests extends AbstractSparseTestBase {
         verify(mockHandler).accept(anyLong());
         verify(globalRecorder, times(2)).record(anyLong());
     }
-    
+
     /**
      * Tests that circuitBreakerHandler is called when circuit breaker trips.
      * This verifies the circuit breaker handler functionality.
