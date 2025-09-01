@@ -22,7 +22,7 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
     private BytesRef term3;
     private CacheKey cacheKey1;
     private CacheKey cacheKey2;
-    private final LruTermCache lruTermCache = LruTermCache.getInstance();
+    private final TestLruTermCache testCache = new TestLruTermCache();
 
     @Before
     public void setUp() {
@@ -40,6 +40,8 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
         // Initialize clustered posting cache
         ClusteredPostingCache.getInstance().getOrCreate(cacheKey1);
         ClusteredPostingCache.getInstance().getOrCreate(cacheKey2);
+
+        testCache.clearAll();
     }
 
     /**
@@ -68,7 +70,7 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
         assertSame(expectedClusterList, writtenCluster.getClusters());
 
         // Call doEviction
-        long bytesFreed = lruTermCache.doEviction(termKey);
+        long bytesFreed = testCache.doEviction(termKey);
 
         // Verify the term has been removed
         assertNull(ClusteredPostingCache.getInstance().get(cacheKey1).getReader().read(term1));
@@ -86,7 +88,7 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
         LruTermCache.TermKey termKey = new LruTermCache.TermKey(nonExistentCacheKey, term1);
 
         // Call doEviction
-        long bytesFreed = lruTermCache.doEviction(termKey);
+        long bytesFreed = testCache.doEviction(termKey);
 
         // Verify zero bytes have been cleaned
         assertEquals(0, bytesFreed);
@@ -111,17 +113,17 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
         LruTermCache.TermKey termKey2 = new LruTermCache.TermKey(cacheKey1, term2);
         LruTermCache.TermKey termKey3 = new LruTermCache.TermKey(cacheKey2, term3);
 
-        lruTermCache.updateAccess(termKey1);
-        lruTermCache.updateAccess(termKey2);
-        lruTermCache.updateAccess(termKey3);
+        testCache.updateAccess(termKey1);
+        testCache.updateAccess(termKey2);
+        testCache.updateAccess(termKey3);
 
         // Evict 2 terms
         long posting1Size = posting1.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(term1) + term1.bytes.length;
         long posting2Size = posting2.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(term2) + term2.bytes.length;
-        lruTermCache.evict(posting1Size + posting2Size);
+        testCache.evict(posting1Size + posting2Size);
 
         // The third term should still be in the cache
-        LruTermCache.TermKey remainingTerm = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey remainingTerm = testCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingTerm);
         assertEquals(cacheKey2, remainingTerm.getCacheKey());
         assertEquals(term3, remainingTerm.getTerm());
@@ -142,15 +144,15 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
         LruTermCache.TermKey termKey2 = new LruTermCache.TermKey(cacheKey1, term2);
         LruTermCache.TermKey termKey3 = new LruTermCache.TermKey(cacheKey2, term3);
 
-        lruTermCache.updateAccess(termKey1);
-        lruTermCache.updateAccess(termKey2);
-        lruTermCache.updateAccess(termKey3);
+        testCache.updateAccess(termKey1);
+        testCache.updateAccess(termKey2);
+        testCache.updateAccess(termKey3);
 
         // Remove all terms for cacheKey1
-        lruTermCache.removeIndex(cacheKey1);
+        testCache.removeIndex(cacheKey1);
 
         // Verify only terms for cacheKey2 remain
-        LruTermCache.TermKey remainingTerm = lruTermCache.getLeastRecentlyUsedItem();
+        LruTermCache.TermKey remainingTerm = testCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingTerm);
         assertEquals(cacheKey2, remainingTerm.getCacheKey());
         assertEquals(term3, remainingTerm.getTerm());
@@ -160,7 +162,7 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
      * Test that removeIndex throws NullPointerException when key is null
      */
     public void test_removeIndex_withNullKey() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> lruTermCache.removeIndex(null));
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> testCache.removeIndex(null));
         assertEquals("cacheKey is marked non-null but is null", exception.getMessage());
     }
 
@@ -247,9 +249,20 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
      */
     @Override
     public void tearDown() throws Exception {
-        lruTermCache.evict(Long.MAX_VALUE);
+        testCache.clearAll();
         ClusteredPostingCache.getInstance().removeIndex(cacheKey1);
         ClusteredPostingCache.getInstance().removeIndex(cacheKey2);
         super.tearDown();
+    }
+
+    private static class TestLruTermCache extends LruTermCache {
+
+        public TestLruTermCache() {
+            super();
+        }
+
+        public void clearAll() {
+            super.evict(Long.MAX_VALUE);
+        }
     }
 }

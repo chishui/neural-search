@@ -14,7 +14,7 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
 
     private CacheKey cacheKey1;
     private CacheKey cacheKey2;
-    private final LruDocumentCache lruDocumentCache = LruDocumentCache.getInstance();
+    private final TestLruDocumentCache testCache = new TestLruDocumentCache();
 
     @Before
     public void setUp() {
@@ -25,6 +25,8 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
         cacheKey2 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field_2");
         ForwardIndexCache.getInstance().getOrCreate(cacheKey1, 10);
         ForwardIndexCache.getInstance().getOrCreate(cacheKey2, 10);
+
+        testCache.clearAll();
     }
 
     /**
@@ -52,7 +54,7 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
         assertSame(expectedVector, writtenVector);
 
         // Call doEviction
-        long bytesFreed = lruDocumentCache.doEviction(documentKey);
+        long bytesFreed = testCache.doEviction(documentKey);
 
         // Verify the document has been removed
         assertNull(ForwardIndexCache.getInstance().get(cacheKey1).getReader().read(1));
@@ -70,7 +72,7 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
         LruDocumentCache.DocumentKey documentKey = new LruDocumentCache.DocumentKey(nonExistentCacheKey, 1);
 
         // Call doEviction
-        long bytesFreed = lruDocumentCache.doEviction(documentKey);
+        long bytesFreed = testCache.doEviction(documentKey);
 
         // Verify zero bytes have been cleaned
         assertEquals(0, bytesFreed);
@@ -89,11 +91,20 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
         ForwardIndexCache.getInstance().get(cacheKey1).getWriter().insert(2, vector2);
         ForwardIndexCache.getInstance().get(cacheKey2).getWriter().insert(2, vector3);
 
+        // Update access order
+        LruDocumentCache.DocumentKey documentKey1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
+        LruDocumentCache.DocumentKey documentKey2 = new LruDocumentCache.DocumentKey(cacheKey1, 2);
+        LruDocumentCache.DocumentKey documentKey3 = new LruDocumentCache.DocumentKey(cacheKey2, 2);
+
+        testCache.updateAccess(documentKey1);
+        testCache.updateAccess(documentKey2);
+        testCache.updateAccess(documentKey3);
+
         // Evict 2 documents
-        lruDocumentCache.evict(vector1.ramBytesUsed() + vector2.ramBytesUsed());
+        testCache.evict(vector1.ramBytesUsed() + vector2.ramBytesUsed());
 
         // The third document should still be in the cache
-        LruDocumentCache.DocumentKey remainingDoc = lruDocumentCache.getLeastRecentlyUsedItem();
+        LruDocumentCache.DocumentKey remainingDoc = testCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingDoc);
         assertEquals(cacheKey2, remainingDoc.getCacheKey());
         assertEquals(2, remainingDoc.getDocId());
@@ -113,15 +124,15 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
         LruDocumentCache.DocumentKey documentKey2 = new LruDocumentCache.DocumentKey(cacheKey1, 2);
         LruDocumentCache.DocumentKey documentKey3 = new LruDocumentCache.DocumentKey(cacheKey2, 1);
 
-        lruDocumentCache.updateAccess(documentKey1);
-        lruDocumentCache.updateAccess(documentKey2);
-        lruDocumentCache.updateAccess(documentKey3);
+        testCache.updateAccess(documentKey1);
+        testCache.updateAccess(documentKey2);
+        testCache.updateAccess(documentKey3);
 
         // Remove all documents for mockCacheKey1
-        lruDocumentCache.removeIndex(cacheKey1);
+        testCache.removeIndex(cacheKey1);
 
         // Verify only documents for mockCacheKey2 remain
-        LruDocumentCache.DocumentKey remainingDoc = lruDocumentCache.getLeastRecentlyUsedItem();
+        LruDocumentCache.DocumentKey remainingDoc = testCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingDoc);
         assertEquals(cacheKey2, remainingDoc.getCacheKey());
         assertEquals(1, remainingDoc.getDocId());
@@ -131,7 +142,7 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
      * Test that removeIndex throws NullPointerException when key is null
      */
     public void test_removeIndex_withNullKey() {
-        NullPointerException exception = expectThrows(NullPointerException.class, () -> lruDocumentCache.removeIndex(null));
+        NullPointerException exception = expectThrows(NullPointerException.class, () -> testCache.removeIndex(null));
         assertEquals("cacheKey is marked non-null but is null", exception.getMessage());
     }
 
@@ -218,9 +229,20 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
      */
     @Override
     public void tearDown() throws Exception {
-        lruDocumentCache.evict(Long.MAX_VALUE);
+        testCache.clearAll();
         ForwardIndexCache.getInstance().removeIndex(cacheKey1);
         ForwardIndexCache.getInstance().removeIndex(cacheKey2);
         super.tearDown();
+    }
+
+    private static class TestLruDocumentCache extends LruDocumentCache {
+
+        public TestLruDocumentCache() {
+            super();
+        }
+
+        public void clearAll() {
+            super.evict(Long.MAX_VALUE);
+        }
     }
 }
