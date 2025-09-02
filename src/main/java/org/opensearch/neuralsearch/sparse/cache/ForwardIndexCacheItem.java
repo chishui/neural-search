@@ -93,7 +93,6 @@ public class ForwardIndexCacheItem extends AccountableTracker implements SparseV
                     circuitBreakerTriggerHandler.accept(ramBytesUsed);
                     // Try again after eviction
                     if (!globalRamBytes.record(ramBytesUsed)) {
-                        log.warn("Failed to add to cache even after eviction, vector will not be cached");
                         return;
                     }
                 }
