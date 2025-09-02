@@ -42,7 +42,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     private Environment environment;
 
     @Mock
-    private ClusterService clusterService;
+    private ClusterService mockClusterService;
     @Mock
     private ClusterState clusterState;
     @Mock
