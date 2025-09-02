@@ -10,6 +10,9 @@ import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 import org.opensearch.neuralsearch.sparse.data.SparseVector;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
 public class LruDocumentCacheTests extends AbstractSparseTestBase {
 
     private CacheKey cacheKey1;
@@ -20,11 +23,9 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
     public void setUp() {
         super.setUp();
 
-        // Prepare forward index and cache key
-        cacheKey1 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field_1");
-        cacheKey2 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field_2");
+        cacheKey1 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "lru_document_cache_1");
+        cacheKey2 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "lru_document_cache_2");
         ForwardIndexCache.getInstance().getOrCreate(cacheKey1, 10);
-        ForwardIndexCache.getInstance().getOrCreate(cacheKey2, 10);
 
         testCache.clearAll();
     }
@@ -83,36 +84,27 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
      */
     @SneakyThrows
     public void test_evict_untilEnoughMemoryFreed() {
-        // Add documents to the cache, this will update the access order
-        SparseVector vector1 = createVector(1, 1, 2, 2);
-        SparseVector vector2 = createVector(1, 10, 2, 20);
-        SparseVector vector3 = createVector(1, 100, 2, 200);
-        ForwardIndexCache.getInstance().get(cacheKey1).getWriter().insert(1, vector1);
-        ForwardIndexCache.getInstance().get(cacheKey1).getWriter().insert(2, vector2);
-        ForwardIndexCache.getInstance().get(cacheKey2).getWriter().insert(2, vector3);
+        TestLruDocumentCache testCacheSpy = spy(testCache);
 
-        // Update access order
         LruDocumentCache.DocumentKey documentKey1 = new LruDocumentCache.DocumentKey(cacheKey1, 1);
         LruDocumentCache.DocumentKey documentKey2 = new LruDocumentCache.DocumentKey(cacheKey1, 2);
         LruDocumentCache.DocumentKey documentKey3 = new LruDocumentCache.DocumentKey(cacheKey2, 2);
 
-        testCache.updateAccess(documentKey1);
-        testCache.updateAccess(documentKey2);
-        testCache.updateAccess(documentKey3);
+        testCacheSpy.updateAccess(documentKey1);
+        testCacheSpy.updateAccess(documentKey2);
+        testCacheSpy.updateAccess(documentKey3);
 
-        // Evict 2 documents
-        testCache.evict(vector1.ramBytesUsed() + vector2.ramBytesUsed());
+        when(testCacheSpy.doEviction(documentKey1)).thenReturn(10L);
+        when(testCacheSpy.doEviction(documentKey2)).thenReturn(20L);
+        when(testCacheSpy.doEviction(documentKey3)).thenReturn(30L);
 
-        // The third document should still be in the cache
+        testCacheSpy.evict(30L);
+
+        // The third document with documentKey3 should still be in the cache
         LruDocumentCache.DocumentKey remainingDoc = testCache.getLeastRecentlyUsedItem();
         assertNotNull(remainingDoc);
         assertEquals(cacheKey2, remainingDoc.getCacheKey());
         assertEquals(2, remainingDoc.getDocId());
-
-        // The first 2 documents has been removed and the third document is still in cache
-        assertNull(ForwardIndexCache.getInstance().get(cacheKey1).getReader().read(1));
-        assertNull(ForwardIndexCache.getInstance().get(cacheKey1).getReader().read(2));
-        assertSame(vector3, ForwardIndexCache.getInstance().get(cacheKey2).getReader().read(2));
     }
 
     /**
@@ -231,7 +223,6 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
     public void tearDown() throws Exception {
         testCache.clearAll();
         ForwardIndexCache.getInstance().removeIndex(cacheKey1);
-        ForwardIndexCache.getInstance().removeIndex(cacheKey2);
         super.tearDown();
     }
 

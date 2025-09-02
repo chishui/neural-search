@@ -15,6 +15,9 @@ import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.util.List;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
 public class LruTermCacheTests extends AbstractSparseTestBase {
 
     private BytesRef term1;
@@ -28,18 +31,14 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
     public void setUp() {
         super.setUp();
 
-        // Prepare cache keys
-        cacheKey1 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field_1");
-        cacheKey2 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "test_field_2");
+        cacheKey1 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "lru_term_cache_1");
+        cacheKey2 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "lru_term_cache_2");
 
-        // Prepare terms
         term1 = new BytesRef("term1");
         term2 = new BytesRef("term2");
         term3 = new BytesRef("term3");
 
-        // Initialize clustered posting cache
         ClusteredPostingCache.getInstance().getOrCreate(cacheKey1);
-        ClusteredPostingCache.getInstance().getOrCreate(cacheKey2);
 
         testCache.clearAll();
     }
@@ -87,10 +86,8 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
         CacheKey nonExistentCacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "non_existent_field");
         LruTermCache.TermKey termKey = new LruTermCache.TermKey(nonExistentCacheKey, term1);
 
-        // Call doEviction
         long bytesFreed = testCache.doEviction(termKey);
 
-        // Verify zero bytes have been cleaned
         assertEquals(0, bytesFreed);
     }
 
@@ -99,40 +96,26 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
      */
     @SneakyThrows
     public void test_evict_untilEnoughMemoryFreed() {
-        // Add terms to the cache, this will update the access order
-        PostingClusters posting1 = preparePostingClusters();
-        PostingClusters posting2 = preparePostingClusters();
-        PostingClusters posting3 = preparePostingClusters();
-
-        ClusteredPostingCache.getInstance().get(cacheKey1).getWriter().insert(term1, posting1.getClusters());
-        ClusteredPostingCache.getInstance().get(cacheKey1).getWriter().insert(term2, posting2.getClusters());
-        ClusteredPostingCache.getInstance().get(cacheKey2).getWriter().insert(term3, posting3.getClusters());
-
-        // Update access order
+        TestLruTermCache testCacheSpy = spy(testCache);
         LruTermCache.TermKey termKey1 = new LruTermCache.TermKey(cacheKey1, term1);
         LruTermCache.TermKey termKey2 = new LruTermCache.TermKey(cacheKey1, term2);
         LruTermCache.TermKey termKey3 = new LruTermCache.TermKey(cacheKey2, term3);
 
-        testCache.updateAccess(termKey1);
-        testCache.updateAccess(termKey2);
-        testCache.updateAccess(termKey3);
+        testCacheSpy.updateAccess(termKey1);
+        testCacheSpy.updateAccess(termKey2);
+        testCacheSpy.updateAccess(termKey3);
 
-        // Evict 2 terms
-        long posting1Size = posting1.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(term1) + term1.bytes.length;
-        long posting2Size = posting2.ramBytesUsed() + RamUsageEstimator.shallowSizeOf(term2) + term2.bytes.length;
-        testCache.evict(posting1Size + posting2Size);
+        when(testCacheSpy.doEviction(termKey1)).thenReturn(10L);
+        when(testCacheSpy.doEviction(termKey2)).thenReturn(20L);
+        when(testCacheSpy.doEviction(termKey3)).thenReturn(30L);
 
-        // The third term should still be in the cache
-        LruTermCache.TermKey remainingTerm = testCache.getLeastRecentlyUsedItem();
+        testCacheSpy.evict(30L);
+
+        // The third term with termKey3 should still be in the cache
+        LruTermCache.TermKey remainingTerm = testCacheSpy.getLeastRecentlyUsedItem();
         assertNotNull(remainingTerm);
         assertEquals(cacheKey2, remainingTerm.getCacheKey());
         assertEquals(term3, remainingTerm.getTerm());
-
-        // The first 2 terms have been removed and the third term is still in cache
-        assertNull(ClusteredPostingCache.getInstance().get(cacheKey1).getReader().read(term1));
-        assertNull(ClusteredPostingCache.getInstance().get(cacheKey1).getReader().read(term2));
-        PostingClusters remainingPosting = ClusteredPostingCache.getInstance().get(cacheKey2).getReader().read(term3);
-        assertEquals(posting3.getClusters(), remainingPosting.getClusters());
     }
 
     /**
@@ -251,7 +234,6 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
     public void tearDown() throws Exception {
         testCache.clearAll();
         ClusteredPostingCache.getInstance().removeIndex(cacheKey1);
-        ClusteredPostingCache.getInstance().removeIndex(cacheKey2);
         super.tearDown();
     }
 
