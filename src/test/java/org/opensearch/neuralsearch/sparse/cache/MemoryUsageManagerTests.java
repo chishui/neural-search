@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.cache;
 
-import org.junit.After;
 import org.junit.Before;
 import org.opensearch.core.common.breaker.CircuitBreaker;
 import org.opensearch.core.common.breaker.CircuitBreakingException;
@@ -24,13 +23,6 @@ public class MemoryUsageManagerTests extends AbstractSparseTestBase {
     public void setUp() {
         super.setUp();
         manager = new TestMemoryUsageManager();
-        manager.setLimit(new ByteSizeValue(Integer.MAX_VALUE));
-    }
-
-    @After
-    @Override
-    public void tearDown() throws Exception {
-        super.tearDown();
     }
 
     public void testGetInstance() {

@@ -17,7 +17,7 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
 
     private CacheKey cacheKey1;
     private CacheKey cacheKey2;
-    private final TestLruDocumentCache testCache = new TestLruDocumentCache();
+    private TestLruDocumentCache testCache;
 
     @Before
     public void setUp() {
@@ -27,6 +27,7 @@ public class LruDocumentCacheTests extends AbstractSparseTestBase {
         cacheKey2 = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), "lru_document_cache_2");
         ForwardIndexCache.getInstance().getOrCreate(cacheKey1, 10);
 
+        testCache = new TestLruDocumentCache();
         testCache.clearAll();
     }
 

@@ -25,7 +25,7 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
     private BytesRef term3;
     private CacheKey cacheKey1;
     private CacheKey cacheKey2;
-    private final TestLruTermCache testCache = new TestLruTermCache();
+    private TestLruTermCache testCache;
 
     @Before
     public void setUp() {
@@ -40,6 +40,7 @@ public class LruTermCacheTests extends AbstractSparseTestBase {
 
         ClusteredPostingCache.getInstance().getOrCreate(cacheKey1);
 
+        testCache = new TestLruTermCache();
         testCache.clearAll();
     }
 

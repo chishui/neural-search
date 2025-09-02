@@ -61,7 +61,7 @@ public class InferenceProcessorTests extends InferenceProcessorTestCase {
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        when(clusterService.state()).thenReturn(clusterState);
+        when(mockClusterService.state()).thenReturn(clusterState);
         when(clusterState.metadata()).thenReturn(metadata);
         when(metadata.index(anyString())).thenReturn(indexMetadata);
         when(indexMetadata.getSettings()).thenReturn(null);
