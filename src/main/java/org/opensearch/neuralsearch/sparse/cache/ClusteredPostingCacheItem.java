@@ -107,7 +107,6 @@ public class ClusteredPostingCacheItem extends AccountableTracker implements Clu
 
                 // Try again after eviction
                 if (!globalTracker.record(ramBytesUsed)) {
-                    log.warn("Failed to add to cache even after eviction, term will not be cached");
                     return;
                 }
             }
