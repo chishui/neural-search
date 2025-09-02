@@ -22,7 +22,7 @@ public class MemoryUsageManager {
     @Setter
     private RamBytesRecorder memoryUsageTracker;
 
-    private MemoryUsageManager() {
+    protected MemoryUsageManager() {
         memoryUsageTracker = new RamBytesRecorder();
     }
 
