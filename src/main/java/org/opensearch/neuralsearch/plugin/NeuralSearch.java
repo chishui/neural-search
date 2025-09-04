@@ -46,6 +46,7 @@ import org.opensearch.neuralsearch.sparse.cache.CircuitBreakerManager;
 import org.opensearch.neuralsearch.sparse.cache.MemoryUsageManager;
 import org.opensearch.neuralsearch.sparse.codec.SparseCodecService;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
+import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.neuralsearch.sparse.mapper.SparseTokensFieldMapper;
 import org.opensearch.neuralsearch.stats.events.EventStatsManager;
 import org.opensearch.neuralsearch.stats.info.InfoStatsManager;
@@ -279,7 +280,8 @@ public class NeuralSearch extends Plugin
                 parameters.client,
                 clientAccessor,
                 parameters.env,
-                parameters.ingestService.getClusterService()
+                parameters.ingestService.getClusterService(),
+                new SparseFieldUtils(parameters.ingestService.getClusterService())
             ),
             TextImageEmbeddingProcessor.TYPE,
             new TextImageEmbeddingProcessorFactory(

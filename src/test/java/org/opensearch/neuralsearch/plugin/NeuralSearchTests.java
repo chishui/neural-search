@@ -181,7 +181,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
     public void testGetSettings() {
         List<Setting<?>> settings = plugin.getSettings();
-        assertEquals(5, settings.size());
+        assertEquals(9, settings.size());
     }
 
     public void testRequestProcessors() {
