@@ -236,7 +236,7 @@ public class RestNeuralStatsAction extends BaseRestHandler {
         for (String stat : stats) {
             // Validate parameter
             String normalizedStat = stat.toLowerCase(Locale.ROOT);
-            if (!isValidParamString(normalizedStat) || !isValidEventOrInfoStatName(normalizedStat)) {
+            if (!isValidParamString(normalizedStat) || !isValidStatName(normalizedStat)) {
                 invalidStatNames.add(normalizedStat);
                 continue;
             }
@@ -316,8 +316,7 @@ public class RestNeuralStatsAction extends BaseRestHandler {
         return isValidParamString(nodeId) && nodeId.length() == 22;
     }
 
-    private boolean isValidEventOrInfoStatName(String statName) {
-        return InfoStatName.isValidName(statName) || EventStatName.isValidName(statName);
+    private boolean isValidStatName(String statName) {
+        return InfoStatName.isValidName(statName) || EventStatName.isValidName(statName) || MetricStatName.isValidName(statName);
     }
-
 }
