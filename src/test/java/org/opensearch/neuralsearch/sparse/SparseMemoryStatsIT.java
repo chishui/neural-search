@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse;
 
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.junit.After;
@@ -14,10 +15,8 @@ import org.opensearch.client.Response;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
-import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +31,7 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     private static final String TEST_INDEX_NAME = "test-sparse-memory-stats";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
-    private static final String SPARSE_MEMORY_USAGE_METRIC_NAME = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getNameString();
-    private static final String SPARSE_MEMORY_USAGE_METRIC_PATH = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getFullPath();
+    private static final double DELTA_FOR_MEMORY_STATS_ASSERTION = 0.01d;
 
     /**
      * Enable neural stats
@@ -72,9 +70,9 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         assertTrue(indexExists(TEST_INDEX_NAME));
 
         // Fetch original memory stats
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        verityMemoryStatsAlign(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
         // Ingest documents
         List<Map<String, Float>> docs = new ArrayList<>();
@@ -91,27 +89,27 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         // Verify memory stats increase after ingesting documents
-        long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        List<Double> currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
 
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
-        long originalCircuitBreakerMemoryStatsSum = Arrays.stream(originalCircuitBreakerMemoryStats).sum();
-        long currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        long currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long originalCircuitBreakerMemoryStatsSum = originalCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        double currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
 
         assertTrue(currentSparseMemoryUsageSum > originalSparseMemoryUsageSum);
         assertTrue(currentCircuitBreakerMemoryStatsSum > originalCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
 
         // Verify memory stats are the same as the original after index deletion
         deleteIndex(TEST_INDEX_NAME);
         currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
-        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum);
+        currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
         assertEquals(originalCircuitBreakerMemoryStatsSum, currentCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
     /**
@@ -120,35 +118,35 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     @SneakyThrows
     public void testMemoryStatsIncreaseWithSeismicAndMultiShard() {
         // Fetch original memory stats
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        verityMemoryStatsAlign(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
         // Create Sparse Index
         prepareMultiShardReplicasIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
 
         // Verify memory stats increase after ingesting documents
-        long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        List<Double> currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
 
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
-        long originalCircuitBreakerMemoryStatsSum = Arrays.stream(originalCircuitBreakerMemoryStats).sum();
-        long currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        long currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long originalCircuitBreakerMemoryStatsSum = originalCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        double currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
 
         assertTrue(currentSparseMemoryUsageSum > originalSparseMemoryUsageSum);
         assertTrue(currentCircuitBreakerMemoryStatsSum > originalCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
 
         // Verify memory stats are the same as the original after index deletion
         deleteIndex(TEST_INDEX_NAME);
         currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
-        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum);
+        currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
         assertEquals(originalCircuitBreakerMemoryStatsSum, currentCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
     /**
@@ -157,34 +155,34 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     @SneakyThrows
     public void testMemoryStatsDoNotIncreaseWithAllRankFeatures() {
         // Fetch original memory stats
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        verityMemoryStatsAlign(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
         prepareOnlyRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
 
         // Verify memory stats do not increase after ingesting documents
-        long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        List<Double> currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
 
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
-        long originalCircuitBreakerMemoryStatsSum = Arrays.stream(originalCircuitBreakerMemoryStats).sum();
-        long currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        long currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long originalCircuitBreakerMemoryStatsSum = originalCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        double currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
 
-        assertEquals(currentSparseMemoryUsageSum, originalSparseMemoryUsageSum);
+        assertEquals(currentSparseMemoryUsageSum, originalSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
         assertEquals(currentCircuitBreakerMemoryStatsSum, originalCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
 
         // Verify memory stats are the same as the original after index deletion
         deleteIndex(TEST_INDEX_NAME);
         currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
-        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum);
+        currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
         assertEquals(originalCircuitBreakerMemoryStatsSum, currentCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
     /**
@@ -203,9 +201,9 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         assertTrue(indexExists(TEST_INDEX_NAME));
 
         // Fetch original memory stats
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        verityMemoryStatsAlign(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
         // Ingest documents
         List<Map<String, Float>> docs = new ArrayList<>();
@@ -222,13 +220,13 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
 
         // Verify memory stats only increase by cache registry size
-        long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long[] currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
+        List<Double> currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        List<Long> currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
 
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
-        long originalCircuitBreakerMemoryStatsSum = Arrays.stream(originalCircuitBreakerMemoryStats).sum();
-        long currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        long currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long originalCircuitBreakerMemoryStatsSum = originalCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        double currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
 
         // Cache registry size consists of two cache keys, one array for forward index and one map for clustered posting
         CacheKey cacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), TestsPrepareUtils.prepareKeyFieldInfo());
@@ -236,25 +234,29 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         long emptyForwardIndexSize = RamUsageEstimator.shallowSizeOf(new AtomicReferenceArray<>(docCount));
         long emptyClusteredPostingSize = RamUsageEstimator.shallowSizeOf(new ConcurrentHashMap<>());
 
-        long registrySize = cacheKeySize * 2 + emptyClusteredPostingSize + emptyForwardIndexSize;
+        double registrySize = (cacheKeySize * 2 + emptyClusteredPostingSize + emptyForwardIndexSize) / 1024.0d;
 
-        assertEquals(registrySize, currentSparseMemoryUsageSum - originalSparseMemoryUsageSum);
-        assertEquals(registrySize, currentCircuitBreakerMemoryStatsSum - originalCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        assertEquals(registrySize, currentSparseMemoryUsageSum - originalSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
+        assertEquals(
+            registrySize,
+            currentCircuitBreakerMemoryStatsSum - originalCircuitBreakerMemoryStatsSum,
+            DELTA_FOR_MEMORY_STATS_ASSERTION
+        );
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
 
         // Verify memory stats are the same as the original after index deletion
         deleteIndex(TEST_INDEX_NAME);
         currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
-        currentSparseMemoryUsageSum = Arrays.stream(currentSparseMemoryUsageStats).sum();
-        currentCircuitBreakerMemoryStatsSum = Arrays.stream(currentCircuitBreakerMemoryStats).sum();
-        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum);
+        currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
+        assertEquals(originalSparseMemoryUsageSum, currentSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
         assertEquals(originalCircuitBreakerMemoryStatsSum, currentCircuitBreakerMemoryStatsSum);
-        assertArrayEquals(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
+        verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
     @SneakyThrows
-    private long[] getNeuralCircuitBreakerMemoryStatsAcrossNodes() {
+    private List<Long> getNeuralCircuitBreakerMemoryStatsAcrossNodes() {
         Request request = new Request("GET", "_nodes/stats/breaker/");
 
         Response response = client().performRequest(request);
@@ -265,10 +267,17 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
 
         List<Long> circuitBreakerStats = new ArrayList<>();
         for (Map<String, Object> nodeStatsResponse : nodeStatsResponseList) {
-            // we do not use breakers.neural_search.estimated_size_in_bytes due to precision limitation by memory stats
-            String stringValue = getNestedValue(nodeStatsResponse, "breakers.neural_search.estimated_size").toString();
-            circuitBreakerStats.add(parseFractionalSize(stringValue));
+            String stringValue = getNestedValue(nodeStatsResponse, "breakers.neural_search.estimated_size_in_bytes").toString();
+            circuitBreakerStats.add(NumberUtils.createLong(stringValue));
         }
-        return circuitBreakerStats.stream().mapToLong(Long::longValue).toArray();
+        return circuitBreakerStats;
+    }
+
+    private void verityMemoryStatsAlign(List<Double> memoryUsageStats, List<Long> circuitBreakerStats) {
+        assertEquals(memoryUsageStats.size(), circuitBreakerStats.size());
+        for (int i = 0; i < memoryUsageStats.size(); ++i) {
+            double circuitBreakerKbSize = circuitBreakerStats.get(i) / 1024.0d;
+            assertEquals(memoryUsageStats.get(i), circuitBreakerKbSize, DELTA_FOR_MEMORY_STATS_ASSERTION);
+        }
     }
 }

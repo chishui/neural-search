@@ -16,12 +16,11 @@ import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
+import static org.opensearch.neuralsearch.util.TestUtils.DELTA_FOR_SCORE_ASSERTION;
 import static org.opensearch.neuralsearch.util.TestUtils.getTotalHits;
 
 /**
@@ -72,8 +71,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
         Response clearCacheResponse = client().performRequest(clearCacheRequest);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute warm up cache request
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
@@ -92,20 +91,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage increased after warm up
-        long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
+        List<Double> afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterWarmUpSparseMemoryUsageSum = afterWarmUpSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         assertTrue("Memory usage should increase after warm up", afterWarmUpSparseMemoryUsageSum > originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertTrue(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterWarmUpSparseMemoryUsageStats[i]
-                ),
-                afterWarmUpSparseMemoryUsageStats[i] > originalSparseMemoryUsageStats[i]
-            );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterWarmUpSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertTrue(afterWarmUpSparseMemoryUsageStats.get(i) > originalSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -114,8 +105,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
      */
     @SneakyThrows
     public void testClearCache() {
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute clear cache request
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -133,20 +124,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage decreased after clear cache
-        long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
+        List<Double> afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterClearCacheSparseMemoryUsageSum = afterClearCacheSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         assertTrue("Memory usage should decrease after clear cache", afterClearCacheSparseMemoryUsageSum < originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertTrue(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterClearCacheSparseMemoryUsageStats[i]
-                ),
-                afterClearCacheSparseMemoryUsageStats[i] < originalSparseMemoryUsageStats[i]
-            );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterClearCacheSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertTrue(afterClearCacheSparseMemoryUsageStats.get(i) < originalSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -163,8 +146,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
         Response clearCacheResponse = client().performRequest(clearCacheRequest);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute warm up cache request
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
@@ -183,20 +166,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage increased after warm up
-        long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
+        List<Double> afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterWarmUpSparseMemoryUsageSum = afterWarmUpSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         assertTrue("Memory usage should increase after warm up", afterWarmUpSparseMemoryUsageSum > originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertTrue(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterWarmUpSparseMemoryUsageStats[i]
-                ),
-                afterWarmUpSparseMemoryUsageStats[i] > originalSparseMemoryUsageStats[i]
-            );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterWarmUpSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertTrue(afterWarmUpSparseMemoryUsageStats.get(i) > originalSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -209,8 +184,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         client().performRequest(request);
         // Create Sparse Index
         prepareMultiShardReplicasIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute clear cache request
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -228,20 +203,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage decreased after clear cache
-        long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
+        List<Double> afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterClearCacheSparseMemoryUsageSum = afterClearCacheSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         assertTrue("Memory usage should decrease after clear cache", afterClearCacheSparseMemoryUsageSum < originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertTrue(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterClearCacheSparseMemoryUsageStats[i]
-                ),
-                afterClearCacheSparseMemoryUsageStats[i] < originalSparseMemoryUsageStats[i]
-            );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterClearCacheSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertTrue(afterClearCacheSparseMemoryUsageStats.get(i) < originalSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -258,8 +225,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
         Response clearCacheResponse = client().performRequest(clearCacheRequest);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute warm up cache request
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
@@ -278,20 +245,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage increased after warm up
-        long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
+        List<Double> afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterWarmUpSparseMemoryUsageSum = afterWarmUpSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         assertTrue("Memory usage should increase after warm up", afterWarmUpSparseMemoryUsageSum > originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertTrue(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should increase after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterWarmUpSparseMemoryUsageStats[i]
-                ),
-                afterWarmUpSparseMemoryUsageStats[i] > originalSparseMemoryUsageStats[i]
-            );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterWarmUpSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertTrue(afterWarmUpSparseMemoryUsageStats.get(i) > originalSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -304,8 +263,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         client().performRequest(request);
         // Create Sparse Index
         prepareMixSeismicRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute clear cache request
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -323,20 +282,12 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage decreased after clear cache
-        long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
+        List<Double> afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterClearCacheSparseMemoryUsageSum = afterClearCacheSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         assertTrue("Memory usage should decrease after clear cache", afterClearCacheSparseMemoryUsageSum < originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertTrue(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should decrease after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterClearCacheSparseMemoryUsageStats[i]
-                ),
-                afterClearCacheSparseMemoryUsageStats[i] < originalSparseMemoryUsageStats[i]
-            );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterClearCacheSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertTrue(afterClearCacheSparseMemoryUsageStats.get(i) < originalSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -353,8 +304,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         // First clear cache before warm up
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
         Response clearCacheResponse = client().performRequest(clearCacheRequest);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute warm up cache request
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + TEST_INDEX_NAME);
@@ -373,21 +324,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage not changed after warm up
-        long[] afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterWarmUpSparseMemoryUsageSum = Arrays.stream(afterWarmUpSparseMemoryUsageStats).sum();
-        assertEquals("Memory usage should not change after warm up", afterWarmUpSparseMemoryUsageSum, originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertEquals(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should not change after warm up (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    originalSparseMemoryUsageStats[i]
-                ),
-                originalSparseMemoryUsageStats[i],
-                originalSparseMemoryUsageStats[i]
-            );
+        List<Double> afterWarmUpSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterWarmUpSparseMemoryUsageSum = afterWarmUpSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        assertEquals(
+            "Memory usage should not change after warm up",
+            afterWarmUpSparseMemoryUsageSum,
+            originalSparseMemoryUsageSum,
+            DELTA_FOR_SCORE_ASSERTION
+        );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterWarmUpSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertEquals(originalSparseMemoryUsageStats.get(i), afterWarmUpSparseMemoryUsageStats.get(i));
         }
     }
 
@@ -400,8 +347,8 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         client().performRequest(request);
         // Create Sparse Index
         prepareOnlyRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
-        long[] originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long originalSparseMemoryUsageSum = Arrays.stream(originalSparseMemoryUsageStats).sum();
+        List<Double> originalSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double originalSparseMemoryUsageSum = originalSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
 
         // Execute clear cache request
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
@@ -419,21 +366,17 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertTrue(responseMap.containsKey("_shards"));
 
         // Verify memory usage not changed after clear cache
-        long[] afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
-        long afterClearCacheSparseMemoryUsageSum = Arrays.stream(afterClearCacheSparseMemoryUsageStats).sum();
-        assertEquals("Memory usage should not change after clear cache", afterClearCacheSparseMemoryUsageSum, originalSparseMemoryUsageSum);
-        for (int i = 0; i < originalSparseMemoryUsageStats.length; i++) {
-            assertEquals(
-                String.format(
-                    Locale.ROOT,
-                    "Memory usage for node %d should not change after clear cache (before: %d, after: %d)",
-                    i,
-                    originalSparseMemoryUsageStats[i],
-                    afterClearCacheSparseMemoryUsageStats[i]
-                ),
-                afterClearCacheSparseMemoryUsageStats[i],
-                originalSparseMemoryUsageStats[i]
-            );
+        List<Double> afterClearCacheSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
+        double afterClearCacheSparseMemoryUsageSum = afterClearCacheSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
+        assertEquals(
+            "Memory usage should not change after clear cache",
+            afterClearCacheSparseMemoryUsageSum,
+            originalSparseMemoryUsageSum,
+            DELTA_FOR_SCORE_ASSERTION
+        );
+        assertEquals(originalSparseMemoryUsageStats.size(), afterClearCacheSparseMemoryUsageStats.size());
+        for (int i = 0; i < originalSparseMemoryUsageStats.size(); i++) {
+            assertEquals(afterClearCacheSparseMemoryUsageStats.get(i), originalSparseMemoryUsageStats.get(i));
         }
     }
 
