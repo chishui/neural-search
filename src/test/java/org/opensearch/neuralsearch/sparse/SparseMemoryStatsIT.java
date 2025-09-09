@@ -33,9 +33,6 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final double DELTA_FOR_MEMORY_STATS_ASSERTION = 0.01d;
 
-    /**
-     * Enable neural stats
-     */
     @Before
     @Override
     @SneakyThrows
@@ -45,9 +42,6 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         updateClusterSettings(NeuralSearchSettings.NEURAL_STATS_ENABLED.getKey(), true);
     }
 
-    /**
-     * Resets circuit breaker and neural stats to default settings
-     */
     @After
     @Override
     @SneakyThrows
@@ -57,9 +51,6 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         super.tearDown();
     }
 
-    /**
-     * Seismic features segment increases memory usage
-     */
     @SneakyThrows
     public void testMemoryStatsIncreaseWithSeismic() {
         // Create Sparse Index
@@ -112,9 +103,6 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
-    /**
-     * Seismic features segment increases memory usage with multiple shards
-     */
     @SneakyThrows
     public void testMemoryStatsIncreaseWithSeismicAndMultiShard() {
         // Fetch original memory stats
@@ -149,9 +137,6 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
-    /**
-     * Rank features segment does not increase memory usage
-     */
     @SneakyThrows
     public void testMemoryStatsDoNotIncreaseWithAllRankFeatures() {
         // Fetch original memory stats
@@ -185,11 +170,8 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
     }
 
-    /**
-     * Seismic features segment only increases registry size
-     */
     @SneakyThrows
-    public void testMemoryStatsOnlyIncreaseRegistrySizeWithZeroCircuitBreakerLimit() {
+    public void testMemoryStatsIncreaseMinimalSizeWithZeroCircuitBreakerLimit() {
         // Disable cache by setting neural circuit breaker limit to zero
         updateClusterSettings(NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_LIMIT.getKey(), "0%");
 
@@ -228,20 +210,16 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         double currentSparseMemoryUsageSum = currentSparseMemoryUsageStats.stream().mapToDouble(Double::doubleValue).sum();
         long currentCircuitBreakerMemoryStatsSum = currentCircuitBreakerMemoryStats.stream().mapToLong(Long::longValue).sum();
 
-        // Cache registry size consists of two cache keys, one array for forward index and one map for clustered posting
+        // Increase size consists of two cache keys, one array for forward index and one map for clustered posting
         CacheKey cacheKey = new CacheKey(TestsPrepareUtils.prepareSegmentInfo(), TestsPrepareUtils.prepareKeyFieldInfo());
         long cacheKeySize = RamUsageEstimator.shallowSizeOf(cacheKey);
-        long emptyForwardIndexSize = RamUsageEstimator.shallowSizeOf(new AtomicReferenceArray<>(docCount));
+        long emptyForwardIndexSize = RamUsageEstimator.shallowSizeOf(new AtomicReferenceArray<>(docCount)) + RamUsageEstimator
+            .alignObjectSize((long) docCount * RamUsageEstimator.NUM_BYTES_OBJECT_REF);
         long emptyClusteredPostingSize = RamUsageEstimator.shallowSizeOf(new ConcurrentHashMap<>());
 
-        double registrySize = (cacheKeySize * 2 + emptyClusteredPostingSize + emptyForwardIndexSize) / 1024.0d;
+        double expectedSize = (cacheKeySize * 2 + emptyClusteredPostingSize + emptyForwardIndexSize) / 1024.0d;
 
-        assertEquals(registrySize, currentSparseMemoryUsageSum - originalSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
-        assertEquals(
-            registrySize,
-            currentCircuitBreakerMemoryStatsSum - originalCircuitBreakerMemoryStatsSum,
-            DELTA_FOR_MEMORY_STATS_ASSERTION
-        );
+        assertEquals(expectedSize, currentSparseMemoryUsageSum - originalSparseMemoryUsageSum, DELTA_FOR_MEMORY_STATS_ASSERTION);
         verityMemoryStatsAlign(currentSparseMemoryUsageStats, currentCircuitBreakerMemoryStats);
 
         // Verify memory stats are the same as the original after index deletion

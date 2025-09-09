@@ -104,9 +104,8 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
         ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs2);
 
         MatchAllQueryBuilder matchAllQueryBuilder = new MatchAllQueryBuilder();
-        Map<String, Object> expectedIngestedDocuments = search(TEST_INDEX_NAME, matchAllQueryBuilder, 200);
-
         Map<String, Object> expectedHits = getTotalHits(search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
+        Map<String, Object> expectedIngestedDocuments = getTotalHits(search(TEST_INDEX_NAME, matchAllQueryBuilder, 200));
 
         // Delete index, ingest half documents and enable cache eviction by setting limit to zero
         deleteIndex(TEST_INDEX_NAME);
@@ -116,7 +115,7 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
         ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs2);
 
         Map<String, Object> hits = getTotalHits(search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
-        Map<String, Object> ingestedDocuments = search(TEST_INDEX_NAME, matchAllQueryBuilder, 200);
+        Map<String, Object> ingestedDocuments = getTotalHits(search(TEST_INDEX_NAME, matchAllQueryBuilder, 200));
 
         assertEquals(expectedHits, hits);
         assertEquals(expectedIngestedDocuments, ingestedDocuments);
