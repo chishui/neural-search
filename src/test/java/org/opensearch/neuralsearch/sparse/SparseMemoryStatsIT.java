@@ -161,30 +161,8 @@ public class SparseMemoryStatsIT extends SparseBaseIT {
         long[] originalCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();
         assertArrayEquals(originalSparseMemoryUsageStats, originalCircuitBreakerMemoryStats);
 
-        // Create Sparse Index
-        // int docCount = 100;
-        // createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 100, 0.4f, 0.1f, docCount * 2);
-        //
-        // // Verify index exists
-        // assertTrue(indexExists(TEST_INDEX_NAME));
-        //
-        //
-        //
-        // // Ingest documents
-        // List<Map<String, Float>> docs = new ArrayList<>();
-        // for (int i = 0; i < docCount; ++i) {
-        // Map<String, Float> tokens = new HashMap<>();
-        // tokens.put("1000", randomFloat());
-        // tokens.put("2000", randomFloat());
-        // tokens.put("3000", randomFloat());
-        // tokens.put("4000", randomFloat());
-        // tokens.put("5000", randomFloat());
-        // docs.add(tokens);
-        // }
-        //
-        // ingestDocumentsAndForceMerge(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, docs);
-
         prepareOnlyRankFeaturesIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, TEST_TEXT_FIELD_NAME);
+
         // Verify memory stats do not increase after ingesting documents
         long[] currentSparseMemoryUsageStats = getSparseMemoryUsageStatsAcrossNodes();
         long[] currentCircuitBreakerMemoryStats = getNeuralCircuitBreakerMemoryStatsAcrossNodes();

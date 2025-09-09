@@ -12,6 +12,7 @@ import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
 import org.opensearch.core.rest.RestStatus;
+import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.settings.NeuralSearchSettings;
 
 import java.util.ArrayList;
@@ -20,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import static org.opensearch.neuralsearch.util.TestUtils.getTotalHits;
 
 /**
  * Integration tests for neural sparse cache operations (warm up and clear cache)
@@ -472,6 +475,40 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         assertEquals(RestStatus.INTERNAL_SERVER_ERROR, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
         String responseBody = EntityUtils.toString(exception.getResponse().getEntity());
         assertTrue(responseBody.contains("don't support neural_sparse_clear_cache_action operation"));
+    }
 
+    /**
+     * Test clear cache API for sparse index with memory usage verification
+     */
+    @SneakyThrows
+    public void testClearCacheReturnsSameSearchResults() {
+        NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 0.1f, "2000", 0.2f)
+        );
+
+        Map<String, Object> expectedHits = getTotalHits(search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
+
+        // Execute clear cache request
+        Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + TEST_INDEX_NAME);
+        Response response = client().performRequest(clearCacheRequest);
+
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        // Verify response structure
+        Map<String, Object> responseMap = createParser(
+            org.opensearch.common.xcontent.XContentType.JSON.xContent(),
+            response.getEntity().getContent()
+        ).map();
+
+        assertNotNull(responseMap);
+        assertTrue(responseMap.containsKey("_shards"));
+
+        Map<String, Object> hits = getTotalHits(search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
+
+        assertEquals(expectedHits, hits);
     }
 }

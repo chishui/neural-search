@@ -96,7 +96,7 @@ public class SparseCircuitBreakerIT extends SparseBaseIT {
         ingestDocumentsAndForceMerge(indexName, textField, sparseField, docs);
 
         // Verify that without cache, the search results remain the same
-        return getTotalHits(search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10));
+        return getTotalHits(search(indexName, neuralSparseQueryBuilder, 10));
     }
 
     @SneakyThrows
