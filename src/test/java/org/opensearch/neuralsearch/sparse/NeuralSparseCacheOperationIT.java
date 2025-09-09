@@ -395,7 +395,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request warmUpRequest = new Request("POST", "/_plugins/_neural/warmup/" + nonSparseIndex);
         ResponseException exception = expectThrows(ResponseException.class, () -> client().performRequest(warmUpRequest));
 
-        assertEquals(RestStatus.INTERNAL_SERVER_ERROR, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
+        assertEquals(RestStatus.BAD_REQUEST, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
         String responseBody = EntityUtils.toString(exception.getResponse().getEntity());
         assertTrue(responseBody.contains("don't support neural_sparse_warmup_action operation"));
     }
@@ -415,7 +415,7 @@ public class NeuralSparseCacheOperationIT extends SparseBaseIT {
         Request clearCacheRequest = new Request("POST", "/_plugins/_neural/clear_cache/" + nonSparseIndex);
         ResponseException exception = expectThrows(ResponseException.class, () -> client().performRequest(clearCacheRequest));
 
-        assertEquals(RestStatus.INTERNAL_SERVER_ERROR, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
+        assertEquals(RestStatus.BAD_REQUEST, RestStatus.fromCode(exception.getResponse().getStatusLine().getStatusCode()));
         String responseBody = EntityUtils.toString(exception.getResponse().getEntity());
         assertTrue(responseBody.contains("don't support neural_sparse_clear_cache_action operation"));
     }
