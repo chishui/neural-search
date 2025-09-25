@@ -36,6 +36,9 @@ jobs:
       BWC_VERSION_RESTART_UPGRADE: ${{ matrix.bwc_version }}
 
     steps:
+      - name: "before start"
+        run: df -h
+
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}
 
@@ -47,6 +50,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: "after java"
+        run: df -h
 
       - name: Run NeuralSearch Restart-Upgrade BWC Tests from BWCVersion-${{ matrix.bwc_version }} to OpenSearch Version-${{ matrix.opensearch_version }} on ${{matrix.os}}
         run: |
