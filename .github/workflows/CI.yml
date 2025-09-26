@@ -39,13 +39,13 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/clean-up-disk
-
       - name: Setup Java ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - uses: ./.github/actions/clean-up-disk
 
       - name: Run build
         run: |
