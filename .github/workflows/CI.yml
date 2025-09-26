@@ -34,16 +34,7 @@ jobs:
       options: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-options }}
 
     steps:
-      - name: check space
-        run: df -h
-
-      - name: check disk size
-        run: |
-          du -h / 2>/dev/null | sort -hr | head -50
-          rm -rf /__w/_temp
-
-      - name: check space
-        run: df -h
+      - uses: ./.github/workflows/clean_up_disk.yml
 
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}
