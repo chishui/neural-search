@@ -39,25 +39,8 @@ jobs:
       - name: check space
         run: df -h
 
-      - name: Increase disk space (Ubuntu)
-        uses: fcbg-platforms/increase-disk-space@latest
-        with:
-          android: true
-          dotnet: false
-          haskell: true
-          large-packages: true
-          old-dotnet: true
-
-      - name: check space
-        run: df -h
-
-      - uses: mathio/gha-cleanup@v1
-        with:
-          remove-browsers: true
-          verbose: true
-
-      - name: check space
-        run: df -h
+      - name: check disk size
+      - run: du -h / 2>/dev/null | sort -hr | head -50
 
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}
