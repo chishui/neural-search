@@ -17,6 +17,7 @@ jobs:
     with:
       product: opensearch
 
+  Check-neural-search-linux:
     needs: Get-CI-Image-Tag
     strategy:
       matrix:
