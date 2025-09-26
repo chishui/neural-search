@@ -34,7 +34,7 @@ jobs:
       options: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-options }}
 
     steps:
-      - uses: ./.github/workflows/clean_up_disk.yml
+      - uses: ./.github/actions/clean-up-disk
 
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}

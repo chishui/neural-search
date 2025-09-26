@@ -10,6 +10,10 @@ runs:
 
     - name: Clean up disk space
       run: |
+        # Remove temp files
+        sudo rm -rf /__w/_temp || true
+        sudo rm -rf /tmp/* || true
+        
         # Clean apt cache
         sudo apt-get clean || true
         
@@ -20,18 +24,9 @@ runs:
         docker system prune -af || true
         
         # Remove large directories commonly found in CI
-        rm -rf /usr/share/dotnet || true
-        rm -rf /opt/ghc || true
-        rm -rf /usr/local/share/boost || true
-        
-        # Remove CodeQL
-        rm -rf /__t/CodeQL || true
-        
-        # Remove Go
-        rm -rf /__t/go || true
-        
-        # Remove GCC
-        rm -rf /usr/libexec || true
+        sudo rm -rf /usr/share/dotnet || true
+        sudo rm -rf /opt/ghc || true
+        sudo rm -rf /usr/local/share/boost || true
       shell: bash
 
     - name: Check final disk space
