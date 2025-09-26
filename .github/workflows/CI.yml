@@ -17,6 +17,19 @@ jobs:
     with:
       product: opensearch
 
+  free-disk-space:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Increase disk space (Ubuntu)
+        uses: fcbg-platforms/increase-disk-space@latest
+        with:
+          android: true
+          dotnet: false
+          haskell: true
+          large-packages: true
+          old-dotnet: true
+
   Check-neural-search-linux:
     needs: Get-CI-Image-Tag
     strategy:
@@ -34,18 +47,6 @@ jobs:
       options: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-options }}
 
     steps:
-      - name: check space
-        run: df -h
-
-      - name: Increase disk space (Ubuntu)
-        uses: fcbg-platforms/increase-disk-space@latest
-        with:
-          android: true
-          dotnet: false
-          haskell: true
-          large-packages: true
-          old-dotnet: true
-
       - name: check space
         run: df -h
 
