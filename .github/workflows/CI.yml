@@ -54,6 +54,9 @@ jobs:
           remove-browsers: true
           verbose: true
 
+      - name: check space
+        run: df -h
+
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}
 
