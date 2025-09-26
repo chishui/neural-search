@@ -34,12 +34,12 @@ jobs:
       options: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-options }}
 
     steps:
-      - uses: ./.github/actions/clean-up-disk
-
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}
 
       - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/clean-up-disk
 
       - name: Setup Java ${{ matrix.java }}
         uses: actions/setup-java@v4
