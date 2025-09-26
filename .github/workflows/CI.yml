@@ -45,6 +45,8 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
 
+      - uses: ./.github/actions/clean-up-disk
+
       - name: Run build
         run: |
           chown -R 1000:1000 `pwd`
