@@ -24,6 +24,17 @@ runs:
 
     - name: Clean up disk space
       run: |
+        # Remove temp files
+        rm -rf /tmp/* || true
+
+        # Clean docker if available
+        docker system prune -af || true
+
+        # Remove large directories commonly found in CI
+        rm -rf /usr/share/dotnet || true
+        rm -rf /opt/ghc || true
+        rm -rf /usr/local/share/boost || true
+
         # Remove CodeQL
         rm -rf /__t/CodeQL || true
 
