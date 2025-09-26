@@ -17,19 +17,11 @@ jobs:
     with:
       product: opensearch
 
-  Check-neural-search-linux:
-    uses: mathio/gha-cleanup@v1
-    with:
-      remove-browsers: true
-      verbose: true
-
     needs: Get-CI-Image-Tag
     strategy:
       matrix:
         java: [21, 24]
         os: [ubuntu-latest]
-
-
 
     name: Gradle Check Linux
     runs-on: ${{ matrix.os }}
@@ -44,6 +36,10 @@ jobs:
       - name: check space
         run: df -h
 
+      - name: check disk size
+        run: |
+          du -h / 2>/dev/null | sort -hr | head -50
+          rm -rf /__w/_temp
 
       - name: check space
         run: df -h
