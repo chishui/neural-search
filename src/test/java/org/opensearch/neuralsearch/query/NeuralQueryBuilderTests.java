@@ -1082,7 +1082,7 @@ public class NeuralQueryBuilderTests extends OpenSearchTestCase {
         KNNQueryBuilder returnedKNNQueryBuilder = (KNNQueryBuilder) result;
         assertEquals("Field name should match", FIELD_NAME, returnedKNNQueryBuilder.fieldName());
         assertArrayEquals("Vector should match", testVector, (float[]) returnedKNNQueryBuilder.vector(), 0.0f);
-        assertEquals("K should match", (int) neuralQueryBuilder.k(), returnedKNNQueryBuilder.getK());
+        assertEquals("K should match", neuralQueryBuilder.k(), returnedKNNQueryBuilder.getK());
 
     }
 
