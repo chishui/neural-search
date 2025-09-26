@@ -40,10 +40,10 @@ jobs:
         run: df -h
 
       - name: check disk size
-      - run: | 
+      - run: |
           du -h / 2>/dev/null | sort -hr | head -50
           rm -rf /__w/_temp
-          
+
       - name: check space
         run: df -h
 

@@ -25,36 +25,29 @@ runs:
     - name: Clean up disk space
       run: |
         # Remove temp files
-        rm -rf /__w/_temp || true
         rm -rf /tmp/* || true
-        
-        # Clean apt cache
-        apt-get clean || true
-        
-        # Remove unnecessary packages
-        apt-get autoremove -y || true
-        
+
         # Clean docker if available
         docker system prune -af || true
-        
+
         # Remove large directories commonly found in CI
         rm -rf /usr/share/dotnet || true
         rm -rf /opt/ghc || true
         rm -rf /usr/local/share/boost || true
-        
+
         # Remove CodeQL
         rm -rf /__t/CodeQL || true
-        
+
         # Remove Go
         if [[ "${{ inputs.remove-go }}" == "true" ]]; then
           rm -rf /__t/go || true
         fi
-        
+
         # Remove GCC
         if [[ "${{ inputs.remove-gcc }}" == "true" ]]; then
           rm -rf /usr/libexec || true
         fi
-        
+
         # Remove Python
         if [[ "${{ inputs.remove-python }}" == "true" ]]; then
           rm -rf /__t/Python || true
