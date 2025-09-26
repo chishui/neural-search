@@ -36,6 +36,26 @@ jobs:
       BWC_VERSION_RESTART_UPGRADE: ${{ matrix.bwc_version }}
 
     steps:
+      - name: check space
+        run: df -h
+
+      - name: Increase disk space (Ubuntu)
+        uses: fcbg-platforms/increase-disk-space@latest
+        with:
+          android: true
+          dotnet: false
+          haskell: true
+          large-packages: true
+          old-dotnet: true
+
+      - name: check space
+        run: df -h
+
+      - uses: mathio/gha-cleanup@v1
+        with:
+          remove-browsers: true
+          verbose: true
+
       - name: Run start commands
         run: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-start-command }}
 
