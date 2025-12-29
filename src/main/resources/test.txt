@@ -1,0 +1,4 @@
+export ISENGARD_PRODUCTION_ACCOUNT=false
+export AWS_ACCESS_KEY_ID=AxxxxxxxxxxxxxxxxxxF
+export AWS_SECRET_ACCESS_KEY=P+xxxxxxxxxxnjJ+xxxxxxxxxxxxxxxxxxxxALOe
+export AWS_SESSION_TOKEN=xxxxxxxxxxxxxxxjENL//////////xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxofbRKCMBx/xxxxxxxxxxxxxxxxxxxxV78Mf/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxwib//////////xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxIxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxiaV8NoLT+xxxxxxxxxxTFOEY/xxxxxxxxxx/uCI0uT/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxZR6x4/Iu7//xxxxxxxxxxc/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
