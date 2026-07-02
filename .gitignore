@@ -25,3 +25,6 @@ bin/
 
 # git stuff
 .gitattributes
+
+# external
+jni/external/

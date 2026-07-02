@@ -6,8 +6,10 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
+import org.gradle.internal.jvm.Jvm
 import org.opensearch.gradle.test.RestIntegTestTask
 import org.opensearch.gradle.testclusters.OpenSearchCluster
+import org.apache.tools.ant.taskdefs.condition.Os
 
 import java.nio.file.Paths
 import java.util.concurrent.Callable
@@ -29,6 +31,7 @@ buildscript {
         }
         opensearch_group = "org.opensearch"
         opensearch_no_snapshot = opensearch_build.replace("-SNAPSHOT","")
+        nproc_count = System.getProperty("nproc.count", "1")
     }
 
     repositories {
@@ -345,13 +348,61 @@ compileTestFixturesJava {
     options.compilerArgs.addAll(["-processor", 'lombok.launch.AnnotationProcessorHider$AnnotationProcessor'])
 }
 
+//****************************************************************************/
+// JNI Lib Build
+//****************************************************************************/
+
+def usingRemoteCluster = System.properties.containsKey('tests.rest.cluster') || System.properties.containsKey('tests.cluster')
+def integTestDependOnJniLib = !usingRemoteCluster
+
+tasks.register('cmakeJniLib', Exec) {
+    def args = []
+    args.add("cmake")
+    args.add("-S")
+    args.add("jni")
+    args.add("-B")
+    args.add("jni/build")
+    def javaHome = Jvm.current().getJavaHome()
+    logger.lifecycle("Java home directory used by gradle: $javaHome")
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        args.add("-G")
+        args.add("Unix Makefiles")
+    }
+    logger.lifecycle("CMake command: ${args.join(' ')}")
+    environment 'JAVA_HOME', Jvm.current().getJavaHome().toString()
+    commandLine args
+}
+
+tasks.register('buildJniLib', Exec) {
+    dependsOn cmakeJniLib
+    def args = []
+    args.add("cmake")
+    args.add("--build")
+    args.add("jni/build")
+    args.add("--parallel")
+    args.add("${nproc_count}")
+    logger.lifecycle("Build command: ${args.join(' ')}")
+    environment 'JAVA_HOME', Jvm.current().getJavaHome().toString()
+    commandLine args
+}
+
+// Makes sure that `./gradlew clean` removes all JNI build artifacts
+tasks.clean.doFirst {
+    delete "${projectDir}/jni/build"
+}
+
 def _numNodes = findProperty('numNodes') as Integer ?: 1
 def _configureNodeRoles = findProperty('configureNodeRoles') as Boolean ?: false
 
 test {
+    dependsOn buildJniLib
     include '**/*Tests.class'
     systemProperty 'tests.security.manager', 'false'
+    systemProperty "java.library.path", "$rootDir/jni/build"
     systemProperty "jdk.attach.allowAttachSelf", true
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        environment('PATH', System.getenv('PATH') + ";$rootDir/jni/build")
+    }
 }
 
 // Setting up Integration Tests
@@ -369,7 +420,11 @@ task integTest(type: RestIntegTestTask) {
 tasks.named("check").configure { dependsOn(integTest) }
 
 integTest {
+    if (integTestDependOnJniLib) {
+        dependsOn buildJniLib
+    }
     systemProperty 'tests.security.manager', 'false'
+    systemProperty "java.library.path", "$rootDir/jni/build"
     systemProperty 'java.io.tmpdir', opensearch_tmp_dir.absolutePath
     // allows integration test classes to access test resource from project root path
     systemProperty('project.root', project.rootDir.absolutePath)
@@ -501,6 +556,8 @@ testClusters.integTest {
     // Increase heap size from default of 512mb to 1gb. When heap size is 512mb, our integ tests sporadically fail due
     // to ml-commons memory circuit breaker exception
     jvmArgs("-Xms1g", "-Xmx2g")
+
+    systemProperty("java.library.path", "$rootDir/jni/build")
 }
 
 // Remote Integration Tests
@@ -525,6 +582,7 @@ task integTestRemote(type: RestIntegTestTask) {
 }
 
 run {
+    dependsOn buildJniLib
     useCluster testClusters.integTest
 }
 
@@ -849,6 +907,8 @@ testClusters.remoteModelIntegTest {
 
     // Increase heap size to avoid memory issues
     jvmArgs("-Xms1g", "-Xmx2g")
+
+    systemProperty("java.library.path", "$rootDir/jni/build")
 }
 
 // Helper tasks for manual control (optional)

@@ -14,6 +14,7 @@ import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.mapper.MapperParsingException;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
 
 /**
@@ -31,6 +33,7 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETE
 @EqualsAndHashCode
 public class SparseMethodContext implements ToXContentFragment, Writeable {
     private final String name;
+    private final String sparseEngine;
     private final MethodComponentContext methodComponentContext;
 
     /**
@@ -38,6 +41,7 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
      */
     public SparseMethodContext(StreamInput in) throws IOException {
         this.name = in.readString();
+        this.sparseEngine = in.readOptionalString();
         this.methodComponentContext = new MethodComponentContext(in, name);
     }
 
@@ -47,6 +51,7 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(this.name);
+        out.writeOptionalString(this.sparseEngine);
         this.methodComponentContext.writeTo(out);
     }
 
@@ -55,6 +60,7 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
      */
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.field(ENGINE_FIELD, sparseEngine);
         builder = methodComponentContext.toXContent(builder, params);
         return builder;
     }
@@ -69,6 +75,7 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
         }
         Map<String, Object> methodMap = (Map<String, Object>) in;
         String name = "";
+        String engine = SparseEngine.DEFAULT.getName();
         Map<String, Object> parameters = new HashMap<>();
         String key;
         Object value;
@@ -77,6 +84,8 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
             value = methodEntry.getValue();
             if (NAME_FIELD.equals(key)) {
                 name = (String) value;
+            } else if (ENGINE_FIELD.equals(key)) {
+                engine = (String) value;
             } else if (PARAMETERS_FIELD.equals(key)) {
                 if (value == null) {
                     parameters = null;
@@ -102,7 +111,11 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
         if (name.isEmpty()) {
             throw new MapperParsingException(NAME_FIELD + " needs to be set");
         }
+        SparseEngine sparseEngine = SparseEngine.fromName(engine);
+        if (sparseEngine == null) {
+            throw new MapperParsingException(ENGINE_FIELD + " needs to be valid engine");
+        }
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
-        return new SparseMethodContext(name, methodComponentContext);
+        return new SparseMethodContext(name, engine, methodComponentContext);
     }
 }

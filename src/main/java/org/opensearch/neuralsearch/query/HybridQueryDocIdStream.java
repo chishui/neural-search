@@ -37,6 +37,11 @@ public class HybridQueryDocIdStream extends DocIdStream {
     }
 
     @Override
+    public int intoArray(int upTo, int[] array) {
+        return 0;
+    }
+
+    @Override
     public boolean mayHaveRemaining() {
         return false;
     }

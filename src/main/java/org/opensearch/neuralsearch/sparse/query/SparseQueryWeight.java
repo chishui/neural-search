@@ -27,12 +27,14 @@ import org.apache.lucene.util.Bits;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
 import org.opensearch.neuralsearch.sparse.codec.SparseBinaryDocValuesPassThrough;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
+import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
 import org.opensearch.neuralsearch.sparse.query.explain.SparseExplanationBuilder;
 
@@ -97,8 +99,9 @@ public class SparseQueryWeight extends Weight {
         final SparseVectorQuery query = (SparseVectorQuery) parentQuery;
         SegmentInfo info = Lucene.segmentReader(context.reader()).getSegmentInfo().info;
         FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
+        boolean isNativeEngine = SparseEngine.NATIVE == SparseFieldUtils.getSparseEngine(fieldInfo);
         // fallback to plain neural sparse query
-        if (!PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo)) {
+        if (!isNativeEngine && !PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo)) {
             return fallbackQueryWeight.scorerSupplier(context);
         }
         final Scorer scorer = selectScorer(query, context, info);
@@ -141,8 +144,28 @@ public class SparseQueryWeight extends Weight {
 
     @VisibleForTesting
     Scorer selectScorer(SparseVectorQuery query, LeafReaderContext context, SegmentInfo segmentInfo) throws IOException {
-        SparseVectorReader cacheGatedForwardIndexReader = SparseVectorReader.NOOP_READER;
         FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
+
+        BitSet filter = null;
+        BitSetIterator filterBitIterator = null;
+        if (query.getFilterResults() != null) {
+            filter = query.getFilterResults().get(context.id());
+            if (filter != null) {
+                int ord = filter.cardinality();
+                filterBitIterator = new BitSetIterator(filter, ord);
+            }
+        }
+        if (SparseEngine.NATIVE == SparseFieldUtils.getSparseEngine(fieldInfo)) {
+            return new NativeIndexScorer(
+                fieldInfo,
+                query.getQueryContext(),
+                query.getRawQueryTokens(),
+                segmentInfo,
+                context.reader().getLiveDocs(),
+                filterBitIterator
+            );
+        }
+        SparseVectorReader cacheGatedForwardIndexReader = SparseVectorReader.NOOP_READER;
         float rescaledBoost = boost * ByteQuantizationUtil.getCeilingValueIngest(fieldInfo) * ByteQuantizationUtil.getCeilingValueSearch(
             fieldInfo
         ) / MAX_UNSIGNED_BYTE_VALUE / MAX_UNSIGNED_BYTE_VALUE;
@@ -153,15 +176,10 @@ public class SparseQueryWeight extends Weight {
             cacheGatedForwardIndexReader = getCacheGatedForwardIndexReader(cacheItem, context.reader(), query.getFieldName());
         }
         Similarity.SimScorer simScorer = ByteQuantizationUtil.getSimScorer(rescaledBoost);
-        BitSetIterator filterBitIterator = null;
-        if (query.getFilterResults() != null) {
-            BitSet filter = query.getFilterResults().get(context.id());
-            if (filter != null) {
-                int ord = filter.cardinality();
-                filterBitIterator = new BitSetIterator(filter, ord);
-                if (ord <= query.getQueryContext().getK()) {
-                    return new ExactMatchScorer(filterBitIterator, query.getQueryVector(), cacheGatedForwardIndexReader, simScorer);
-                }
+        if (filterBitIterator != null && filter != null) {
+            int ord = filter.cardinality();
+            if (ord <= query.getQueryContext().getK()) {
+                return new ExactMatchScorer(filterBitIterator, query.getQueryVector(), cacheGatedForwardIndexReader, simScorer);
             }
         }
         return new OrderedPostingWithClustersScorer(

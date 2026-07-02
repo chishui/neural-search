@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import org.apache.lucene.index.FieldInfo;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MappingMetadata;
@@ -11,6 +12,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.mapper.SparseVectorFieldType;
 
 import java.util.Collections;
@@ -20,6 +22,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
 
 /**
  * Utility class for operations related to sparse fields in neural search indices.
@@ -91,6 +102,61 @@ public class SparseFieldUtils {
             .orElse(Settings.EMPTY);
 
         return MapperService.INDEX_MAPPING_DEPTH_LIMIT_SETTING.get(settings);
+    }
+
+    /**
+     * Extracts the {@link SparseEngine} for a sparse vector field from its {@link FieldInfo} attributes.
+     *
+     * @param fieldInfo The field info containing the engine attribute
+     * @return The {@link SparseEngine} configured for the field, or {@link SparseEngine#DEFAULT} if not found
+     */
+    public static SparseEngine getSparseEngine(FieldInfo fieldInfo) {
+        String engine = fieldInfo.getAttribute(ENGINE_FIELD);
+        if (engine == null) {
+            return SparseEngine.DEFAULT;
+        }
+        SparseEngine sparseEngine = SparseEngine.fromName(engine);
+        return sparseEngine != null ? sparseEngine : SparseEngine.DEFAULT;
+    }
+
+    /**
+     * Retrieves the quantization ceiling for ingest from the field attributes.
+     *
+     * @param fieldInfo The field info containing the quantization ceiling attribute
+     * @return The quantization ceiling value for ingest
+     */
+    public static float getQuantizationCeilingIngest(FieldInfo fieldInfo) {
+        return Float.parseFloat(fieldInfo.attributes().get(QUANTIZATION_CEILING_INGEST_FIELD));
+    }
+
+    /**
+     * Retrieves the cluster ratio from the field attributes.
+     *
+     * @param fieldInfo The field info containing the cluster ratio attribute
+     * @return The cluster ratio value
+     */
+    public static float getClusterRatio(FieldInfo fieldInfo) {
+        return Float.parseFloat(fieldInfo.attributes().get(CLUSTER_RATIO_FIELD));
+    }
+
+    /**
+     * Retrieves the summary prune ratio from the field attributes.
+     *
+     * @param fieldInfo The field info containing the summary prune ratio attribute
+     * @return The summary prune ratio value
+     */
+    public static float getSummaryPruneRatio(FieldInfo fieldInfo) {
+        return Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
+    }
+
+    public static int getNPostings(FieldInfo fieldInfo, int maxDoc) {
+        int nPostings;
+        if (Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD)) == DEFAULT_N_POSTINGS) {
+            nPostings = Math.max((int) (DEFAULT_POSTING_PRUNE_RATIO * maxDoc), DEFAULT_POSTING_MINIMUM_LENGTH);
+        } else {
+            nPostings = Integer.parseInt(fieldInfo.attributes().get(N_POSTINGS_FIELD));
+        }
+        return nPostings;
     }
 
     /**

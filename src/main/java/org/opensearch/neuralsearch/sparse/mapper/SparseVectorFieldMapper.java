@@ -20,6 +20,7 @@ import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgoType;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -29,6 +30,7 @@ import java.util.Map;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_SEARCH_FIELD;
@@ -66,10 +68,6 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
         this.fieldType.setDocValuesType(DocValuesType.BINARY);
         setFieldTypeAttributes(this.fieldType, sparseMethodContext);
         this.fieldType.freeze();
-
-        this.tokenFieldType = new FieldType(Defaults.TOKEN_FIELD_TYPE);
-        setFieldTypeAttributes(this.tokenFieldType, sparseMethodContext);
-        this.tokenFieldType.freeze();
     }
 
     private static SparseVectorFieldType ft(FieldMapper in) {
@@ -165,8 +163,10 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
                                 + "] in the same document"
                         );
                     }
-                    FeatureField featureField = new FeatureField(name(), feature, value);
-                    context.doc().addWithKey(key, featureField);
+                    if (!SparseEngine.NATIVE.getName().equalsIgnoreCase(sparseMethodContext.getSparseEngine())) {
+                        FeatureField featureField = new FeatureField(name(), feature, value);
+                        context.doc().addWithKey(key, featureField);
+                    }
 
                     try {
                         int tokenIndex = Integer.parseInt(feature);
@@ -213,6 +213,7 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             fieldType.putAttribute(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(algoTriggerThreshold));
             fieldType.putAttribute(QUANTIZATION_CEILING_INGEST_FIELD, String.valueOf(quantizationCeilIngest));
             fieldType.putAttribute(QUANTIZATION_CEILING_SEARCH_FIELD, String.valueOf(quantizationCeilSearch));
+            fieldType.putAttribute(ENGINE_FIELD, sparseMethodContext.getSparseEngine());
         }
     }
 
@@ -227,11 +228,6 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             FIELD_TYPE.setIndexOptions(IndexOptions.NONE);
             FIELD_TYPE.putAttribute(SparseVectorField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
             FIELD_TYPE.freeze();
-            TOKEN_FIELD_TYPE.setTokenized(false);
-            TOKEN_FIELD_TYPE.setOmitNorms(true);
-            TOKEN_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS);
-            TOKEN_FIELD_TYPE.putAttribute(SparseVectorField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
-            TOKEN_FIELD_TYPE.freeze();
         }
     }
 

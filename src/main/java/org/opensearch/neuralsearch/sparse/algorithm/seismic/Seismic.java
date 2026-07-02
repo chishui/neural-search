@@ -47,106 +47,12 @@ public class Seismic implements SparseAlgorithm {
         ValidationException validationException = null;
         final List<String> errorMessages = new ArrayList<>();
         Map<String, Object> parameters = new HashMap<>(sparseMethodContext.getMethodComponentContext().getParameters());
-        if (parameters.containsKey(SUMMARY_PRUNE_RATIO_FIELD)) {
-            try {
-                String fieldValueString = parameters.get(SUMMARY_PRUNE_RATIO_FIELD).toString();
-                float summaryPruneRatio = NumberUtils.createFloat(fieldValueString);
-                if (summaryPruneRatio <= 0 || summaryPruneRatio > 1) {
-                    errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD));
-                }
-            } catch (Exception e) {
-                errorMessages.add(
-                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", SUMMARY_PRUNE_RATIO_FIELD, Float.class.getName())
-                );
-            }
-            parameters.remove(SUMMARY_PRUNE_RATIO_FIELD);
-        }
-        if (parameters.containsKey(N_POSTINGS_FIELD)) {
-            try {
-                String fieldValueString = parameters.get(N_POSTINGS_FIELD).toString();
-                int nPostings = NumberUtils.createInteger(fieldValueString);
-                if (nPostings <= 0) {
-                    errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD));
-                }
-            } catch (Exception e) {
-                errorMessages.add(
-                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", N_POSTINGS_FIELD, Integer.class.getName())
-                );
-            }
-            parameters.remove(N_POSTINGS_FIELD);
-        }
-        if (parameters.containsKey(CLUSTER_RATIO_FIELD)) {
-            try {
-                String fieldValueString = parameters.get(CLUSTER_RATIO_FIELD).toString();
-                float clusterRatio = NumberUtils.createFloat(fieldValueString);
-                if (clusterRatio <= 0 || clusterRatio >= 1) {
-                    errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD));
-                }
-            } catch (Exception e) {
-                errorMessages.add(
-                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", CLUSTER_RATIO_FIELD, Float.class.getName())
-                );
-            }
-            parameters.remove(CLUSTER_RATIO_FIELD);
-        }
-        if (parameters.containsKey(APPROXIMATE_THRESHOLD_FIELD)) {
-            try {
-                String fieldValueString = parameters.get(APPROXIMATE_THRESHOLD_FIELD).toString();
-                int algoTriggerThreshold = NumberUtils.createInteger(fieldValueString);
-                if (algoTriggerThreshold < 0) {
-                    errorMessages.add(
-                        String.format(Locale.ROOT, "Parameter [%s] must be a non-negative integer", APPROXIMATE_THRESHOLD_FIELD)
-                    );
-                }
-            } catch (Exception e) {
-                errorMessages.add(
-                    String.format(Locale.ROOT, "Parameter [%s] must be of %s type", APPROXIMATE_THRESHOLD_FIELD, Integer.class.getName())
-                );
-            }
-            parameters.remove(APPROXIMATE_THRESHOLD_FIELD);
-        }
-        if (parameters.containsKey(QUANTIZATION_CEILING_INGEST_FIELD)) {
-            try {
-                String fieldValueString = parameters.get(QUANTIZATION_CEILING_INGEST_FIELD).toString();
-                float quantizationCeilValue = NumberUtils.createFloat(fieldValueString);
-                if (quantizationCeilValue <= 0) {
-                    errorMessages.add(
-                        String.format(Locale.ROOT, "Parameter [%s] must be a positive float number", QUANTIZATION_CEILING_INGEST_FIELD)
-                    );
-                }
-            } catch (Exception e) {
-                errorMessages.add(
-                    String.format(
-                        Locale.ROOT,
-                        "Parameter [%s] must be of %s type",
-                        QUANTIZATION_CEILING_INGEST_FIELD,
-                        Float.class.getName()
-                    )
-                );
-            }
-            parameters.remove(QUANTIZATION_CEILING_INGEST_FIELD);
-        }
-        if (parameters.containsKey(QUANTIZATION_CEILING_SEARCH_FIELD)) {
-            try {
-                String fieldValueString = parameters.get(QUANTIZATION_CEILING_SEARCH_FIELD).toString();
-                float quantizationCeilValue = NumberUtils.createFloat(fieldValueString);
-                if (quantizationCeilValue <= 0) {
-                    errorMessages.add(
-                        String.format(Locale.ROOT, "Parameter [%s] must be a positive float number", QUANTIZATION_CEILING_SEARCH_FIELD)
-                    );
-                }
-            } catch (Exception e) {
-                errorMessages.add(
-                    String.format(
-                        Locale.ROOT,
-                        "Parameter [%s] must be of %s type",
-                        QUANTIZATION_CEILING_SEARCH_FIELD,
-                        Float.class.getName()
-                    )
-                );
-            }
-            parameters.remove(QUANTIZATION_CEILING_SEARCH_FIELD);
-        }
+        validateSummaryPruneRatio(parameters, errorMessages);
+        validateNPostings(parameters, errorMessages);
+        validateClusterRatio(parameters, errorMessages);
+        validateApproximateThreshold(parameters, errorMessages);
+        validateQuantizationCeilingIngest(parameters, errorMessages);
+        validateQuantizationCeilingSearch(parameters, errorMessages);
         for (String key : parameters.keySet()) {
             errorMessages.add(String.format(Locale.ROOT, "Unknown parameter '%s' found", key));
         }
@@ -155,5 +61,113 @@ public class Seismic implements SparseAlgorithm {
             validationException.addValidationErrors(errorMessages);
         }
         return validationException;
+    }
+
+    private void validateSummaryPruneRatio(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(SUMMARY_PRUNE_RATIO_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(SUMMARY_PRUNE_RATIO_FIELD).toString();
+            float summaryPruneRatio = NumberUtils.createFloat(fieldValueString);
+            if (summaryPruneRatio <= 0 || summaryPruneRatio > 1) {
+                errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1]", SUMMARY_PRUNE_RATIO_FIELD));
+            }
+        } catch (Exception e) {
+            errorMessages.add(
+                String.format(Locale.ROOT, "Parameter [%s] must be of %s type", SUMMARY_PRUNE_RATIO_FIELD, Float.class.getName())
+            );
+        }
+        parameters.remove(SUMMARY_PRUNE_RATIO_FIELD);
+    }
+
+    private void validateNPostings(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(N_POSTINGS_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(N_POSTINGS_FIELD).toString();
+            int nPostings = NumberUtils.createInteger(fieldValueString);
+            if (nPostings <= 0) {
+                errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be a positive integer", N_POSTINGS_FIELD));
+            }
+        } catch (Exception e) {
+            errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be of %s type", N_POSTINGS_FIELD, Integer.class.getName()));
+        }
+        parameters.remove(N_POSTINGS_FIELD);
+    }
+
+    private void validateClusterRatio(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(CLUSTER_RATIO_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(CLUSTER_RATIO_FIELD).toString();
+            float clusterRatio = NumberUtils.createFloat(fieldValueString);
+            if (clusterRatio <= 0 || clusterRatio >= 1) {
+                errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be in (0, 1)", CLUSTER_RATIO_FIELD));
+            }
+        } catch (Exception e) {
+            errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be of %s type", CLUSTER_RATIO_FIELD, Float.class.getName()));
+        }
+        parameters.remove(CLUSTER_RATIO_FIELD);
+    }
+
+    private void validateApproximateThreshold(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(APPROXIMATE_THRESHOLD_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(APPROXIMATE_THRESHOLD_FIELD).toString();
+            int algoTriggerThreshold = NumberUtils.createInteger(fieldValueString);
+            if (algoTriggerThreshold < 0) {
+                errorMessages.add(String.format(Locale.ROOT, "Parameter [%s] must be a non-negative integer", APPROXIMATE_THRESHOLD_FIELD));
+            }
+        } catch (Exception e) {
+            errorMessages.add(
+                String.format(Locale.ROOT, "Parameter [%s] must be of %s type", APPROXIMATE_THRESHOLD_FIELD, Integer.class.getName())
+            );
+        }
+        parameters.remove(APPROXIMATE_THRESHOLD_FIELD);
+    }
+
+    private void validateQuantizationCeilingIngest(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(QUANTIZATION_CEILING_INGEST_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(QUANTIZATION_CEILING_INGEST_FIELD).toString();
+            float quantizationCeilValue = NumberUtils.createFloat(fieldValueString);
+            if (quantizationCeilValue <= 0) {
+                errorMessages.add(
+                    String.format(Locale.ROOT, "Parameter [%s] must be a positive float number", QUANTIZATION_CEILING_INGEST_FIELD)
+                );
+            }
+        } catch (Exception e) {
+            errorMessages.add(
+                String.format(Locale.ROOT, "Parameter [%s] must be of %s type", QUANTIZATION_CEILING_INGEST_FIELD, Float.class.getName())
+            );
+        }
+        parameters.remove(QUANTIZATION_CEILING_INGEST_FIELD);
+    }
+
+    private void validateQuantizationCeilingSearch(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(QUANTIZATION_CEILING_SEARCH_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(QUANTIZATION_CEILING_SEARCH_FIELD).toString();
+            float quantizationCeilValue = NumberUtils.createFloat(fieldValueString);
+            if (quantizationCeilValue <= 0) {
+                errorMessages.add(
+                    String.format(Locale.ROOT, "Parameter [%s] must be a positive float number", QUANTIZATION_CEILING_SEARCH_FIELD)
+                );
+            }
+        } catch (Exception e) {
+            errorMessages.add(
+                String.format(Locale.ROOT, "Parameter [%s] must be of %s type", QUANTIZATION_CEILING_SEARCH_FIELD, Float.class.getName())
+            );
+        }
+        parameters.remove(QUANTIZATION_CEILING_SEARCH_FIELD);
     }
 }

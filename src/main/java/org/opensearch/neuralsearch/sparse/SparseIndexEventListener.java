@@ -15,10 +15,15 @@ import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.indices.cluster.IndicesClusterStateService;
-import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
+import org.opensearch.neuralsearch.sparse.cache.NativeCacheManager;
+import org.opensearch.neuralsearch.sparse.codec.CodecUtils;
 import org.opensearch.neuralsearch.sparse.mapper.SparseVectorFieldType;
+
+import java.util.List;
 
 /**
  * Event listener for sparse index operations that handles cache cleanup during index removal.
@@ -44,9 +49,8 @@ public class SparseIndexEventListener implements IndexEventListener {
                     for (MappedFieldType fieldType : mapperService.fieldTypes()) {
                         if (fieldType instanceof SparseVectorFieldType) {
                             String fieldName = fieldType.name();
-                            CacheKey key = new CacheKey(segmentInfo, fieldName);
-                            ForwardIndexCache.getInstance().onIndexRemoval(key);
-                            ClusteredPostingCache.getInstance().onIndexRemoval(key);
+                            clearJvmCache(fieldName, segmentInfo);
+                            clearNativeCache(fieldName, segmentInfo);
                         }
                     }
                 }
@@ -54,6 +58,21 @@ public class SparseIndexEventListener implements IndexEventListener {
                 log.error("An error occurred during remove index from cache", e);
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    private void clearJvmCache(String fieldName, SegmentInfo segmentInfo) {
+        CacheKey key = new CacheKey(segmentInfo, fieldName);
+        ForwardIndexCache.getInstance().onIndexRemoval(key);
+        ClusteredPostingCache.getInstance().onIndexRemoval(key);
+    }
+
+    private void clearNativeCache(String fieldName, SegmentInfo segmentInfo) {
+        // remove native engine cache
+        List<String> engineFiles = CodecUtils.getEngineFiles(SparseEngine.NATIVE.extension(), fieldName, segmentInfo);
+        for (String engineFileName : engineFiles) {
+            String nativeCacheKey = NativeCacheManager.constructCacheKey(engineFileName, segmentInfo);
+            NativeCacheManager.instance().invalidate(nativeCacheKey);
         }
     }
 }
