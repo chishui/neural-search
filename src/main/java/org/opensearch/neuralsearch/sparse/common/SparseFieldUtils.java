@@ -108,9 +108,13 @@ public class SparseFieldUtils {
      * Extracts the {@link SparseEngine} for a sparse vector field from its {@link FieldInfo} attributes.
      *
      * @param fieldInfo The field info containing the engine attribute
-     * @return The {@link SparseEngine} configured for the field, or {@link SparseEngine#DEFAULT} if not found
+     * @return The {@link SparseEngine} configured for the field, or {@link SparseEngine#DEFAULT} if not found or
+     *         when {@code fieldInfo} is null (e.g. the field is absent from a segment)
      */
     public static SparseEngine getSparseEngine(FieldInfo fieldInfo) {
+        if (fieldInfo == null) {
+            return SparseEngine.DEFAULT;
+        }
         String engine = fieldInfo.getAttribute(ENGINE_FIELD);
         if (engine == null) {
             return SparseEngine.DEFAULT;

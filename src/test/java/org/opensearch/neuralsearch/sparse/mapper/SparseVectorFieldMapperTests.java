@@ -5,7 +5,9 @@
 package org.opensearch.neuralsearch.sparse.mapper;
 
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.index.IndexableField;
 import org.junit.Before;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.ToXContent;
@@ -169,9 +171,31 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         SparseVectorFieldMapper mapper = (SparseVectorFieldMapper) builder.build(
             new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
-        FieldType fieldType = mapper.getTokenFieldType();
-        assertEquals(1, fieldType.getAttributes().size());
-        assertTrue(Boolean.parseBoolean(fieldType.getAttributes().get(SPARSE_FIELD)));
+
+        ParseContext context = mock(ParseContext.class);
+        XContentParser parser = mock(XContentParser.class);
+        ParseContext.Document doc = mock(ParseContext.Document.class);
+        when(context.externalValueSet()).thenReturn(false);
+        when(context.parser()).thenReturn(parser);
+        when(context.doc()).thenReturn(doc);
+        when(parser.currentToken()).thenReturn(XContentParser.Token.START_OBJECT);
+        when(parser.nextToken()).thenReturn(XContentParser.Token.FIELD_NAME)
+            .thenReturn(XContentParser.Token.VALUE_NUMBER)
+            .thenReturn(XContentParser.Token.END_OBJECT);
+        when(parser.currentName()).thenReturn("1");
+        when(parser.floatValue(true)).thenReturn(0.5f);
+        when(doc.getByKey(any())).thenReturn(null);
+
+        mapper.parseCreateField(context);
+
+        // Capture the SparseVectorField that was indexed and inspect its Lucene field type. A non-seismic method
+        // context adds no seismic-specific attributes, so the field type only carries the SPARSE_FIELD marker
+        // inherited from Defaults.FIELD_TYPE.
+        ArgumentCaptor<IndexableField> fieldCaptor = ArgumentCaptor.forClass(IndexableField.class);
+        verify(doc).add(fieldCaptor.capture());
+        Map<String, String> attributes = ((FieldType) fieldCaptor.getValue().fieldType()).getAttributes();
+        assertEquals(1, attributes.size());
+        assertTrue(Boolean.parseBoolean(attributes.get(SPARSE_FIELD)));
     }
 
     public void testSparseTypeParser_withValidInput_returnsBuilder() throws MapperParsingException {
@@ -263,10 +287,6 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         Map<String, String> fieldTypeAttrs = SparseVectorFieldMapper.Defaults.FIELD_TYPE.getAttributes();
         assertTrue(fieldTypeAttrs.containsKey("sparse_vector_field"));
         assertEquals("true", fieldTypeAttrs.get("sparse_vector_field"));
-
-        Map<String, String> tokenFieldTypeAttrs = SparseVectorFieldMapper.Defaults.TOKEN_FIELD_TYPE.getAttributes();
-        assertTrue(tokenFieldTypeAttrs.containsKey("sparse_vector_field"));
-        assertEquals("true", tokenFieldTypeAttrs.get("sparse_vector_field"));
     }
 
     public void testBuilder_getParameters_returnsCorrectParameters() {

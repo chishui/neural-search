@@ -119,16 +119,21 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
         Environment environment = mock(Environment.class);
         when(environment.settings()).thenReturn(settings);
 
-        // Mock ClusterSettings
+        // Mock ClusterSettings. Only node-scoped settings can be registered here; the index-scoped
+        // IS_SPARSE_INDEX_SETTING is excluded. SparseSettings#initialize reads and registers update
+        // consumers for the thread-qty and memory circuit breaker settings, so both must be present.
         ClusterSettings clusterSettings = new ClusterSettings(
             settings,
             Set.of(
                 NeuralSearchSettings.NEURAL_STATS_ENABLED,
                 NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_LIMIT,
                 NeuralSearchSettings.NEURAL_CIRCUIT_BREAKER_OVERHEAD,
-                NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
+                SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
+                SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING,
+                SparseSettings.SPARSE_MEMORY_CIRCUIT_BREAKER_LIMIT_SETTING
             )
         );
+        when(clusterService.getSettings()).thenReturn(settings);
         when(clusterService.getClusterSettings()).thenReturn(clusterSettings);
 
         Collection<Object> components = plugin.createComponents(
@@ -201,7 +206,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
     public void testGetSettings() {
         List<Setting<?>> settings = plugin.getSettings();
-        assertEquals(8, settings.size());
+        assertEquals(10, settings.size());
     }
 
     public void testRequestProcessors() {
@@ -326,11 +331,11 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
         assertTrue(
             "SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING should be registered",
-            settings.contains(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING)
+            settings.contains(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING)
         );
 
-        Setting<Integer> threadQtySetting = NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING;
-        assertEquals(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, threadQtySetting.getKey());
+        Setting<Integer> threadQtySetting = SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING;
+        assertEquals(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, threadQtySetting.getKey());
         assertTrue("Setting should be dynamic", threadQtySetting.isDynamic());
         assertTrue("Setting should be node scope", threadQtySetting.hasNodeScope());
 
@@ -340,7 +345,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
     }
 
     public void testGetExecutorBuildersWithCustomThreadQty() {
-        Settings customSettings = Settings.builder().put(NeuralSearchSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, NEW_THREAD_COUNT).build();
+        Settings customSettings = Settings.builder().put(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY, NEW_THREAD_COUNT).build();
 
         List<ExecutorBuilder<?>> executorBuilders = plugin.getExecutorBuilders(customSettings);
 

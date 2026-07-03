@@ -15,6 +15,7 @@ import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -121,7 +122,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         parameters.put("param2", 42);
 
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
-        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, methodComponentContext);
+        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, SparseEngine.DEFAULT.getName(), methodComponentContext);
 
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
@@ -142,7 +143,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         parameters.put("param1", "value1");
         parameters.put("param2", 42);
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
-        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, methodComponentContext);
+        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, SparseEngine.DEFAULT.getName(), methodComponentContext);
 
         BytesStreamOutput out = new BytesStreamOutput();
         sparseMethodContext.writeTo(out);

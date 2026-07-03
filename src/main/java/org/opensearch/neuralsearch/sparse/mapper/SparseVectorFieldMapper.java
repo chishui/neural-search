@@ -53,7 +53,6 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
     public static final String METHOD = "method";
     @NonNull
     private final SparseMethodContext sparseMethodContext;
-    private FieldType tokenFieldType;
 
     private SparseVectorFieldMapper(
         String simpleName,
@@ -222,7 +221,6 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
      */
     public static class Defaults {
         public static final FieldType FIELD_TYPE = new FieldType();
-        public static final FieldType TOKEN_FIELD_TYPE = new FieldType();
         static {
             FIELD_TYPE.setTokenized(false);
             FIELD_TYPE.setIndexOptions(IndexOptions.NONE);

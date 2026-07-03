@@ -234,20 +234,20 @@ public class SeismicBaseScorerTests extends AbstractSparseTestBase {
         results.add(Pair.of(5, 50));
 
         // Create iterator
-        SeismicBaseScorer.ResultsDocValueIterator iterator = new SeismicBaseScorer.ResultsDocValueIterator(results);
+        ResultsDocValueIterator<Integer> iterator = new ResultsDocValueIterator<>(results);
 
         // Test nextDoc
         assertEquals(-1, iterator.docID());
         assertEquals(1, iterator.nextDoc());
         assertEquals(1, iterator.docID());
         assertEquals(1, iterator.docID());
-        assertEquals(10, iterator.cost());
+        assertEquals(10F, iterator.score(), DELTA_FOR_ASSERTION);
         assertEquals(3, iterator.nextDoc());
         assertEquals(3, iterator.docID());
-        assertEquals(30, iterator.cost());
+        assertEquals(30F, iterator.score(), DELTA_FOR_ASSERTION);
         assertEquals(5, iterator.nextDoc());
         assertEquals(5, iterator.docID());
-        assertEquals(50, iterator.cost());
+        assertEquals(50F, iterator.score(), DELTA_FOR_ASSERTION);
         assertEquals(DocIdSetIterator.NO_MORE_DOCS, iterator.nextDoc());
         assertEquals(DocIdSetIterator.NO_MORE_DOCS, iterator.docID());
     }
@@ -261,7 +261,7 @@ public class SeismicBaseScorerTests extends AbstractSparseTestBase {
         results.add(Pair.of(5, 50));
         results.add(Pair.of(7, 70));
 
-        SeismicBaseScorer.ResultsDocValueIterator iterator = new SeismicBaseScorer.ResultsDocValueIterator(results);
+        ResultsDocValueIterator<Integer> iterator = new ResultsDocValueIterator<>(results);
         // Test advance
         assertEquals(1, iterator.nextDoc());
         assertEquals(1, iterator.advance(0));
@@ -273,7 +273,7 @@ public class SeismicBaseScorerTests extends AbstractSparseTestBase {
         assertEquals(DocIdSetIterator.NO_MORE_DOCS, iterator.docID());
     }
 
-    public void testResultsDocValueIterator_cost() throws IOException {
+    public void testResultsDocValueIterator_score() throws IOException {
         init();
         // Create new iterator for advance test
         List<Pair<Integer, Integer>> results = new ArrayList<>();
@@ -282,12 +282,12 @@ public class SeismicBaseScorerTests extends AbstractSparseTestBase {
         results.add(Pair.of(5, 50));
         results.add(Pair.of(7, 70));
 
-        SeismicBaseScorer.ResultsDocValueIterator iterator = new SeismicBaseScorer.ResultsDocValueIterator(results);
-        assertEquals(0, iterator.cost());
+        ResultsDocValueIterator<Integer> iterator = new ResultsDocValueIterator<>(results);
+        assertEquals(0F, iterator.score(), DELTA_FOR_ASSERTION);
         assertEquals(1, iterator.nextDoc());
-        assertEquals(10, iterator.cost());
+        assertEquals(10F, iterator.score(), DELTA_FOR_ASSERTION);
         assertEquals(DocIdSetIterator.NO_MORE_DOCS, iterator.advance(100));
-        assertEquals(0, iterator.cost());
+        assertEquals(0F, iterator.score(), DELTA_FOR_ASSERTION);
     }
 
     public void testSingleScorer_basic() throws IOException {

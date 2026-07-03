@@ -400,6 +400,9 @@ public class TestsPrepareUtils {
 
     public static SegmentCommitInfo prepareSegmentCommitInfo() {
         SegmentInfo segmentInfo = prepareSegmentInfo();
+        // Initialize the segment files so callers that invoke SegmentInfo#files() (e.g. CodecUtils#getEngineFiles)
+        // do not fail with "files were not computed yet".
+        segmentInfo.setFiles(Collections.emptySet());
         byte[] id = StringHelper.randomId();
         return new SegmentCommitInfo(
             segmentInfo,

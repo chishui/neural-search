@@ -9,15 +9,16 @@ import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class CodecUtils {
     private static String buildIndexFilePrefix(String segmentName) {
-        return String.format("%s_", segmentName);
+        return String.format(Locale.ROOT, "%s_", segmentName);
     }
 
     private static String buildIndexFileSuffix(String fieldName, String extension) {
-        return String.format("_%s%s", fieldName, extension);
+        return String.format(Locale.ROOT, "_%s%s", fieldName, extension);
     }
 
     /**
@@ -30,7 +31,13 @@ public class CodecUtils {
      * @return the constructed file name
      */
     public static String buildIndexFileName(String segmentName, String latestBuildVersion, String fieldName, String extension) {
-        return String.format("%s%s%s", buildIndexFilePrefix(segmentName), latestBuildVersion, buildIndexFileSuffix(fieldName, extension));
+        return String.format(
+            Locale.ROOT,
+            "%s%s%s",
+            buildIndexFilePrefix(segmentName),
+            latestBuildVersion,
+            buildIndexFileSuffix(fieldName, extension)
+        );
     }
 
     /**
