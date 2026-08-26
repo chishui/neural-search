@@ -356,13 +356,9 @@ compileTestFixturesJava {
 //****************************************************************************/
 
 def usingRemoteCluster = System.properties.containsKey('tests.rest.cluster') || System.properties.containsKey('tests.cluster')
-
-// The native engine does not build on Windows yet: init-nsparse.cmake falls back to
-// the generic nsparse target there, but the toolchain setup (-fpermissive, OpenMP
-// discovery) assumes GCC/Clang. Skip the native build on Windows so the Java tests
-// still run; anything that actually calls into NativeLibrary is Linux/macOS-only.
-def nativeBuildSupported = !Os.isFamily(Os.FAMILY_WINDOWS)
-def integTestDependOnJniLib = nativeBuildSupported && !usingRemoteCluster
+def integTestDependOnJniLib = !usingRemoteCluster
+def isWindows = Os.isFamily(Os.FAMILY_WINDOWS)
+def cmakeBuildConfig = findProperty('cmakeBuildType') ?: 'Release'
 
 // The C++ unit tests pull in googletest at CMake configure time, so they are
 // opt-in: `./gradlew jniTest` (or -PjniTests=true) turns them on. CI runs the
@@ -385,15 +381,18 @@ tasks.register('cmakeJniLib', Exec) {
     // Without this cmake leaves CMAKE_BUILD_TYPE empty, which drops -O3 and -DNDEBUG
     // from the nsparse compile. The SIMD flags come from init-nsparse.cmake either
     // way, so the library still looks correct while running unoptimized with asserts.
-    args.add("-DCMAKE_BUILD_TYPE=${findProperty('cmakeBuildType') ?: 'Release'}")
+    // Ignored by multi-configuration generators (Visual Studio), which take the
+    // configuration at build time instead -- see --config on buildJniLib.
+    if (!isWindows) {
+        args.add("-DCMAKE_BUILD_TYPE=${cmakeBuildConfig}")
+    }
     args.add("-DCONFIG_TEST=${jniTestsRequested ? 'ON' : 'OFF'}")
     args.add("-DENABLE_SANITIZERS=${jniSanitizers ? 'ON' : 'OFF'}")
     def javaHome = Jvm.current().getJavaHome()
     logger.lifecycle("Java home directory used by gradle: $javaHome")
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        args.add("-G")
-        args.add("Unix Makefiles")
-    }
+    // No -G override on Windows: cmake selects the installed Visual Studio
+    // generator, which locates MSVC without a vcvars shell. Forcing "Unix
+    // Makefiles" here assumed a MinGW toolchain that this build does not use.
     logger.lifecycle("CMake command: ${args.join(' ')}")
     environment 'JAVA_HOME', Jvm.current().getJavaHome().toString()
     commandLine args
@@ -404,7 +403,7 @@ tasks.register('cmakeJniLib', Exec) {
     })
     inputs.property('configTest', jniTestsRequested)
     inputs.property('sanitizers', jniSanitizers)
-    inputs.property('buildType', findProperty('cmakeBuildType') ?: 'Release')
+    inputs.property('buildType', cmakeBuildConfig)
     outputs.file("$projectDir/jni/build/CMakeCache.txt")
 }
 
@@ -414,6 +413,10 @@ tasks.register('buildJniLib', Exec) {
     args.add("cmake")
     args.add("--build")
     args.add("jni/build")
+    // Multi-configuration generators take the configuration here rather than from
+    // CMAKE_BUILD_TYPE; single-configuration generators ignore it.
+    args.add("--config")
+    args.add("${cmakeBuildConfig}")
     args.add("--parallel")
     args.add("${nproc_count}")
     logger.lifecycle("Build command: ${args.join(' ')}")
@@ -432,8 +435,13 @@ tasks.register('jniTest', Exec) {
     group = 'verification'
     description = 'Runs the C++ unit tests for the JNI layer'
     dependsOn buildJniLib
-    def testBinary = Os.isFamily(Os.FAMILY_WINDOWS) ? 'jni_test.exe' : 'jni_test'
+    def testBinary = isWindows ? 'jni_test.exe' : 'jni_test'
     workingDir "$projectDir/jni/build"
+    if (isWindows) {
+        // Windows resolves a binary's dependent DLLs through PATH, not
+        // java.library.path / LD_LIBRARY_PATH.
+        environment 'PATH', "$projectDir/jni/build;${System.getenv('PATH') ?: ''}"
+    }
     // nsparse is built as a shared library into the same tree, so the loader
     // needs it on the search path.
     environment 'LD_LIBRARY_PATH', "$projectDir/jni/build:$projectDir/jni/build/external/neural-sparse-cpp:${System.getenv('LD_LIBRARY_PATH') ?: ''}"
@@ -455,16 +463,15 @@ def _numNodes = findProperty('numNodes') as Integer ?: 1
 def _configureNodeRoles = findProperty('configureNodeRoles') as Boolean ?: false
 
 test {
-    if (nativeBuildSupported) {
-        dependsOn buildJniLib
-    }
+    dependsOn buildJniLib
     include '**/*Tests.class'
     systemProperty 'tests.security.manager', 'false'
     systemProperty "java.library.path", "$rootDir/jni/build"
     // NativeLibraryContractTests reads jni/ sources to check the Java <-> native contracts
     systemProperty('project.root', project.rootDir.absolutePath)
     systemProperty "jdk.attach.allowAttachSelf", true
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+    if (isWindows) {
+        // The DLL's own dependencies are resolved through PATH, not java.library.path
         environment('PATH', System.getenv('PATH') + ";$rootDir/jni/build")
     }
 }
@@ -622,6 +629,11 @@ testClusters.integTest {
     jvmArgs("-Xms1g", "-Xmx2g")
 
     systemProperty("java.library.path", "$rootDir/jni/build")
+    if (isWindows) {
+        // Windows finds a DLL's dependents through PATH; java.library.path only
+        // covers the library System.loadLibrary asks for by name.
+        environment('PATH', System.getenv('PATH') + ";$rootDir/jni/build")
+    }
 }
 
 // Remote Integration Tests
@@ -646,9 +658,7 @@ task integTestRemote(type: RestIntegTestTask) {
 }
 
 run {
-    if (nativeBuildSupported) {
-        dependsOn buildJniLib
-    }
+    dependsOn buildJniLib
     useCluster testClusters.integTest
 }
 
@@ -976,6 +986,11 @@ testClusters.remoteModelIntegTest {
     jvmArgs("-Xms1g", "-Xmx2g")
 
     systemProperty("java.library.path", "$rootDir/jni/build")
+    if (isWindows) {
+        // Windows finds a DLL's dependents through PATH; java.library.path only
+        // covers the library System.loadLibrary asks for by name.
+        environment('PATH', System.getenv('PATH') + ";$rootDir/jni/build")
+    }
 }
 
 // Helper tasks for manual control (optional)

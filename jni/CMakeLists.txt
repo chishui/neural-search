@@ -37,98 +37,120 @@ elseif(${CMAKE_SYSTEM_NAME} STREQUAL Linux)
     set(JVM_OS_TYPE linux)
     set(LIB_EXT .so)
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
-    set(CXX_COMPILER_VERSION ${CMAKE_CXX_COMPILER_VERSION})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
     set(JVM_OS_TYPE win32)
     set(LIB_EXT .dll)
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
     set(CMAKE_STATIC_LIBRARY_PREFIX "")
+    # -fpermissive is a GCC/MinGW flag. MSVC only answers it with
+    # "warning D9002: ignoring unknown option", once per translation unit, which
+    # buries real diagnostics under abseil's build output.
+    if (NOT MSVC)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
+    endif()
 else()
     message(FATAL_ERROR "Unable to run on system: ${CMAKE_SYSTEM_NAME}")
 endif()
+
+# Multi-config generators (Visual Studio) default to emitting into build/<Config>/,
+# but java.library.path and the jniTest task both point at jni/build. Pin every
+# configuration to the top of the build tree so the layout matches single-config
+# generators on Linux and macOS.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+foreach(OUTPUT_CONFIG IN LISTS CMAKE_CONFIGURATION_TYPES)
+    string(TOUPPER ${OUTPUT_CONFIG} OUTPUT_CONFIG_UPPER)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER} ${CMAKE_BINARY_DIR})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER} ${CMAKE_BINARY_DIR})
+endforeach()
 
 # ----------------------------------------------------------------------------
 
 # ---------------------------------- NSPARSE ----------------------------------
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/init-nsparse.cmake)
 find_package(OpenMP REQUIRED)
+
+# The JNI sources compile once into an object library that both the shared library
+# and the test binary consume.
+#
+# The tests must NOT link against the shared library: on Windows a DLL exports only
+# what is marked __declspec(dllexport), which here is just the JNIEXPORT'd entry
+# points, so every internal symbol the tests touch (cachedRefs, JniCachedRefs::init,
+# the nsparse_wrapper functions, NsparseStreamWriter) came back as an unresolved
+# external under MSVC. ELF exports everything by default, which is why linking
+# against the .so happened to work on Linux.
+set(TARGET_OBJ_NSPARSE nsparse_jni_objects)
 add_library(
-    ${TARGET_LIB_NSPARSE} SHARED
+    ${TARGET_OBJ_NSPARSE} OBJECT
     ${CMAKE_CURRENT_SOURCE_DIR}/src/org_opensearch_neuralsearch_jni_NsparseService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/nsparse_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/nsparse_stream_writer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/jni_util.cpp
 )
-target_link_libraries(${TARGET_LIB_NSPARSE} ${TARGET_LINK_NSPARSE_LIB} OpenMP::OpenMP_CXX)
-target_include_directories(${TARGET_LIB_NSPARSE} PRIVATE
+target_include_directories(${TARGET_OBJ_NSPARSE} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     $ENV{JAVA_HOME}/include
     $ENV{JAVA_HOME}/include/${JVM_OS_TYPE}
     ${CMAKE_CURRENT_SOURCE_DIR}/external/neural-sparse-cpp
 )
+target_link_libraries(${TARGET_OBJ_NSPARSE} PUBLIC ${TARGET_LINK_NSPARSE_LIB} OpenMP::OpenMP_CXX)
+set_target_properties(${TARGET_OBJ_NSPARSE} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(${TARGET_LIB_NSPARSE} SHARED $<TARGET_OBJECTS:${TARGET_OBJ_NSPARSE}>)
+target_link_libraries(${TARGET_LIB_NSPARSE} PRIVATE ${TARGET_OBJ_NSPARSE})
 set_target_properties(${TARGET_LIB_NSPARSE} PROPERTIES SUFFIX ${LIB_EXT})
 set_target_properties(${TARGET_LIB_NSPARSE} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # ---------------------------------------------------------------------------
 
 # --------------------------------- TESTS -----------------------------------
-if ("${WIN32}" STREQUAL "")
-    if (CONFIG_TEST)
-        # Reference - https://crascit.com/2015/07/25/cmake-gtest/
-        configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-        execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-                WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download"
-                )
-        execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-                WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download"
-                )
-        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+if (CONFIG_TEST)
+    # Reference - https://crascit.com/2015/07/25/cmake-gtest/
+    configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
+    execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download"
+            )
+    execute_process(COMMAND "${CMAKE_COMMAND}" --build .
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download"
+            )
+    # Required on Windows: the JNI library and nsparse use the shared CRT, and
+    # googletest defaults to the static one, which cannot be mixed in one binary.
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-        add_subdirectory("${CMAKE_BINARY_DIR}/googletest-src"
-                "${CMAKE_BINARY_DIR}/googletest-build" EXCLUDE_FROM_ALL
-                )
-        add_executable(
-                jni_test
-                tests/nsparse_wrapper_test.cpp
-                tests/test_util.cpp
-                tests/commons_test.cpp
-        )
+    add_subdirectory("${CMAKE_BINARY_DIR}/googletest-src"
+            "${CMAKE_BINARY_DIR}/googletest-build" EXCLUDE_FROM_ALL
+            )
+    add_executable(
+            jni_test
+            tests/nsparse_wrapper_test.cpp
+            tests/test_util.cpp
+            tests/commons_test.cpp
+            $<TARGET_OBJECTS:${TARGET_OBJ_NSPARSE}>
+    )
 
-        target_link_libraries(
-                jni_test
-                gtest_main
-                gmock_main
-                ${TARGET_LINK_NSPARSE_LIB}
-                OpenMP::OpenMP_CXX
-                ${TARGET_LIB_NSPARSE}
-        )
+    target_link_libraries(
+            jni_test
+            gtest_main
+            gmock_main
+            ${TARGET_OBJ_NSPARSE}
+    )
 
-        target_include_directories(jni_test PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/tests
-                ${CMAKE_CURRENT_SOURCE_DIR}/src
-                $ENV{JAVA_HOME}/include
-                $ENV{JAVA_HOME}/include/${JVM_OS_TYPE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/external/neural-sparse-cpp
-                ${gtest_SOURCE_DIR}/include
-                ${gmock_SOURCE_DIR}/include)
+    target_include_directories(jni_test PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests
+            ${gtest_SOURCE_DIR}/include
+            ${gmock_SOURCE_DIR}/include)
 
-        # Emit into the build tree, not jni/bin, so `./gradlew clean` reclaims it
-        # along with the rest of jni/build.
-        if (ENABLE_SANITIZERS)
-            # The ASan runtime lives beside the compiler rather than on the default
-            # loader path on several distributions, so record its directory in the
-            # test binary's RPATH instead of relying on ldconfig.
-            execute_process(
-                    COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libasan.so
-                    OUTPUT_VARIABLE ASAN_RUNTIME_PATH
-                    OUTPUT_STRIP_TRAILING_WHITESPACE)
-            get_filename_component(ASAN_RUNTIME_DIR "${ASAN_RUNTIME_PATH}" DIRECTORY)
-            if (ASAN_RUNTIME_DIR)
-                message(STATUS "ASan runtime directory: ${ASAN_RUNTIME_DIR}")
-                set_target_properties(jni_test PROPERTIES BUILD_RPATH "${ASAN_RUNTIME_DIR}")
-            endif()
+    if (ENABLE_SANITIZERS)
+        # The ASan runtime lives beside the compiler rather than on the default
+        # loader path on several distributions, so record its directory in the
+        # test binary's RPATH instead of relying on ldconfig.
+        execute_process(
+                COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libasan.so
+                OUTPUT_VARIABLE ASAN_RUNTIME_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+        get_filename_component(ASAN_RUNTIME_DIR "${ASAN_RUNTIME_PATH}" DIRECTORY)
+        if (ASAN_RUNTIME_DIR)
+            message(STATUS "ASan runtime directory: ${ASAN_RUNTIME_DIR}")
+            set_target_properties(jni_test PROPERTIES BUILD_RPATH "${ASAN_RUNTIME_DIR}")
         endif()
-
-        set_target_properties(jni_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-    endif ()
+    endif()
 endif()
 # ---------------------------------------------------------------------------

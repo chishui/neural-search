@@ -28,7 +28,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        # Windows builds with MSVC via the Visual Studio generator; the runner image
+        # already ships VS 2022 and CMake, so no toolchain step is needed there.
+        os: [ubuntu-latest, windows-latest]
     name: JNI C++ Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
@@ -45,6 +47,7 @@ jobs:
           cache: 'gradle'
 
       - name: Install native toolchain
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libomp-dev
@@ -54,7 +57,8 @@ jobs:
 
   # Leaks and use-after-free across the JNI boundary are exactly what assertions
   # cannot see: the layer hands raw pointers to Java and frees them on the native
-  # side. This job is the real coverage for the ownership rules.
+  # side. This job is the real coverage for the ownership rules. Linux only: the
+  # -fsanitize flags are GCC/Clang, and MSVC's /fsanitize=address has no LSan.
   JNI-native-tests-sanitizers:
     name: JNI C++ Tests (ASan/LSan)
     runs-on: ubuntu-latest
