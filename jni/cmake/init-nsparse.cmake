@@ -48,15 +48,64 @@ set(NSPARSE_ENABLE_PYTHON OFF)
 set(NSPARSE_ENABLE_TESTS OFF)
 set(NSPARSE_ENABLE_BENCHMARKS OFF)
 
-if(NOT DEFINED AVX2_ENABLED)
-    set(AVX2_ENABLED true)
-endif()
+# AVX2_ENABLED / AVX512_ENABLED / SVE_ENABLED select which nsparse variant to
+# build. Exactly one variant is built and it is loaded unconditionally, so an
+# instruction set the running CPU lacks is not a slow path -- it is SIGILL on the
+# first vectorized call.
+#
+# They therefore default to what THIS host can actually execute, not to true.
+# Defaulting them on assumed the build machine and the machine running the result
+# were the same and both had AVX-512; a build host without it produced a library
+# that died the moment it was called, which is what broke the Linux CI runners
+# while Windows (pinned to the generic build) passed.
+#
+# Pass them explicitly to override, which is what a distribution build wants: it
+# forces each variant in turn to produce the full set, and pairs that with
+# runtime CPU detection to choose between them on the target host.
+#
+# k-NN reached the same conclusion for its newest tier: init-faiss.cmake leaves
+# AVX2_ENABLED/AVX512_ENABLED defaulting to true but probes the host with `lscpu`
+# for AVX512_SPR_ENABLED. A compile-and-run check is used here instead of lscpu
+# because lscpu is Linux-only, and the same argument applies to all three tiers.
+function(detect_cpu_feature feature_name builtin_name out_var)
+    if(DEFINED ${out_var})
+        return()
+    endif()
+    if(CMAKE_CROSSCOMPILING)
+        # Cannot run a probe on the build host and learn anything about the
+        # target, so stay conservative.
+        set(${out_var} false PARENT_SCOPE)
+        message(STATUS "Cross-compiling: assuming no ${feature_name}")
+        return()
+    endif()
+    include(CheckCXXSourceRuns)
+    set(probe "int main() { return __builtin_cpu_supports(\"${builtin_name}\") ? 0 : 1; }")
+    check_cxx_source_runs("${probe}" HAS_${feature_name})
+    if(HAS_${feature_name})
+        set(${out_var} true PARENT_SCOPE)
+    else()
+        set(${out_var} false PARENT_SCOPE)
+    endif()
+    message(STATUS "Build host supports ${feature_name}: ${HAS_${feature_name}}")
+endfunction()
 
-if(NOT DEFINED AVX512_ENABLED)
-    set(AVX512_ENABLED true)
+# MSVC has no __builtin_cpu_supports, and Windows is pinned to the generic build
+# below regardless, so skip the probe rather than log a failed compile check.
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64" AND NOT MSVC)
+    detect_cpu_feature(AVX2 "avx2" AVX2_ENABLED)
+    detect_cpu_feature(AVX512 "avx512f" AVX512_ENABLED)
+else()
+    if(NOT DEFINED AVX2_ENABLED)
+        set(AVX2_ENABLED false)
+    endif()
+    if(NOT DEFINED AVX512_ENABLED)
+        set(AVX512_ENABLED false)
+    endif()
 endif()
 
 if(NOT DEFINED SVE_ENABLED)
+    # __builtin_cpu_supports has no SVE query, so this stays opt-out rather than
+    # detected. nsparse only reaches the SVE branch on non-Apple aarch64.
     set(SVE_ENABLED true)
 endif()
 
