@@ -3,13 +3,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Check if neural-sparse-cpp exists
-find_path(NSPARSE_REPO_DIR NAMES nsparse PATHS ${CMAKE_CURRENT_SOURCE_DIR}/external/neural-sparse-cpp NO_DEFAULT_PATH)
-
-# If not, pull the updated submodule
-if (NOT EXISTS ${NSPARSE_REPO_DIR})
-    message(STATUS "Could not find neural-sparse-cpp. Pulling updated submodule.")
-    execute_process(COMMAND git submodule update --init -- external/neural-sparse-cpp WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+# The nsparse sources must already be checked out. Configure deliberately does NOT
+# run `git submodule update --init` itself: pulling native code over the network as
+# a side effect of `cmake -S jni` is invisible to the caller, and when it fails the
+# error surfaces later as missing nsparse headers rather than as the real cause.
+# CI checks the submodule out explicitly (submodules: recursive).
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/external/neural-sparse-cpp/nsparse)
+    message(FATAL_ERROR
+            "neural-sparse-cpp submodule is not checked out at "
+            "jni/external/neural-sparse-cpp.\n"
+            "Run:  git submodule update --init --recursive")
 endif ()
 
 if (APPLE)
