@@ -60,7 +60,22 @@ if(NOT DEFINED SVE_ENABLED)
     set(SVE_ENABLED true)
 endif()
 
-# Determine optimization level and target library
+# Determine optimization level and target library.
+#
+# Windows is pinned to the generic build, matching k-NN ("SIMD optimization is not
+# supported on Windows" in the OpenSearch docs) -- but NOT for the same reason, so
+# do not treat this as a toolchain limitation. k-NN builds Windows with MinGW;
+# this build uses MSVC, and nsparse carries MSVC /arch:AVX2 and /arch:AVX512
+# branches. Building nsparse_avx512 here with MSVC was verified to work: it
+# compiles clean, the test suite passes, and the DLL really does contain
+# zmm-register instructions.
+#
+# The blocker is selection, not compilation. Only one variant is built, for
+# whatever machine ran the build, and the Java side finds it by probing file
+# names. An AVX-512 DLL shipped to a host without AVX-512 dies on an illegal
+# instruction. Lifting this needs the same work as the packaging story: build
+# every variant and pick one at runtime from the host's CPU features. Until then
+# the generic build is the only safe default for a Windows artifact.
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows OR ( NOT AVX2_ENABLED AND NOT AVX512_ENABLED))
     set(NSPARSE_OPT_LEVEL generic)
     set(TARGET_LINK_NSPARSE_LIB nsparse)
