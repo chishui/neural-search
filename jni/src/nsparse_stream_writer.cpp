@@ -27,7 +27,8 @@ JniBufferedWriter::JniBufferedWriter(JNIEnv* env, jobject output)
       output_(output),
       capacity_(DEFAULT_BUFFER_SIZE),
       buffer_(DEFAULT_BUFFER_SIZE),
-      pos_(0) {
+      pos_(0),
+      start_offset_(0) {
     ScopedLocalRef cls(env_, env_->GetObjectClass(output_));
 
     // Look up IndexOutputWrapper.writeBytes(byte[], int, int)
@@ -37,6 +38,25 @@ JniBufferedWriter::JniBufferedWriter(JNIEnv* env, jobject output)
         throw std::runtime_error(
             "IndexOutputWrapper.writeBytes(byte[], int, int) not found");
     }
+
+    // Where our first byte lands in the file. nsparse's alignment padding is
+    // computed from this, not from a count of bytes we have written.
+    jmethodID file_pointer_method =
+        env_->GetMethodID(static_cast<jclass>(cls.get()), "getFilePointer", "()J");
+    if (file_pointer_method == nullptr) {
+        env_->ExceptionClear();
+        throw std::runtime_error("IndexOutputWrapper.getFilePointer() not found");
+    }
+    jlong offset = env_->CallLongMethod(output_, file_pointer_method);
+    std::string cause = DescribeAndClearPendingException(env_);
+    if (!cause.empty()) {
+        throw std::runtime_error(
+            "IndexOutputWrapper.getFilePointer() failed: " + cause);
+    }
+    if (offset < 0) {
+        throw std::runtime_error("IndexOutputWrapper.getFilePointer() returned a negative offset");
+    }
+    start_offset_ = static_cast<size_t>(offset);
 }
 
 void JniBufferedWriter::write(const void* ptr, size_t bytes) {
@@ -100,7 +120,7 @@ void JniBufferedWriter::flushBuffer(size_t length) {
 
 NsparseStreamWriter::NsparseStreamWriter(
     std::unique_ptr<JniBufferedWriter> writer)
-    : writer_(std::move(writer)) {}
+    : writer_(std::move(writer)), bytes_written_(writer_->startOffset()) {}
 
 void NsparseStreamWriter::write(void* ptr, size_t size, size_t nitems) {
     writer_->write(ptr, size * nitems);

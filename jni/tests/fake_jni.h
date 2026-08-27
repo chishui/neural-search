@@ -55,6 +55,7 @@ enum Op : intptr_t {
     OP_CTOR,
     OP_WRITE_BYTES,
     OP_TO_STRING,
+    OP_GET_FILE_POINTER,
 };
 
 enum Kind {
@@ -102,8 +103,10 @@ struct FakeObject {
     std::vector<float> floats;
     std::vector<int64_t> longs;
     std::vector<char> bytes;
-    // K_OUTPUT: destination sink for writeBytes
+    // K_OUTPUT: destination sink for writeBytes, plus the file offset the
+    // wrapped IndexOutput is already at (IndexOutputWrapper.getFilePointer()).
     std::vector<char>* sink = nullptr;
+    int64_t filePointer = 0;
 
     explicit FakeObject(Kind k) : kind(k) {}
 };
@@ -133,6 +136,7 @@ public:
         table_.CallIntMethodV = &CallIntMethodV;
         table_.CallFloatMethodV = &CallFloatMethodV;
         table_.CallVoidMethodV = &CallVoidMethodV;
+        table_.CallLongMethodV = &CallLongMethodV;
         table_.NewObjectV = &NewObjectV;
         table_.GetStringUTFChars = &GetStringUTFChars;
         table_.ReleaseStringUTFChars = &ReleaseStringUTFChars;
@@ -189,9 +193,10 @@ public:
         o->longs = v;
         return reinterpret_cast<jlongArray>(o);
     }
-    jobject makeOutput(std::vector<char>* sink) {
+    jobject makeOutput(std::vector<char>* sink, int64_t filePointer = 0) {
         auto* o = alloc(K_OUTPUT);
         o->sink = sink;
+        o->filePointer = filePointer;
         return obj(o);
     }
 
@@ -284,6 +289,7 @@ private:
         if (n == "<init>") return OP_CTOR;
         if (n == "writeBytes") return OP_WRITE_BYTES;
         if (n == "toString") return OP_TO_STRING;
+        if (n == "getFilePointer") return OP_GET_FILE_POINTER;
         return OP_NONE;
     }
 
@@ -335,6 +341,12 @@ private:
     }
     static jint CallIntMethodV(JNIEnv*, jobject o, jmethodID, va_list) {
         return static_cast<jint>(fo(o)->num);
+    }
+    static jlong CallLongMethodV(JNIEnv*, jobject o, jmethodID mid, va_list) {
+        if (reinterpret_cast<intptr_t>(mid) == OP_GET_FILE_POINTER) {
+            return static_cast<jlong>(fo(o)->filePointer);
+        }
+        return 0;
     }
     static jfloat CallFloatMethodV(JNIEnv*, jobject o, jmethodID, va_list) {
         return static_cast<jfloat>(fo(o)->num);

@@ -34,6 +34,23 @@ public class IndexOutputWrapper implements Closeable {
         indexOutput.writeBytes(bytes, offset, length);
     }
 
+    /**
+     * Byte offset within the output file at which the native writer's first byte
+     * will land.
+     * <p>
+     * Read from native code, which needs the absolute file offset rather than a
+     * count of bytes it has written: nsparse pads each serialized array up to its
+     * element alignment, and the mmap reader recomputes that padding from the
+     * offset in the file. If the two disagree the mapped load fails with
+     * "array is misaligned for its element type" — so a header written here before
+     * the native payload has to be visible to the padding arithmetic.
+     *
+     * @return the current file pointer of the wrapped IndexOutput
+     */
+    public long getFilePointer() {
+        return indexOutput.getFilePointer();
+    }
+
     @Override
     public void close() throws IOException {
         indexOutput.close();

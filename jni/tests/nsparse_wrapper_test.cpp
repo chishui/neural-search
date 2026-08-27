@@ -546,6 +546,212 @@ TEST_F(NsparseWrapperTest, MmapLoadMatchesCopyingLoadForIdmapSeismic) {
 }
 
 // ---------------------------------------------------------------------------
+// DiskSeismicIndex (DSEI).
+//
+// The disk variant keeps cluster summaries in RAM and borrows the per-document
+// forward vectors from a file mapping, so unlike every other index type it has
+// NO copying read path: read_index() throws and only the mmap load works. These
+// tests pin that the JNI paths (write through the Java IndexOutput, load with
+// kUseMmap, query) work for it, since a regression would only surface at runtime.
+// ---------------------------------------------------------------------------
+
+TEST_F(NsparseWrapperTest, InitIndexDiskSeismicBuildsFromParameters) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic");
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+
+    int64_t addr = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(addr, 0);
+    wrapper::freeIndex(addr);
+}
+
+// The full production shape for the disk engine: idmap over disk_seismic, written
+// through the Java IndexOutput and mapped back in. Also covers the writer's pos()
+// contract, which DSEI leans on harder than the other types --
+// InlineForwardIndex::serialize pads against pos() and then asserts that the body
+// length it wrote matches the length prefix, throwing if pos() ever drifts.
+TEST_F(NsparseWrapperTest, DiskSeismicRoundTripsThroughMmapLoad) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic");
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+    int64_t index = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(index, 0);
+
+    OffHeapAddrs off = transfer({0, 2, 4, 6}, {1, 2, 2, 3, 3, 4},
+                                {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    std::vector<int32_t> ids = {100, 200, 300};
+    wrapper::insertToIndex(index, ids.data(), 3, off.indices, off.tokens,
+                           off.values, 1);
+
+    std::string path = writeIndexToFile(fake, index, "nsparse_disk_seismic.idx");
+    ASSERT_FALSE(path.empty());
+
+    int64_t mapped = wrapper::loadIndex(path, nsparse::IndexIoFlag::kUseMmap);
+    ASSERT_NE(mapped, 0);
+
+    std::vector<int32_t> qTokens = {2};
+    std::vector<float> qWeights = {1.0f};
+    const int k = 3;
+    std::vector<float> distances(k, 0.0f);
+    std::vector<int32_t> labels(k, 0);
+    std::map<std::string, jobject> queryParams;
+    wrapper::queryIndex(mapped, qTokens.data(), qWeights.data(), 1, k,
+                        queryParams, fake.env(), distances.data(),
+                        labels.data());
+
+    bool anyHit = false;
+    for (int i = 0; i < k; ++i) {
+        if (labels[i] != -1) {
+            anyHit = true;
+            EXPECT_TRUE(labels[i] == 100 || labels[i] == 200 || labels[i] == 300)
+                << "unexpected external id " << labels[i];
+        }
+    }
+    EXPECT_TRUE(anyHit) << "token 2 matches two docs; the mapped read returned none";
+
+    wrapper::freeIndex(mapped);
+    std::remove(path.c_str());
+}
+
+// k_prime, DSEI's block budget, lives only on DiskSeismicSearchParameters --
+// DiskSeismicIndex::search() dynamic_casts for it and falls back to
+// kDefaultBlockBudget for any other SearchParameters subtype. So a query map
+// carrying k_prime has to produce the disk subtype, or the engine's primary
+// recall/latency knob is silently unreachable from Java.
+//
+// A non-positive budget is rejected by the index, which is what makes this
+// observable at all: k_prime=0 must surface as an error rather than be ignored.
+TEST_F(NsparseWrapperTest, DiskSeismicReceivesKPrimeFromJavaParameters) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic");
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+    int64_t index = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(index, 0);
+
+    OffHeapAddrs off = transfer({0, 1, 2, 3}, {5, 5, 5}, {1.0f, 1.0f, 1.0f});
+    std::vector<int32_t> ids = {10, 20, 30};
+    wrapper::insertToIndex(index, ids.data(), 3, off.indices, off.tokens,
+                           off.values, 1);
+    std::string path = writeIndexToFile(fake, index, "nsparse_disk_kprime.idx");
+    ASSERT_FALSE(path.empty());
+    int64_t mapped = wrapper::loadIndex(path, nsparse::IndexIoFlag::kUseMmap);
+    ASSERT_NE(mapped, 0);
+
+    std::vector<int32_t> qTokens = {5};
+    std::vector<float> qWeights = {1.0f};
+    const int k = 3;
+    std::vector<float> distances(k, 0.0f);
+    std::vector<int32_t> labels(k, -1);
+
+    // A valid budget searches normally.
+    std::map<std::string, jobject> okParams;
+    okParams["cut"] = fake.makeNumber(4);
+    okParams["k_prime"] = fake.makeNumber(8);
+    wrapper::queryIndex(mapped, qTokens.data(), qWeights.data(), 1, k, okParams,
+                        fake.env(), distances.data(), labels.data());
+    bool anyHit = false;
+    for (int i = 0; i < k; ++i) {
+        if (labels[i] != -1) anyHit = true;
+    }
+    EXPECT_TRUE(anyHit);
+
+    // A zero budget only reaches the index if the disk subtype was built; if the
+    // JNI had emitted a plain SeismicSearchParameters this would quietly succeed
+    // on the default budget instead.
+    std::map<std::string, jobject> badParams;
+    badParams["k_prime"] = fake.makeNumber(0);
+    EXPECT_THROW(
+        wrapper::queryIndex(mapped, qTokens.data(), qWeights.data(), 1, k,
+                            badParams, fake.env(), distances.data(),
+                            labels.data()),
+        std::invalid_argument)
+        << "k_prime never reached DiskSeismicIndex; the JNI built the wrong "
+           "SearchParameters subtype";
+
+    wrapper::freeIndex(mapped);
+    std::remove(path.c_str());
+}
+
+// The other index types must keep working when k_prime is absent, and must not be
+// disturbed if it is present (DiskSeismicSearchParameters derives from
+// SeismicSearchParameters, so a SeismicIndex still finds cut on it).
+TEST_F(NsparseWrapperTest, SeismicToleratesDiskSearchParameters) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("seismic");
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+    int64_t index = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(index, 0);
+
+    OffHeapAddrs off = transfer({0, 1, 2, 3}, {5, 5, 5}, {1.0f, 1.0f, 1.0f});
+    std::vector<int32_t> ids = {10, 20, 30};
+    wrapper::insertToIndex(index, ids.data(), 3, off.indices, off.tokens,
+                           off.values, 1);
+
+    std::vector<int32_t> qTokens = {5};
+    std::vector<float> qWeights = {1.0f};
+    const int k = 3;
+    std::vector<float> distances(k, 0.0f);
+    std::vector<int32_t> labels(k, -1);
+
+    // k_prime makes buildSearchParameters emit the disk subtype; a plain
+    // SeismicIndex must still read cut off it and return the same documents.
+    std::map<std::string, jobject> queryParams;
+    queryParams["cut"] = fake.makeNumber(4);
+    queryParams["k_prime"] = fake.makeNumber(8);
+    wrapper::queryIndex(index, qTokens.data(), qWeights.data(), 1, k, queryParams,
+                        fake.env(), distances.data(), labels.data());
+
+    bool anyHit = false;
+    for (int i = 0; i < k; ++i) {
+        if (labels[i] != -1) {
+            anyHit = true;
+            EXPECT_TRUE(labels[i] == 10 || labels[i] == 20 || labels[i] == 30);
+        }
+    }
+    EXPECT_TRUE(anyHit);
+
+    wrapper::freeIndex(index);
+}
+
+// The copying read is unsupported for DSEI, so a load that does not ask for mmap
+// must fail loudly rather than return a half-built index. loadIndex() always
+// passes kUseMmap today; this pins the behaviour the JNI depends on.
+TEST_F(NsparseWrapperTest, DiskSeismicRejectsNonMmapLoad) {
+    std::map<std::string, jobject> params;
+    // idmap is required, not decoration: DiskSeismicIndex implements add() only,
+    // so add_with_ids has to come from the IDMapIndex wrapper.
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic");
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+    int64_t index = wrapper::initIndex(2, 16, params, fake.env());
+    ASSERT_NE(index, 0);
+
+    OffHeapAddrs off = transfer({0, 2, 4}, {1, 2, 2, 3}, {1.0f, 1.0f, 1.0f, 1.0f});
+    std::vector<int32_t> ids = {7, 8};
+    wrapper::insertToIndex(index, ids.data(), 2, off.indices, off.tokens,
+                           off.values, 1);
+    std::string path = writeIndexToFile(fake, index, "nsparse_disk_nommap.idx");
+    ASSERT_FALSE(path.empty());
+
+    EXPECT_THROW(wrapper::loadIndex(path, /*ioFlags=*/0), std::runtime_error);
+    std::remove(path.c_str());
+}
+
+// ---------------------------------------------------------------------------
 // NsparseStreamWriter / JniBufferedWriter buffering behaviour.
 // ---------------------------------------------------------------------------
 
@@ -606,6 +812,59 @@ TEST_F(NsparseWrapperTest, StreamWriterPosTracksAbsoluteOffsetAcrossFlushes) {
     writer.close();
     // Everything counted was actually handed to Java.
     EXPECT_EQ(sink.size(), writer.pos());
+}
+
+// pos() starts at the IndexOutput's file pointer, not at zero.
+//
+// nsparse pads every serialized array up to its element alignment using pos(),
+// and the mmap reader recomputes that padding from the array's offset in the
+// FILE (MmapCursor is seeded with the payload's absolute offset, and read_array
+// throws "array is misaligned for its element type" if the arithmetic disagrees).
+// A writer that counted only its own bytes would therefore agree with the reader
+// only while the payload happened to start at offset 0 -- true of the codec
+// today, but nothing enforced it, and a codec header written before the native
+// payload would have silently broken every mapped load.
+TEST_F(NsparseWrapperTest, StreamWriterPosStartsAtIndexOutputFilePointer) {
+    std::vector<char> sink;
+    // Simulate an IndexOutput that already holds a 37-byte header: deliberately
+    // not a multiple of any element alignment, so wrong arithmetic shows up.
+    const int64_t headerBytes = 37;
+    jobject output = fake.makeOutput(&sink, headerBytes);
+    auto jniWriter = std::make_unique<JniBufferedWriter>(fake.env(), output);
+    EXPECT_EQ(jniWriter->startOffset(), static_cast<size_t>(headerBytes));
+
+    NsparseStreamWriter writer(std::move(jniWriter));
+    EXPECT_EQ(writer.pos(), static_cast<size_t>(headerBytes))
+        << "pos() must report the file offset, not the count of bytes written";
+
+    std::vector<char> payload(11, 'z');
+    writer.write(payload.data(), sizeof(char), payload.size());
+    EXPECT_EQ(writer.pos(), static_cast<size_t>(headerBytes) + payload.size());
+    writer.close();
+
+    // Only our own bytes reach the sink; the header is the caller's business.
+    EXPECT_EQ(sink.size(), payload.size());
+}
+
+// The common case stays exactly as before: a fresh output reports offset 0.
+TEST_F(NsparseWrapperTest, StreamWriterPosStartsAtZeroForAFreshOutput) {
+    std::vector<char> sink;
+    jobject output = fake.makeOutput(&sink);
+    auto jniWriter = std::make_unique<JniBufferedWriter>(fake.env(), output);
+    EXPECT_EQ(jniWriter->startOffset(), 0u);
+    NsparseStreamWriter writer(std::move(jniWriter));
+    EXPECT_EQ(writer.pos(), 0u);
+}
+
+// getFilePointer is resolved reflectively like writeBytes, so a rename on the
+// Java side has to fail at construction rather than corrupt the padding.
+TEST_F(NsparseWrapperTest, JniBufferedWriterRejectsMissingGetFilePointerMethod) {
+    std::vector<char> sink;
+    jobject output = fake.makeOutput(&sink);
+    fake.missingMethodName = "getFilePointer";
+
+    EXPECT_THROW(JniBufferedWriter(fake.env(), output), std::runtime_error);
+    EXPECT_FALSE(fake.hasPendingException());
 }
 
 // Element size is multiplied by item count: nsparse writes typed arrays, so a

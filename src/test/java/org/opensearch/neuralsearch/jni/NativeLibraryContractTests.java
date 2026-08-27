@@ -75,6 +75,28 @@ public class NativeLibraryContractTests extends OpenSearchTestCase {
         );
     }
 
+    /**
+     * nsparse_stream_writer.cpp looks this up as getFilePointer "()J" and seeds its
+     * alignment arithmetic from it. Renaming it, or changing the return type to int,
+     * breaks every mmap-backed load with "array is misaligned for its element type".
+     */
+    public void testIndexOutputWrapperExposesGetFilePointerForJni() throws Exception {
+        Method getFilePointer = IndexOutputWrapper.class.getMethod("getFilePointer");
+        assertTrue("getFilePointer must be public for JNI CallLongMethod", Modifier.isPublic(getFilePointer.getModifiers()));
+        assertEquals("the native side calls it as ()J", long.class, getFilePointer.getReturnType());
+    }
+
+    /** getFilePointer must report the wrapped IndexOutput's position, not a copy. */
+    public void testIndexOutputWrapperReportsTheIndexOutputFilePointer() throws Exception {
+        RecordingIndexOutput recording = new RecordingIndexOutput();
+        recording.writeBytes(new byte[] { 1, 2, 3, 4, 5, 6, 7 }, 0, 7);
+        try (IndexOutputWrapper wrapper = new IndexOutputWrapper(recording)) {
+            assertEquals("a header already written must be visible to the native writer", 7L, wrapper.getFilePointer());
+            wrapper.writeBytes(new byte[] { 8, 9 }, 0, 2);
+            assertEquals(9L, wrapper.getFilePointer());
+        }
+    }
+
     /** writeBytes must reach the wrapped IndexOutput unchanged, offset included. */
     public void testIndexOutputWrapperForwardsBytesToIndexOutput() throws Exception {
         RecordingIndexOutput recording = new RecordingIndexOutput();

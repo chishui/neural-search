@@ -41,12 +41,20 @@ public:
      */
     void flush();
 
+    /**
+     * Byte offset in the output file where this writer's first byte lands, read
+     * from IndexOutputWrapper.getFilePointer(). Zero when the native payload
+     * starts the file.
+     */
+    size_t startOffset() const { return start_offset_; }
+
 private:
     void flushBuffer(size_t length);
 
     JNIEnv* env_;
     jobject output_;            // IndexOutputWrapper instance
     jmethodID write_method_;    // IndexOutputWrapper.writeBytes(byte[], int, int)
+    size_t start_offset_;       // IndexOutputWrapper.getFilePointer() at construction
     size_t capacity_;           // Buffer size / flush threshold
     std::vector<char> buffer_;  // Pre-allocated native buffer
     size_t pos_;                // Current write position in buffer
@@ -66,8 +74,13 @@ public:
 private:
     std::unique_ptr<JniBufferedWriter> writer_;
     // Counted here rather than read off JniBufferedWriter, whose pos_ is an
-    // offset into the flush buffer and rewinds on every flush. nsparse pads
-    // against the absolute stream offset.
+    // offset into the flush buffer and rewinds on every flush.
+    //
+    // Seeded from the IndexOutput's file pointer rather than starting at zero:
+    // nsparse pads each serialized array to its element alignment from pos(), and
+    // the mmap reader recomputes that padding from the array's offset *in the
+    // file*. A writer that counts only its own bytes agrees with the reader only
+    // while the payload happens to start at offset 0.
     size_t bytes_written_ = 0;
 };
 
