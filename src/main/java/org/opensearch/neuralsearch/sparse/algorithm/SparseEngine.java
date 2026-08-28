@@ -11,11 +11,7 @@ public enum SparseEngine {
     NATIVE("native");
 
     private final String name;
-    // 102: back to seismic_sq, now that the quantized index is mmap-able too. Each of
-    // these switches the payload layout, and nothing versions the file itself, so the
-    // bump is what keeps a 101-era float file from being parsed as a quantized one --
-    // the version is part of the engine file name.
-    private final String version = "102";
+    private final String version = "101";
     private final String extension = ".nsparse";
 
     SparseEngine(String name) {

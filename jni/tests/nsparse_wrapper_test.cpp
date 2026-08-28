@@ -681,6 +681,150 @@ TEST_F(NsparseWrapperTest, DiskSeismicReceivesKPrimeFromJavaParameters) {
     std::remove(path.c_str());
 }
 
+TEST_F(NsparseWrapperTest, InitIndexDiskSeismicSqBuildsFromParameters) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic_sq");
+    params["quantizer"] = fake.makeString("8bit");
+    params["vmin"] = fake.makeNumber(0.0);
+    params["vmax"] = fake.makeNumber(3.0);
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+
+    int64_t addr = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(addr, 0);
+    wrapper::freeIndex(addr);
+}
+
+// The production shape the plugin writes for forward_index=per_block: idmap over
+// disk_seismic_sq, written through the Java IndexOutput and mapped back in. The
+// query carries the search-side range plus k_prime, which is what makes
+// buildSearchParameters emit DiskSeismicSQSearchParameters.
+TEST_F(NsparseWrapperTest, DiskSeismicSqRoundTripsThroughMmapLoad) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic_sq");
+    params["quantizer"] = fake.makeString("8bit");
+    params["vmin"] = fake.makeNumber(0.0);
+    params["vmax"] = fake.makeNumber(3.0);
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+    int64_t index = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(index, 0);
+
+    OffHeapAddrs off = transfer({0, 2, 4, 6}, {1, 2, 2, 3, 3, 4},
+                                {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    std::vector<int32_t> ids = {100, 200, 300};
+    wrapper::insertToIndex(index, ids.data(), 3, off.indices, off.tokens,
+                           off.values, 1);
+
+    std::string path = writeIndexToFile(fake, index, "nsparse_disk_seismic_sq.idx");
+    ASSERT_FALSE(path.empty());
+
+    int64_t mapped = wrapper::loadIndex(path, nsparse::IndexIoFlag::kUseMmap);
+    ASSERT_NE(mapped, 0);
+
+    std::vector<int32_t> qTokens = {2};
+    std::vector<float> qWeights = {1.0f};
+    const int k = 3;
+    std::vector<float> distances(k, 0.0f);
+    std::vector<int32_t> labels(k, -1);
+    std::map<std::string, jobject> queryParams;
+    queryParams["cut"] = fake.makeNumber(4);
+    queryParams["vmin"] = fake.makeNumber(0.0);
+    queryParams["vmax"] = fake.makeNumber(16.0);
+    queryParams["k_prime"] = fake.makeNumber(50);
+    wrapper::queryIndex(mapped, qTokens.data(), qWeights.data(), 1, k,
+                        queryParams, fake.env(), distances.data(),
+                        labels.data());
+
+    bool anyHit = false;
+    for (int i = 0; i < k; ++i) {
+        if (labels[i] != -1) {
+            anyHit = true;
+            EXPECT_TRUE(labels[i] == 100 || labels[i] == 200 || labels[i] == 300)
+                << "unexpected external id " << labels[i];
+        }
+    }
+    EXPECT_TRUE(anyHit) << "token 2 matches two docs; the mapped read returned none";
+
+    wrapper::freeIndex(mapped);
+    std::remove(path.c_str());
+}
+
+// Only DiskSeismicSQSearchParameters carries a query range into disk_seismic_sq;
+// with anything else the index reuses its build-time range, quantizing the query
+// at the ingest ceiling and leaving the decoded scores unscaled. The subtype is
+// selected by k_prime + vmin/vmax together, so this pins that both keys are read:
+// two different query ranges over one index have to produce different scores.
+TEST_F(NsparseWrapperTest, DiskSeismicSqAppliesQueryRangeAlongsideKPrime) {
+    std::map<std::string, jobject> params;
+    params["idmap"] = fake.makeBool(true);
+    params["index"] = fake.makeString("disk_seismic_sq");
+    params["quantizer"] = fake.makeString("8bit");
+    params["vmin"] = fake.makeNumber(0.0);
+    params["vmax"] = fake.makeNumber(3.0);
+    params["lambda"] = fake.makeNumber(10);
+    params["beta"] = fake.makeNumber(5.0);
+    params["alpha"] = fake.makeNumber(0.5);
+    int64_t index = wrapper::initIndex(3, 16, params, fake.env());
+    ASSERT_NE(index, 0);
+
+    OffHeapAddrs off = transfer({0, 1, 2, 3}, {5, 5, 5}, {1.0f, 1.0f, 1.0f});
+    std::vector<int32_t> ids = {10, 20, 30};
+    wrapper::insertToIndex(index, ids.data(), 3, off.indices, off.tokens,
+                           off.values, 1);
+    std::string path = writeIndexToFile(fake, index, "nsparse_disk_sq_range.idx");
+    ASSERT_FALSE(path.empty());
+    int64_t mapped = wrapper::loadIndex(path, nsparse::IndexIoFlag::kUseMmap);
+    ASSERT_NE(mapped, 0);
+
+    std::vector<int32_t> qTokens = {5};
+    std::vector<float> qWeights = {1.0f};
+    const int k = 3;
+
+    auto scoreWithRange = [&](double vmax) {
+        std::vector<float> distances(k, 0.0f);
+        std::vector<int32_t> labels(k, -1);
+        std::map<std::string, jobject> queryParams;
+        queryParams["cut"] = fake.makeNumber(4);
+        queryParams["k_prime"] = fake.makeNumber(8);
+        queryParams["vmin"] = fake.makeNumber(0.0);
+        queryParams["vmax"] = fake.makeNumber(vmax);
+        wrapper::queryIndex(mapped, qTokens.data(), qWeights.data(), 1, k,
+                            queryParams, fake.env(), distances.data(),
+                            labels.data());
+        EXPECT_NE(labels[0], -1);
+        return distances[0];
+    };
+
+    // The index was built over [0, 3]; a query encoded over [0, 16] decodes to a
+    // different score. Equal scores mean the range never reached the index.
+    EXPECT_NE(scoreWithRange(3.0), scoreWithRange(16.0));
+
+    // A zero budget only reaches the index if a DiskSeismic subtype was built, so
+    // this also pins that adding the range did not downgrade it to the plain
+    // quantized subtype.
+    std::vector<float> distances(k, 0.0f);
+    std::vector<int32_t> labels(k, -1);
+    std::map<std::string, jobject> badParams;
+    badParams["k_prime"] = fake.makeNumber(0);
+    badParams["vmin"] = fake.makeNumber(0.0);
+    badParams["vmax"] = fake.makeNumber(16.0);
+    EXPECT_THROW(
+        wrapper::queryIndex(mapped, qTokens.data(), qWeights.data(), 1, k,
+                            badParams, fake.env(), distances.data(),
+                            labels.data()),
+        std::invalid_argument)
+        << "k_prime never reached the index; the JNI built the wrong "
+           "SearchParameters subtype";
+
+    wrapper::freeIndex(mapped);
+    std::remove(path.c_str());
+}
+
 // The other index types must keep working when k_prime is absent, and must not be
 // disturbed if it is present (DiskSeismicSearchParameters derives from
 // SeismicSearchParameters, so a SeismicIndex still finds cut on it).

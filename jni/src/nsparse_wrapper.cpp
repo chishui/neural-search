@@ -20,6 +20,7 @@
 
 #include "jni_util.h"
 #include "nsparse/disk_seismic_index.h"
+#include "nsparse/disk_seismic_scalar_quantized_index.h"
 #include "nsparse/id_selector.h"
 #include "nsparse/index.h"
 #include "nsparse/index_factory.h"
@@ -146,14 +147,15 @@ std::string buildDescription(const std::map<std::string, jobject>& params,
  *
  * The subtype is inferred from which keys are present, because the index type is
  * not visible here:
- *   "k_prime"      -> DiskSeismicSearchParameters (disk_seismic)
- *   "vmin"+"vmax"  -> SeismicSQSearchParameters   (seismic_sq)
- *   otherwise      -> SeismicSearchParameters
+ *   "k_prime"+"vmin"+"vmax" -> DiskSeismicSQSearchParameters (disk_seismic_sq)
+ *   "k_prime"               -> DiskSeismicSearchParameters   (disk_seismic)
+ *   "vmin"+"vmax"           -> SeismicSQSearchParameters     (seismic_sq)
+ *   otherwise               -> SeismicSearchParameters
  *
  * Each index dynamic_casts to the type it wants and ignores the rest, so an
- * over-specific subtype is safe: DiskSeismicSearchParameters derives from
- * SeismicSearchParameters, and a plain SeismicIndex still reads cut/heap_factor
- * off it.
+ * over-specific subtype is safe: DiskSeismicSQSearchParameters derives from
+ * DiskSeismicSearchParameters derives from SeismicSearchParameters, and a plain
+ * SeismicIndex still reads cut/heap_factor off any of them.
  */
 std::unique_ptr<nsparse::SearchParameters> buildSearchParameters(
     const std::map<std::string, jobject>& params, JNIEnv* env) {
@@ -169,20 +171,32 @@ std::unique_ptr<nsparse::SearchParameters> buildSearchParameters(
         heapFactor = jobject_to_float(env, it->second);
     }
 
-    // k_prime is the block budget DiskSeismicIndex reads, and it only exists on
-    // DiskSeismicSearchParameters. Without this branch the index silently falls
+    auto vminIt = params.find("vmin");
+    auto vmaxIt = params.find("vmax");
+    const bool hasRange = vminIt != params.end() && vmaxIt != params.end();
+
+    // k_prime is the block budget the DiskSeismic indexes read, and it only exists
+    // on DiskSeismicSearchParameters. Without this branch the index silently falls
     // back to kDefaultBlockBudget, leaving its main recall/latency knob unusable
-    // from Java. DiskSeismicIndex ignores heap_factor by design.
+    // from Java. Both ignore heap_factor by design.
     auto kPrimeIt = params.find("k_prime");
     if (kPrimeIt != params.end()) {
         int kPrime = jobject_to_int(env, kPrimeIt->second);
+        // Only DiskSeismicSQSearchParameters carries a query range into a
+        // disk_seismic_sq index, and it is read twice: once to encode the query and
+        // again to decode the integer dot products. Handing that index a range-less
+        // DiskSeismicSearchParameters makes it fall back to its build-time range, so
+        // the query is quantized at the ingest ceiling and the scores are unscaled.
+        if (hasRange) {
+            return std::make_unique<nsparse::DiskSeismicSQSearchParameters>(
+                jobject_to_float(env, vminIt->second),
+                jobject_to_float(env, vmaxIt->second), cut, kPrime);
+        }
         return std::make_unique<nsparse::DiskSeismicSearchParameters>(cut, kPrime);
     }
 
     // If vmin/vmax are present, this is a SeismicSQ query
-    auto vminIt = params.find("vmin");
-    auto vmaxIt = params.find("vmax");
-    if (vminIt != params.end() && vmaxIt != params.end()) {
+    if (hasRange) {
         float vmin = jobject_to_float(env, vminIt->second);
         float vmax = jobject_to_float(env, vmaxIt->second);
         return std::make_unique<nsparse::SeismicSQSearchParameters>(
