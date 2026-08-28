@@ -21,6 +21,7 @@ import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.sparse.mapper.SparseVectorFieldMapper;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
@@ -57,6 +58,7 @@ public class SparseTestCommon {
 
     public static void createSparseIndex(
         RestClient client,
+        SparseEngine engine,
         String indexName,
         String fieldName,
         int nPostings,
@@ -64,11 +66,12 @@ public class SparseTestCommon {
         float clusterRatio,
         int approximateThreshold
     ) throws IOException {
-        createSparseIndex(client, indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
+        createSparseIndex(client, engine, indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold, 1, 0);
     }
 
     public static void createSparseIndex(
         RestClient client,
+        SparseEngine engine,
         String indexName,
         String fieldName,
         int nPostings,
@@ -79,6 +82,7 @@ public class SparseTestCommon {
         int replicas
     ) throws IOException {
         Request request = configureSparseIndex(
+            engine,
             indexName,
             fieldName,
             nPostings,
@@ -95,6 +99,7 @@ public class SparseTestCommon {
     }
 
     private static Request configureSparseIndex(
+        SparseEngine engine,
         String indexName,
         String fieldName,
         int nPostings,
@@ -105,7 +110,7 @@ public class SparseTestCommon {
         int replicas
     ) throws IOException {
         String indexSettings = prepareIndexSettings(shards, replicas);
-        String indexMappings = prepareIndexMapping(nPostings, alpha, clusterRatio, approximateThreshold, fieldName);
+        String indexMappings = prepareIndexMapping(engine, nPostings, alpha, clusterRatio, approximateThreshold, fieldName);
         Request request = new Request("PUT", "/" + indexName);
         String body = String.format(
             Locale.ROOT,
@@ -129,7 +134,36 @@ public class SparseTestCommon {
         int shards,
         int replicas
     ) throws IOException {
+        createNestedSparseIndex(
+            client,
+            SparseEngine.DEFAULT,
+            indexName,
+            nestedFieldName,
+            sparseFieldName,
+            nPostings,
+            alpha,
+            clusterRatio,
+            approximateThreshold,
+            shards,
+            replicas
+        );
+    }
+
+    public static void createNestedSparseIndex(
+        RestClient client,
+        SparseEngine engine,
+        String indexName,
+        String nestedFieldName,
+        String sparseFieldName,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold,
+        int shards,
+        int replicas
+    ) throws IOException {
         Request request = configureNestedSparseIndex(
+            engine,
             indexName,
             nestedFieldName,
             sparseFieldName,
@@ -147,6 +181,7 @@ public class SparseTestCommon {
     }
 
     private static Request configureNestedSparseIndex(
+        SparseEngine engine,
         String indexName,
         String nestedFieldName,
         String sparseFieldName,
@@ -159,6 +194,7 @@ public class SparseTestCommon {
     ) throws IOException {
         String indexSettings = prepareIndexSettings(shards, replicas);
         String indexMappings = prepareNestedIndexMapping(
+            engine,
             nPostings,
             alpha,
             clusterRatio,
@@ -191,6 +227,7 @@ public class SparseTestCommon {
     }
 
     public static String prepareIndexMapping(
+        SparseEngine engine,
         int nPostings,
         float alpha,
         float clusterRatio,
@@ -198,6 +235,7 @@ public class SparseTestCommon {
         String sparseFieldName
     ) throws IOException {
         return prepareIndexMapping(
+            engine,
             nPostings,
             alpha,
             clusterRatio,
@@ -209,6 +247,7 @@ public class SparseTestCommon {
     }
 
     public static String prepareIndexMapping(
+        SparseEngine engine,
         int nPostings,
         float alpha,
         float clusterRatio,
@@ -217,29 +256,24 @@ public class SparseTestCommon {
         float quantizationCeilingSearch,
         String sparseFieldName
     ) throws IOException {
-        XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()
-            .startObject()
-            .startObject("properties")
-            .startObject(sparseFieldName)
-            .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
-            .startObject("method")
-            .field("name", ALGO_NAME)
-            .startObject("parameters")
-            .field("n_postings", nPostings)
-            .field("summary_prune_ratio", alpha)
-            .field("cluster_ratio", clusterRatio)
-            .field("approximate_threshold", approximateThreshold)
-            .field("quantization_ceiling_ingest", quantizationCeilingIngest)
-            .field("quantization_ceiling_search", quantizationCeilingSearch)
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject();
+        XContentBuilder mappingBuilder = XContentFactory.jsonBuilder().startObject().startObject("properties");
+        addSeismicField(
+            mappingBuilder,
+            engine,
+            sparseFieldName,
+            nPostings,
+            alpha,
+            clusterRatio,
+            approximateThreshold,
+            quantizationCeilingIngest,
+            quantizationCeilingSearch
+        );
+        mappingBuilder.endObject().endObject();
         return mappingBuilder.toString();
     }
 
     public static String prepareNestedIndexMapping(
+        SparseEngine engine,
         int nPostings,
         float alpha,
         float clusterRatio,
@@ -254,29 +288,24 @@ public class SparseTestCommon {
             .startObject("properties")
             .startObject(nestedFieldName)
             .field("type", "nested")
-            .startObject("properties")
-            .startObject(sparseFieldName)
-            .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
-            .startObject("method")
-            .field("name", ALGO_NAME)
-            .startObject("parameters")
-            .field("n_postings", nPostings)
-            .field("summary_prune_ratio", alpha)
-            .field("cluster_ratio", clusterRatio)
-            .field("approximate_threshold", approximateThreshold)
-            .field("quantization_ceiling_ingest", quantizationCeilingIngest)
-            .field("quantization_ceiling_search", quantizationCeilingSearch)
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject();
+            .startObject("properties");
+        addSeismicField(
+            mappingBuilder,
+            engine,
+            sparseFieldName,
+            nPostings,
+            alpha,
+            clusterRatio,
+            approximateThreshold,
+            quantizationCeilingIngest,
+            quantizationCeilingSearch
+        );
+        mappingBuilder.endObject().endObject().endObject().endObject();
         return mappingBuilder.toString();
     }
 
     public static String prepareNestedIndexMapping(
+        SparseEngine engine,
         int nPostings,
         float alpha,
         float clusterRatio,
@@ -285,6 +314,7 @@ public class SparseTestCommon {
         String sparseFieldName
     ) throws IOException {
         return prepareNestedIndexMapping(
+            engine,
             nPostings,
             alpha,
             clusterRatio,
@@ -294,6 +324,40 @@ public class SparseTestCommon {
             nestedFieldName,
             sparseFieldName
         );
+    }
+
+    /**
+     * Writes a {@code sparse_vector} property configured with the seismic method for the given
+     * engine. Quantization ceilings are omitted when null, leaving the mapping defaults in place.
+     */
+    private static void addSeismicField(
+        XContentBuilder mappingBuilder,
+        SparseEngine engine,
+        String sparseFieldName,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold,
+        Float quantizationCeilingIngest,
+        Float quantizationCeilingSearch
+    ) throws IOException {
+        mappingBuilder.startObject(sparseFieldName)
+            .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
+            .startObject("method")
+            .field("name", ALGO_NAME)
+            .field(SparseConstants.ENGINE_FIELD, engine.getName())
+            .startObject("parameters")
+            .field("n_postings", nPostings)
+            .field("summary_prune_ratio", alpha)
+            .field("cluster_ratio", clusterRatio)
+            .field("approximate_threshold", approximateThreshold);
+        if (quantizationCeilingIngest != null) {
+            mappingBuilder.field("quantization_ceiling_ingest", quantizationCeilingIngest);
+        }
+        if (quantizationCeilingSearch != null) {
+            mappingBuilder.field("quantization_ceiling_search", quantizationCeilingSearch);
+        }
+        mappingBuilder.endObject().endObject().endObject();
     }
 
     @SneakyThrows
@@ -313,9 +377,9 @@ public class SparseTestCommon {
     }
 
     @SneakyThrows
-    public static void prepareSparseIndex(RestClient client, String index, String sparseField, String textField) {
+    public static void prepareSparseIndex(RestClient client, SparseEngine engine, String index, String sparseField, String textField) {
         int docCount = 100;
-        createSparseIndex(client, index, sparseField, 100, 0.4f, 0.1f, docCount);
+        createSparseIndex(client, engine, index, sparseField, 100, 0.4f, 0.1f, docCount);
         List<Map<String, Float>> docs = prepareIngestDocuments(docCount);
         ingestDocumentsAndForceMergeForSingleShard(client, index, textField, sparseField, docs);
     }
@@ -330,6 +394,7 @@ public class SparseTestCommon {
     @SneakyThrows
     public static void prepareMultiShardReplicasIndex(
         RestClient client,
+        SparseEngine engine,
         String index,
         String sparseField,
         String textField,
@@ -337,7 +402,7 @@ public class SparseTestCommon {
         int replicas
     ) {
         int docCount = 100;
-        createSparseIndex(client, index, sparseField, 100, 0.4f, 0.1f, docCount, shards, replicas);
+        createSparseIndex(client, engine, index, sparseField, 100, 0.4f, 0.1f, docCount, shards, replicas);
         // Verify index exists
         assertTrue(indexExists(client, index));
         // Ingest documents
@@ -372,11 +437,12 @@ public class SparseTestCommon {
     @SneakyThrows
     public static void prepareMixSeismicRankFeaturesIndex(
         RestClient client,
+        SparseEngine engine,
         String TEST_INDEX_NAME,
         String TEST_SPARSE_FIELD_NAME,
         String TEST_TEXT_FIELD_NAME
     ) {
-        createSparseIndex(client, TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+        createSparseIndex(client, engine, TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
 
         ingestDocuments(
             TEST_INDEX_NAME,
@@ -405,11 +471,12 @@ public class SparseTestCommon {
     @SneakyThrows
     public static void prepareOnlyRankFeaturesIndex(
         RestClient client,
+        SparseEngine engine,
         String TEST_INDEX_NAME,
         String TEST_SPARSE_FIELD_NAME,
         String TEST_TEXT_FIELD_NAME
     ) {
-        createSparseIndex(client, TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
+        createSparseIndex(client, engine, TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
 
         ingestDocumentsAndForceMergeForSingleShard(
             client,
@@ -421,24 +488,18 @@ public class SparseTestCommon {
     }
 
     @SneakyThrows
-    public static void createIndexWithMultipleSeismicFields(RestClient client, String indexName, List<String> fieldNames) {
+    public static void createIndexWithMultipleSeismicFields(
+        RestClient client,
+        SparseEngine engine,
+        String indexName,
+        List<String> fieldNames
+    ) {
         String indexSettings = prepareIndexSettings();
         XContentBuilder mappingBuilder = XContentFactory.jsonBuilder().startObject().startObject("properties");
 
         // Add each sparse field to the mapping
         for (String fieldName : fieldNames) {
-            mappingBuilder.startObject(fieldName)
-                .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
-                .startObject("method")
-                .field("name", ALGO_NAME)
-                .startObject("parameters")
-                .field("n_postings", 100)
-                .field("summary_prune_ratio", 0.4f)
-                .field("cluster_ratio", 0.1f)
-                .field("approximate_threshold", 8)
-                .endObject()
-                .endObject()
-                .endObject();
+            addSeismicField(mappingBuilder, engine, fieldName, 100, 0.4f, 0.1f, 8, null, null);
         }
 
         mappingBuilder.endObject().endObject();
@@ -760,6 +821,7 @@ public class SparseTestCommon {
     }
 
     public static String prepareMixedNestedFieldsIndexMapping(
+        SparseEngine engine,
         String sparseAnnParentField,
         String plainNeuralSparseParentField,
         String nestedChunkField,
@@ -778,20 +840,9 @@ public class SparseTestCommon {
             .startObject("properties")
             .startObject(nestedChunkField)
             .field("type", "nested")
-            .startObject("properties")
-            .startObject(sparseFieldName)
-            .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
-            .startObject("method")
-            .field("name", ALGO_NAME)
-            .startObject("parameters")
-            .field("n_postings", nPostings)
-            .field("summary_prune_ratio", alpha)
-            .field("cluster_ratio", clusterRatio)
-            .field("approximate_threshold", approximateThreshold)
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
+            .startObject("properties");
+        addSeismicField(mappingBuilder, engine, sparseFieldName, nPostings, alpha, clusterRatio, approximateThreshold, null, null);
+        mappingBuilder.endObject()
             .endObject()
             .endObject()
             .endObject()
@@ -815,6 +866,7 @@ public class SparseTestCommon {
     }
 
     public static String prepareMixedFieldTypeIndexMapping(
+        SparseEngine engine,
         String parentField,
         String rankFeaturesField,
         String sparseVectorField,
@@ -831,24 +883,10 @@ public class SparseTestCommon {
             // First field: rank_features type
             .startObject(rankFeaturesField)
             .field("type", "rank_features")
-            .endObject()
-            // Second field: sparse_vector type with seismic method
-            .startObject(sparseVectorField)
-            .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
-            .startObject("method")
-            .field("name", ALGO_NAME)
-            .startObject("parameters")
-            .field("n_postings", nPostings)
-            .field("summary_prune_ratio", alpha)
-            .field("cluster_ratio", clusterRatio)
-            .field("approximate_threshold", approximateThreshold)
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
-            .endObject()
             .endObject();
+        // Second field: sparse_vector type with seismic method
+        addSeismicField(mappingBuilder, engine, sparseVectorField, nPostings, alpha, clusterRatio, approximateThreshold, null, null);
+        mappingBuilder.endObject().endObject().endObject().endObject();
         return mappingBuilder.toString();
     }
 }

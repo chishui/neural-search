@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse;
 
+import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.junit.Before;
@@ -18,6 +19,7 @@ import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.neuralsearch.SparseTestCommon;
 import org.opensearch.neuralsearch.processor.SparseEncodingProcessor;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.query.SparseAnnQueryBuilder;
 import org.apache.lucene.search.join.ScoreMode;
 
@@ -25,6 +27,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +46,15 @@ public class SparseSearchingIT extends SparseBaseIT {
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String PIPELINE_NAME = "seismic_test_pipeline";
+
+    @ParametersFactory(argumentFormatting = "engine=%s")
+    public static Collection<Object[]> parameters() {
+        return allEngines();
+    }
+
+    public SparseSearchingIT(SparseEngine engine) {
+        super(engine);
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -327,11 +339,20 @@ public class SparseSearchingIT extends SparseBaseIT {
 
         Map<String, Object> searchResults = search(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
         assertNotNull(searchResults);
-        assertEquals(3, getHitCount(searchResults));
         List<String> actualIds = getDocIDs(searchResults);
-        // results with k = 4 are 5, 6, 7, 8, filter results are 1, 2, 3, 4, 5, 6, 7
-        // intersection of both are 5, 6, 7
-        assertEquals(List.of("7", "6", "5"), actualIds);
+        if (SparseEngine.NATIVE == engine) {
+            // Native pushes the filter down into nsparse, so it ranks within the filtered 1..7 and
+            // returns a full k = 4. Neither which 4 nor their order is fixed: nsparse seeds its k-means
+            // from std::random_device, so the clustering -- and with it the approximate ranking --
+            // differs per index build. What must hold is the count and that doc 8 was filtered out.
+            assertEquals(4, getHitCount(searchResults));
+            assertTrue("doc 8 should be filtered out, got " + actualIds, Set.of("1", "2", "3", "4", "5", "6", "7").containsAll(actualIds));
+        } else {
+            // The Lucene engine post-filters: results with k = 4 are 5, 6, 7, 8, filter results are
+            // 1, 2, 3, 4, 5, 6, 7, and the intersection of both is 5, 6, 7.
+            assertEquals(3, getHitCount(searchResults));
+            assertEquals(List.of("7", "6", "5"), actualIds);
+        }
     }
 
     public void testSearchDocumentsRankFeaturesWithFiltering() throws Exception {
@@ -570,6 +591,7 @@ public class SparseSearchingIT extends SparseBaseIT {
 
     @SneakyThrows
     public void testSearchWithCustomizedQuantizationCeil() {
+        assumeLuceneEngine(QUANTIZATION_IS_LUCENE_ONLY);
         Settings indexSettings = Settings.builder()
             .put("index.number_of_shards", 1)
             .put("index.number_of_replicas", 0)
@@ -990,7 +1012,7 @@ public class SparseSearchingIT extends SparseBaseIT {
 
         createPipelineProcessor(pipelineConfiguration, pipelineName, "", null);
 
-        String indexMappings = SparseTestCommon.prepareMixedNestedFieldsIndexMapping(
+        String indexMappings = prepareMixedNestedFieldsIndexMapping(
             sparseAnnParentField,
             plainNeuralSparseParentField,
             nestedChunkField,
@@ -1111,15 +1133,7 @@ public class SparseSearchingIT extends SparseBaseIT {
 
         createPipelineProcessor(pipelineConfiguration, pipelineName, "", null);
 
-        String indexMappings = SparseTestCommon.prepareMixedFieldTypeIndexMapping(
-            parentField,
-            rankFeaturesField,
-            sparseVectorField,
-            4,
-            0.4f,
-            0.5f,
-            8
-        );
+        String indexMappings = prepareMixedFieldTypeIndexMapping(parentField, rankFeaturesField, sparseVectorField, 4, 0.4f, 0.5f, 8);
 
         String indexSettings = prepareIndexSettings(1, 0);
         Request request = new Request("PUT", "/" + TEST_INDEX_NAME);
@@ -1218,6 +1232,7 @@ public class SparseSearchingIT extends SparseBaseIT {
 
     @SuppressWarnings("unchecked")
     public void testSearchWithExplain_BasicScoring() throws Exception {
+        assumeLuceneEngine(SEISMIC_EXPLAIN_IS_LUCENE_ONLY);
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, 4);
 
         ingestDocumentsAndForceMergeForSingleShard(
@@ -1297,6 +1312,7 @@ public class SparseSearchingIT extends SparseBaseIT {
 
     @SuppressWarnings("unchecked")
     public void testSearchWithExplain_ExactSearchMode() throws Exception {
+        assumeLuceneEngine(SEISMIC_EXPLAIN_IS_LUCENE_ONLY);
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
         ingestDocumentsAndForceMergeForSingleShard(
@@ -1346,6 +1362,7 @@ public class SparseSearchingIT extends SparseBaseIT {
 
     @SuppressWarnings("unchecked")
     public void testSearchWithExplain_ApproximateSearchMode() throws Exception {
+        assumeLuceneEngine(SEISMIC_EXPLAIN_IS_LUCENE_ONLY);
         createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 8, 0.4f, 0.5f, 8);
 
         ingestDocumentsAndForceMergeForSingleShard(

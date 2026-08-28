@@ -4,7 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.mapper;
 
-import org.apache.lucene.document.FieldType;
+import org.junit.After;
 import org.junit.Before;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.common.xcontent.XContentFactory;
@@ -15,20 +15,30 @@ import org.opensearch.index.mapper.Mapper;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.ClusterSettings;
+import org.opensearch.common.settings.Settings;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.SparseSettings;
+import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
@@ -62,6 +72,106 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         sparseMethodContext = SparseMethodContext.parse(methodMap);
 
         builder = new SparseVectorFieldMapper.Builder("test_field");
+    }
+
+    @After
+    public void resetSparseSettings() {
+        SparseSettings.reset();
+    }
+
+    /** Puts the singleton into the state a node with these two flag values would be in. */
+    private void setNativeEngineFlags(boolean featureEnabled, boolean dynamicEnabled) {
+        Settings nodeSettings = Settings.builder()
+            .put(SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED, featureEnabled)
+            .put(SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED, dynamicEnabled)
+            .build();
+        ClusterService clusterService = mock(ClusterService.class);
+        when(clusterService.getSettings()).thenReturn(nodeSettings);
+        when(clusterService.getClusterSettings()).thenReturn(
+            new ClusterSettings(
+                nodeSettings,
+                Set.of(
+                    SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
+                    SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING,
+                    SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
+                )
+            )
+        );
+        ClusterTrainingExecutor.getInstance().initialize(mock(ThreadPool.class));
+        SparseSettings.reset();
+        SparseSettings.state().initialize(clusterService, nodeSettings);
+    }
+
+    private Map<String, Object> nativeMethodNode() {
+        Map<String, Object> method = new HashMap<>();
+        method.put(NAME_FIELD, SEISMIC);
+        method.put(ENGINE_FIELD, SparseEngine.NATIVE.getName());
+        method.put(PARAMETERS_FIELD, new HashMap<String, Object>());
+        Map<String, Object> node = new HashMap<>();
+        node.put("method", method);
+        return node;
+    }
+
+    public void testSparseTypeParser_rejectsNativeEngineWhenDisabled() {
+        setNativeEngineFlags(true, false);
+
+        MapperParsingException exception = expectThrows(
+            MapperParsingException.class,
+            () -> new SparseVectorFieldMapper.SparseTypeParser().parse(
+                "test_field",
+                nativeMethodNode(),
+                mock(Mapper.TypeParser.ParserContext.class)
+            )
+        );
+        assertTrue(exception.getMessage(), exception.getMessage().contains(SparseSettings.NATIVE_ENGINE_DISABLED_REASON));
+    }
+
+    public void testSparseTypeParser_acceptsNativeEngineWhenEnabled() {
+        setNativeEngineFlags(true, true);
+
+        assertNotNull(
+            new SparseVectorFieldMapper.SparseTypeParser().parse(
+                "test_field",
+                nativeMethodNode(),
+                mock(Mapper.TypeParser.ParserContext.class)
+            )
+        );
+    }
+
+    public void testSparseTypeParser_allowsLuceneEngineWhenNativeIsDisabled() {
+        setNativeEngineFlags(true, false);
+
+        Map<String, Object> method = new HashMap<>();
+        method.put(NAME_FIELD, SEISMIC);
+        method.put(ENGINE_FIELD, SparseEngine.LUCENE.getName());
+        method.put(PARAMETERS_FIELD, new HashMap<String, Object>());
+        Map<String, Object> node = new HashMap<>();
+        node.put("method", method);
+
+        assertNotNull(
+            new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class))
+        );
+    }
+
+    public void testParseCreateField_rejectsNativeEngineWhenDisabled() {
+        setNativeEngineFlags(true, false);
+
+        Map<String, Object> method = new HashMap<>();
+        method.put(NAME_FIELD, SEISMIC);
+        method.put(ENGINE_FIELD, SparseEngine.NATIVE.getName());
+        method.put(PARAMETERS_FIELD, new HashMap<String, Object>());
+        builder.sparseMethodContext.setValue(SparseMethodContext.parse(method));
+        SparseVectorFieldMapper mapper = (SparseVectorFieldMapper) builder.build(
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
+        );
+
+        ParseContext context = mock(ParseContext.class);
+        when(context.externalValueSet()).thenReturn(false);
+
+        IllegalArgumentException exception = expectThrows(IllegalArgumentException.class, () -> mapper.parseCreateField(context));
+        assertTrue(exception.getMessage(), exception.getMessage().contains(SparseSettings.NATIVE_ENGINE_DISABLED_REASON));
+        // Rejected before the document was even parsed
+        verify(context, never()).parser();
     }
 
     public void testBuilder_withValidParameters_createsBuilder() {
@@ -169,9 +279,29 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         SparseVectorFieldMapper mapper = (SparseVectorFieldMapper) builder.build(
             new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
         );
-        FieldType fieldType = mapper.getTokenFieldType();
-        assertEquals(1, fieldType.getAttributes().size());
-        assertTrue(Boolean.parseBoolean(fieldType.getAttributes().get(SPARSE_FIELD)));
+        // Only the marker attribute from Defaults.FIELD_TYPE; no seismic parameters get
+        // written for a method that is not seismic.
+        Map<String, String> attributes = mapper.getLuceneFieldType().getAttributes();
+        assertEquals(1, attributes.size());
+        assertTrue(Boolean.parseBoolean(attributes.get(SPARSE_FIELD)));
+    }
+
+    public void testParseCreateField_withSeismicInSparseMethodContext() throws IOException {
+        builder.sparseMethodContext.setValue(sparseMethodContext);
+        SparseVectorFieldMapper mapper = (SparseVectorFieldMapper) builder.build(
+            new ParametrizedFieldMapper.BuilderContext(TestsPrepareUtils.prepareIndexSettings(), TestsPrepareUtils.prepareContentPath())
+        );
+
+        Map<String, String> attributes = mapper.getLuceneFieldType().getAttributes();
+        assertTrue(Boolean.parseBoolean(attributes.get(SPARSE_FIELD)));
+        assertEquals("10", attributes.get(N_POSTINGS_FIELD));
+        assertEquals("0.5", attributes.get(SUMMARY_PRUNE_RATIO_FIELD));
+        assertEquals("0.3", attributes.get(CLUSTER_RATIO_FIELD));
+        assertEquals("100", attributes.get(APPROXIMATE_THRESHOLD_FIELD));
+        assertEquals("3.0", attributes.get(QUANTIZATION_CEILING_INGEST_FIELD));
+        assertEquals("3.0", attributes.get(QUANTIZATION_CEILING_SEARCH_FIELD));
+        // The engine attribute is what the codec dispatches the field on at write time
+        assertEquals(SparseEngine.DEFAULT.getName(), attributes.get(ENGINE_FIELD));
     }
 
     public void testSparseTypeParser_withValidInput_returnsBuilder() throws MapperParsingException {
@@ -263,10 +393,6 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         Map<String, String> fieldTypeAttrs = SparseVectorFieldMapper.Defaults.FIELD_TYPE.getAttributes();
         assertTrue(fieldTypeAttrs.containsKey("sparse_vector_field"));
         assertEquals("true", fieldTypeAttrs.get("sparse_vector_field"));
-
-        Map<String, String> tokenFieldTypeAttrs = SparseVectorFieldMapper.Defaults.TOKEN_FIELD_TYPE.getAttributes();
-        assertTrue(tokenFieldTypeAttrs.containsKey("sparse_vector_field"));
-        assertEquals("true", tokenFieldTypeAttrs.get("sparse_vector_field"));
     }
 
     public void testBuilder_getParameters_returnsCorrectParameters() {

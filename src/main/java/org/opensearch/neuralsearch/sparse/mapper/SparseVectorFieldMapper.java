@@ -19,7 +19,9 @@ import org.opensearch.index.mapper.Mapper;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.ParametrizedFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
+import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgoType;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -29,6 +31,7 @@ import java.util.Map;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_SEARCH_FIELD;
@@ -51,7 +54,6 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
     public static final String METHOD = "method";
     @NonNull
     private final SparseMethodContext sparseMethodContext;
-    private FieldType tokenFieldType;
 
     private SparseVectorFieldMapper(
         String simpleName,
@@ -66,14 +68,19 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
         this.fieldType.setDocValuesType(DocValuesType.BINARY);
         setFieldTypeAttributes(this.fieldType, sparseMethodContext);
         this.fieldType.freeze();
-
-        this.tokenFieldType = new FieldType(Defaults.TOKEN_FIELD_TYPE);
-        setFieldTypeAttributes(this.tokenFieldType, sparseMethodContext);
-        this.tokenFieldType.freeze();
     }
 
     private static SparseVectorFieldType ft(FieldMapper in) {
         return ((SparseVectorFieldMapper) in).fieldType();
+    }
+
+    /**
+     * The Lucene field type documents are indexed with, carrying the attributes
+     * {@link #setFieldTypeAttributes} resolved from the method context. Distinct from
+     * {@link #fieldType()}, which returns the mapped (query-side) field type.
+     */
+    public FieldType getLuceneFieldType() {
+        return this.fieldType;
     }
 
     public static class Builder extends ParametrizedFieldMapper.Builder {
@@ -137,6 +144,14 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             throw new IllegalArgumentException("[" + CONTENT_TYPE + "] fields can't be used in multi-fields");
         }
 
+        // Reject the document rather than write a native field the cluster cannot read back. The
+        // engine check comes first so a non-native field never reads cluster settings per document.
+        if (isNativeEngine(sparseMethodContext) && SparseSettings.state().isNativeEngineEnabled() == false) {
+            throw new IllegalArgumentException(
+                "[" + CONTENT_TYPE + "] field [" + name() + "] cannot be indexed: " + SparseSettings.NATIVE_ENGINE_DISABLED_REASON
+            );
+        }
+
         if (context.parser().currentToken() != XContentParser.Token.START_OBJECT) {
             throw new IllegalArgumentException(
                 "[" + CONTENT_TYPE + "] fields must be json objects, expected a START_OBJECT but got: " + context.parser().currentToken()
@@ -165,8 +180,10 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
                                 + "] in the same document"
                         );
                     }
-                    FeatureField featureField = new FeatureField(name(), feature, value);
-                    context.doc().addWithKey(key, featureField);
+                    if (!SparseEngine.NATIVE.getName().equalsIgnoreCase(sparseMethodContext.getSparseEngine())) {
+                        FeatureField featureField = new FeatureField(name(), feature, value);
+                        context.doc().addWithKey(key, featureField);
+                    }
 
                     try {
                         int tokenIndex = Integer.parseInt(feature);
@@ -213,6 +230,7 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             fieldType.putAttribute(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(algoTriggerThreshold));
             fieldType.putAttribute(QUANTIZATION_CEILING_INGEST_FIELD, String.valueOf(quantizationCeilIngest));
             fieldType.putAttribute(QUANTIZATION_CEILING_SEARCH_FIELD, String.valueOf(quantizationCeilSearch));
+            fieldType.putAttribute(ENGINE_FIELD, sparseMethodContext.getSparseEngine());
         }
     }
 
@@ -221,17 +239,11 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
      */
     public static class Defaults {
         public static final FieldType FIELD_TYPE = new FieldType();
-        public static final FieldType TOKEN_FIELD_TYPE = new FieldType();
         static {
             FIELD_TYPE.setTokenized(false);
             FIELD_TYPE.setIndexOptions(IndexOptions.NONE);
             FIELD_TYPE.putAttribute(SparseVectorField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
             FIELD_TYPE.freeze();
-            TOKEN_FIELD_TYPE.setTokenized(false);
-            TOKEN_FIELD_TYPE.setOmitNorms(true);
-            TOKEN_FIELD_TYPE.setIndexOptions(IndexOptions.DOCS_AND_FREQS);
-            TOKEN_FIELD_TYPE.putAttribute(SparseVectorField.SPARSE_FIELD, "true"); // This attribute helps to determine knn field type
-            TOKEN_FIELD_TYPE.freeze();
         }
     }
 
@@ -255,7 +267,14 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             if (exception != null) {
                 throw new MapperParsingException(exception.getMessage());
             }
+            if (isNativeEngine(context) && SparseSettings.state().isNativeEngineEnabled() == false) {
+                throw new MapperParsingException("[" + ENGINE_FIELD + "]: " + SparseSettings.NATIVE_ENGINE_DISABLED_REASON);
+            }
             return builder;
         }
+    }
+
+    private static boolean isNativeEngine(SparseMethodContext sparseMethodContext) {
+        return SparseEngine.NATIVE.getName().equalsIgnoreCase(sparseMethodContext.getSparseEngine());
     }
 }

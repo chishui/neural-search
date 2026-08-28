@@ -14,8 +14,12 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
+import org.apache.lucene.util.BytesRef;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 /**
  * DocValues producer for sparse vector fields that wraps a delegate producer
@@ -48,6 +52,9 @@ public class SparseDocValuesProducer extends DocValuesProducer {
      */
     @Override
     public BinaryDocValues getBinary(FieldInfo field) throws IOException {
+        if (SparseFieldUtils.getSparseEngine(field) == SparseEngine.NATIVE) {
+            return this.delegate.getBinary(field);
+        }
         return new SparseBinaryDocValuesPassThrough(this.delegate.getBinary(field), state.segmentInfo, field);
     }
 
@@ -79,5 +86,38 @@ public class SparseDocValuesProducer extends DocValuesProducer {
     @Override
     public void close() throws IOException {
         this.delegate.close();
+    }
+
+    private class NativeBinaryDocValues extends BinaryDocValues {
+
+        @Override
+        public BytesRef binaryValue() throws IOException {
+            throw new UnsupportedEncodingException("NativeBinaryDocValues's functions should not be used!");
+        }
+
+        @Override
+        public boolean advanceExact(int target) throws IOException {
+            throw new UnsupportedEncodingException("NativeBinaryDocValues's functions should not be used!");
+        }
+
+        @Override
+        public int docID() {
+            return 0;
+        }
+
+        @Override
+        public int nextDoc() throws IOException {
+            return 0;
+        }
+
+        @Override
+        public int advance(int target) throws IOException {
+            return 0;
+        }
+
+        @Override
+        public long cost() {
+            return 0;
+        }
     }
 }

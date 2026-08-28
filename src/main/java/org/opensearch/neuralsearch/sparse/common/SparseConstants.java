@@ -12,6 +12,7 @@ public final class SparseConstants {
     public static final String NAME_FIELD = "name";
     public static final String PARAMETERS_FIELD = "parameters";
     public static final String N_POSTINGS_FIELD = "n_postings";
+    public static final String ENGINE_FIELD = "engine";
     public static final String SUMMARY_PRUNE_RATIO_FIELD = "summary_prune_ratio";
     public static final String QUANTIZATION_CEILING_INGEST_FIELD = "quantization_ceiling_ingest";
     public static final String QUANTIZATION_CEILING_SEARCH_FIELD = "quantization_ceiling_search";
@@ -24,6 +25,7 @@ public final class SparseConstants {
     // (not 65536) keeps every folded value <= Short.MAX_VALUE, so it round-trips without being
     // sign-extended to a negative int on read.
     public static final int MODULUS_FOR_SHORT = 32768;
+    public static final String COMPOUND_EXTENSION = "c";
 
     /**
      * SEISMIC algorithm configuration constants and default values.
