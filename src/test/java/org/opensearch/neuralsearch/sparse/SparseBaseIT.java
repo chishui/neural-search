@@ -47,14 +47,6 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     protected static final String SPARSE_MEMORY_USAGE_METRIC_PATH = MetricStatName.MEMORY_SPARSE_MEMORY_USAGE.getFullPath();
 
     /**
-     * Explain over a seismic segment reads the document back through the sparse forward index cache,
-     * which the native engine does not populate, so it yields a detail-less noMatch. Explain over a
-     * sub-threshold segment delegates to the fallback query and does work on both engines.
-     */
-    protected static final String SEISMIC_EXPLAIN_IS_LUCENE_ONLY =
-        "sparse_ann explain over a seismic segment is only implemented for the Lucene engine";
-
-    /**
      * The native engine indexes unquantized float32 values, so it neither clips weights to the
      * ceilings nor rescales scores by them.
      */
@@ -496,6 +488,24 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         for (String expected : expectedDescriptions) {
             assertTrue("Explanation should contain: " + expected, foundDescriptions.contains(expected));
         }
+    }
+
+    /**
+     * Asserts that the explanation reports the score the hit was actually ranked by. This is the
+     * assertion that pins the explain arithmetic against the scorer's: explain recomputes the score
+     * from the stored vector, so a formula that drifts from the scorer's (a dropped boost, a
+     * quantization range applied at the wrong ceiling) shows up here and nowhere else.
+     */
+    @SuppressWarnings("unchecked")
+    protected void assertExplanationScoreMatchesHit(Map<String, Object> hit) {
+        Map<String, Object> explanation = (Map<String, Object>) hit.get("_explanation");
+        assertNotNull("Explanation should be present", explanation);
+        float hitScore = Float.parseFloat(hit.get("_score").toString());
+        Object explanationValue = explanation.get("value");
+        assertNotNull("Explanation should carry a value", explanationValue);
+        float explainedScore = Float.parseFloat(explanationValue.toString());
+        // Relative, since a score's magnitude depends on the quantization ceilings in play.
+        assertEquals("Explained score should match the hit's score", hitScore, explainedScore, Math.max(1e-4f, Math.abs(hitScore) * 1e-3f));
     }
 
     @SuppressWarnings("unchecked")

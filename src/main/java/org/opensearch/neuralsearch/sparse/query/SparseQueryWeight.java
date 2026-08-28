@@ -39,6 +39,7 @@ import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
 import org.opensearch.neuralsearch.sparse.query.explain.SparseExplanationBuilder;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import static org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil.MAX_UNSIGNED_BYTE_VALUE;
 
@@ -70,28 +71,55 @@ public class SparseQueryWeight extends Weight {
 
         SegmentInfo info = Lucene.segmentReader(context.reader()).getSegmentInfo().info;
         FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
+        final boolean isNativeEngine = SparseEngine.NATIVE == SparseFieldUtils.getSparseEngine(fieldInfo);
+        final boolean isSeismicSegment = PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo);
 
-        if (!PredicateUtils.shouldRunSeisPredicate.test(info, fieldInfo)) {
+        // The fallback query scores FeatureFields, which a native field never writes (see
+        // SparseVectorFieldMapper#parseCreateField), so for the native engine it would explain a
+        // noMatch for a document the native scorer did score. Native explains every segment itself.
+        if (!isNativeEngine && !isSeismicSegment) {
             // Fallback to plain neural sparse query explanation
             return fallbackQueryWeight.explain(context, doc);
         }
 
-        SparseVectorReader reader = SparseVectorReader.NOOP_READER;
-        if (info != null) {
-            CacheKey key = new CacheKey(info, query.getFieldName());
-            ForwardIndexCacheItem cacheItem = forwardIndexCache.getOrCreate(key, info.maxDoc());
-            reader = getCacheGatedForwardIndexReader(cacheItem, context.reader(), query.getFieldName());
-        }
-
-        return SparseExplanationBuilder.builder()
+        SparseExplanationBuilder.SparseExplanationBuilderBuilder builder = SparseExplanationBuilder.builder()
             .context(context)
             .docId(doc)
             .query(query)
             .boost(boost)
             .fieldInfo(fieldInfo)
-            .reader(reader)
-            .build()
-            .explain();
+            .nativeEngine(isNativeEngine);
+
+        if (isNativeEngine) {
+            // The raw vectors reach disk through the delegate consumer for native fields too
+            // (BaseSparseDocValuesConsumer#addBinaryField), so the document is recomputable from doc
+            // values alone -- no need to read it back out of the native index. Deliberately not
+            // routed through the forward index cache: a native segment's index is an mmap'd file and
+            // nothing else populates that cache for it, so filling it here would charge the circuit
+            // breaker for memory no query benefits from.
+            BinaryDocValues docValues = context.reader().getBinaryDocValues(query.getFieldName());
+            if (docValues == null) {
+                return Explanation.noMatch(
+                    String.format(Locale.ROOT, "field '%s' has no doc values in this segment", query.getFieldName())
+                );
+            }
+            if (isSeismicSegment) {
+                // Scored by a quantized seismic index, so the byte-code breakdown applies.
+                builder.reader(new SparseBinaryDocValuesPassThrough(docValues, info, fieldInfo));
+            } else {
+                // Scored by nsparse's inverted index, which holds unquantized floats and computes an
+                // exact dot product, so quantizing here would explain a score nothing produced.
+                builder.reader(SparseVectorReader.NOOP_READER).rawDocValues(docValues);
+            }
+        } else if (info != null) {
+            CacheKey key = new CacheKey(info, query.getFieldName());
+            ForwardIndexCacheItem cacheItem = forwardIndexCache.getOrCreate(key, info.maxDoc());
+            builder.reader(getCacheGatedForwardIndexReader(cacheItem, context.reader(), query.getFieldName()));
+        } else {
+            builder.reader(SparseVectorReader.NOOP_READER);
+        }
+
+        return builder.build().explain();
     }
 
     @Override
@@ -163,7 +191,8 @@ public class SparseQueryWeight extends Weight {
                 context.reader(),
                 segmentInfo,
                 context.reader().getLiveDocs(),
-                filterBitIterator
+                filterBitIterator,
+                boost
             );
         }
         SparseVectorReader cacheGatedForwardIndexReader = SparseVectorReader.NOOP_READER;

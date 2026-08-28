@@ -37,6 +37,11 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.
 @Log4j2
 public class NativeIndexScorer extends Scorer {
     private final ResultsDocValueIterator<Float> resultsIterator;
+    /**
+     * nsparse decodes its own quantization, so unlike the Lucene path there is no rescaling to
+     * fold the boost into -- it multiplies the returned score and nothing else.
+     */
+    private final float boost;
 
     /**
      * Creates scorer with upfront search results and optional filtering.
@@ -48,8 +53,10 @@ public class NativeIndexScorer extends Scorer {
         LeafReader leafReader,
         SegmentInfo segmentInfo,
         Bits acceptedDocs,
-        BitSetIterator filterBitSetIterator
+        BitSetIterator filterBitSetIterator,
+        float boost
     ) throws IOException {
+        this.boost = boost;
         StopWatch searchUpfrontStopWatch = StopWatch.createStarted();
         List<Pair<Integer, Float>> results = searchUpfront(
             sparseQueryContext,
@@ -225,6 +232,6 @@ public class NativeIndexScorer extends Scorer {
      */
     @Override
     public float score() throws IOException {
-        return resultsIterator.score();
+        return boost * resultsIterator.score();
     }
 }
