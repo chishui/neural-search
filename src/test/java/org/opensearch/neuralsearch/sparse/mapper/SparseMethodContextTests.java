@@ -16,6 +16,7 @@ import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
 
@@ -54,6 +56,30 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
 
         MapperParsingException exception = expectThrows(MapperParsingException.class, () -> { SparseMethodContext.parse(input); });
         assertEquals("Invalid parameter: invalidKey", exception.getMessage());
+    }
+
+    public void testParseWithoutForwardIndex_usesDefault() {
+        Map<String, Object> input = new HashMap<>();
+        input.put(NAME_FIELD, "testMethod");
+
+        assertEquals(SparseForwardIndex.DEFAULT.getName(), SparseMethodContext.parse(input).getForwardIndex());
+    }
+
+    public void testParseWithForwardIndex() {
+        Map<String, Object> input = new HashMap<>();
+        input.put(NAME_FIELD, "testMethod");
+        input.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
+
+        assertEquals(SparseForwardIndex.PER_BLOCK.getName(), SparseMethodContext.parse(input).getForwardIndex());
+    }
+
+    public void testParseWithInvalidForwardIndex() {
+        Map<String, Object> input = new HashMap<>();
+        input.put(NAME_FIELD, "testMethod");
+        input.put(FORWARD_INDEX_FIELD, "not_a_forward_index");
+
+        MapperParsingException exception = expectThrows(MapperParsingException.class, () -> SparseMethodContext.parse(input));
+        assertEquals("forward_index needs to be valid forward index", exception.getMessage());
     }
 
     public void testParseWithInvalidParametersType() {
@@ -122,7 +148,12 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         parameters.put("param2", 42);
 
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
-        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, SparseEngine.DEFAULT.getName(), methodComponentContext);
+        SparseMethodContext sparseMethodContext = new SparseMethodContext(
+            name,
+            SparseEngine.DEFAULT.getName(),
+            SparseForwardIndex.DEFAULT.getName(),
+            methodComponentContext
+        );
 
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
@@ -144,7 +175,8 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         parameters.put("param2", 42);
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
         String engine = SparseEngine.DEFAULT.getName();
-        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, engine, methodComponentContext);
+        String forwardIndex = SparseForwardIndex.DEFAULT.getName();
+        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, engine, forwardIndex, methodComponentContext);
 
         BytesStreamOutput out = new BytesStreamOutput();
         sparseMethodContext.writeTo(out);
@@ -155,6 +187,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
 
         assertEquals(name, readContext.getName());
         assertEquals(engine, readContext.getSparseEngine());
+        assertEquals(forwardIndex, readContext.getForwardIndex());
         assertEquals(methodComponentContext, readContext.getMethodComponentContext());
     }
 

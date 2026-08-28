@@ -22,6 +22,7 @@ import org.opensearch.index.mapper.ParseContext;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgoType;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -32,6 +33,7 @@ import java.util.Map;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_SEARCH_FIELD;
@@ -231,6 +233,7 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             fieldType.putAttribute(QUANTIZATION_CEILING_INGEST_FIELD, String.valueOf(quantizationCeilIngest));
             fieldType.putAttribute(QUANTIZATION_CEILING_SEARCH_FIELD, String.valueOf(quantizationCeilSearch));
             fieldType.putAttribute(ENGINE_FIELD, sparseMethodContext.getSparseEngine());
+            fieldType.putAttribute(FORWARD_INDEX_FIELD, sparseMethodContext.getForwardIndex());
         }
     }
 
@@ -269,6 +272,19 @@ public class SparseVectorFieldMapper extends ParametrizedFieldMapper {
             }
             if (isNativeEngine(context) && SparseSettings.state().isNativeEngineEnabled() == false) {
                 throw new MapperParsingException("[" + ENGINE_FIELD + "]: " + SparseSettings.NATIVE_ENGINE_DISABLED_REASON);
+            }
+            // Only the native engine builds a forward index it can lay out; accepting a non-default
+            // value on any other engine would silently do nothing.
+            if (isNativeEngine(context) == false && SparseForwardIndex.DEFAULT.getName().equals(context.getForwardIndex()) == false) {
+                throw new MapperParsingException(
+                    "["
+                        + FORWARD_INDEX_FIELD
+                        + "]: "
+                        + context.getForwardIndex()
+                        + " is only supported with the "
+                        + SparseEngine.NATIVE.getName()
+                        + " engine"
+                );
             }
             return builder;
         }

@@ -13,6 +13,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.mapper.SparseVectorFieldType;
 
 import java.util.Collections;
@@ -25,6 +26,7 @@ import java.util.Set;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
@@ -121,6 +123,21 @@ public class SparseFieldUtils {
         }
         SparseEngine sparseEngine = SparseEngine.fromName(engine);
         return sparseEngine != null ? sparseEngine : SparseEngine.DEFAULT;
+    }
+
+    /**
+     * Extracts the {@link SparseForwardIndex} for a sparse vector field from its {@link FieldInfo} attributes.
+     *
+     * @param fieldInfo The field info containing the forward index attribute
+     * @return The {@link SparseForwardIndex} configured for the field, or {@link SparseForwardIndex#DEFAULT} if not found
+     */
+    public static SparseForwardIndex getSparseForwardIndex(FieldInfo fieldInfo) {
+        if (fieldInfo == null) {
+            // A segment that holds no document with the field has no FieldInfo for it.
+            return SparseForwardIndex.DEFAULT;
+        }
+        SparseForwardIndex forwardIndex = SparseForwardIndex.fromName(fieldInfo.getAttribute(FORWARD_INDEX_FIELD));
+        return forwardIndex != null ? forwardIndex : SparseForwardIndex.DEFAULT;
     }
 
     /**

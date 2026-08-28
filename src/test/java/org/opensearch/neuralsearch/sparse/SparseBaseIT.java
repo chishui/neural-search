@@ -19,6 +19,7 @@ import org.opensearch.neuralsearch.SparseTestCommon;
 import org.opensearch.neuralsearch.plugin.NeuralSearch;
 import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 import org.opensearch.neuralsearch.stats.metrics.MetricStatName;
 
@@ -83,6 +84,13 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
     }
 
     /**
+     * Only the native engine, for suites covering behavior the Lucene engine does not implement.
+     */
+    public static Collection<Object[]> nativeEngineOnly() {
+        return List.<Object[]>of(new Object[] { SparseEngine.NATIVE });
+    }
+
+    /**
      * Skips the running test unless the engine under test is Lucene. Use for assertions that are
      * only meaningful on the Lucene engine, e.g. quantized scores or rank_features fallback.
      */
@@ -108,6 +116,29 @@ public abstract class SparseBaseIT extends BaseNeuralSearchIT {
         int approximateThreshold
     ) throws IOException {
         SparseTestCommon.createSparseIndex(client(), engine, indexName, fieldName, nPostings, alpha, clusterRatio, approximateThreshold);
+    }
+
+    /** Single shard, no replica, with the forward index layout the native engine should build. */
+    protected void createSparseIndex(
+        String indexName,
+        String fieldName,
+        SparseForwardIndex forwardIndex,
+        int nPostings,
+        float alpha,
+        float clusterRatio,
+        int approximateThreshold
+    ) throws IOException {
+        SparseTestCommon.createSparseIndex(
+            client(),
+            engine,
+            forwardIndex,
+            indexName,
+            fieldName,
+            nPostings,
+            alpha,
+            clusterRatio,
+            approximateThreshold
+        );
     }
 
     protected void createSparseIndex(

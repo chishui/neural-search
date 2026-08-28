@@ -17,6 +17,7 @@ import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.neuralsearch.jni.NativeLibrary;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.CodecUtils;
 import org.opensearch.neuralsearch.sparse.common.BinaryVectorUtils;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
@@ -113,12 +114,20 @@ public class DefaultNativeIndexWriter {
             int maxDoc = state.segmentInfo.maxDoc();
             int nPostings = SparseFieldUtils.getNPostings(fieldInfo, maxDoc);
             float summaryPruneRatio = SparseFieldUtils.getSummaryPruneRatio(fieldInfo);
-            // seismic_sq: 8-bit codes cut the engine file from 13.9 to 8.0 GiB on
-            // base_full, and since nsparse #27 the quantized index is mmap-able too, so a
-            // large segment's posting lists still land in reclaimable page cache rather
-            // than the heap. The quantization range matches the JVM path's, so both
-            // engines clamp and round a given weight the same way.
-            parameters.put("index", "seismic_sq");
+            // Both layouts quantize to 8-bit codes over the same range, so a given weight is
+            // clamped and rounded identically whichever one the field selects -- and identically
+            // to the JVM path. 8-bit codes cut the engine file from 13.9 to 8.0 GiB on base_full,
+            // and both are mmap-able, so a large segment's posting lists land in reclaimable page
+            // cache rather than on the heap.
+            //
+            // They differ in where the forward vectors live: seismic_sq keeps one contiguous
+            // forward index for the whole field, disk_seismic_sq stores each block's vectors
+            // inline next to the block so a query reads only the blocks it selects.
+            if (SparseFieldUtils.getSparseForwardIndex(fieldInfo) == SparseForwardIndex.PER_BLOCK) {
+                parameters.put("index", "disk_seismic_sq");
+            } else {
+                parameters.put("index", "seismic_sq");
+            }
             parameters.put("quantizer", "8bit");
             parameters.put("vmin", 0.0f);
             parameters.put("vmax", ByteQuantizationUtil.getCeilingValueIngest(fieldInfo));

@@ -23,6 +23,7 @@ import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
 import java.io.IOException;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
@@ -110,6 +112,37 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         Map<String, Object> node = new HashMap<>();
         node.put("method", method);
         return node;
+    }
+
+    public void testSparseTypeParser_acceptsPerBlockForwardIndexOnNativeEngine() {
+        setNativeEngineFlags(true, true);
+
+        Map<String, Object> node = nativeMethodNode();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> method = (Map<String, Object>) node.get("method");
+        method.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
+
+        assertNotNull(
+            new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class))
+        );
+    }
+
+    public void testSparseTypeParser_rejectsPerBlockForwardIndexOnLuceneEngine() {
+        setNativeEngineFlags(true, true);
+
+        Map<String, Object> method = new HashMap<>();
+        method.put(NAME_FIELD, SEISMIC);
+        method.put(ENGINE_FIELD, SparseEngine.LUCENE.getName());
+        method.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
+        method.put(PARAMETERS_FIELD, new HashMap<String, Object>());
+        Map<String, Object> node = new HashMap<>();
+        node.put("method", method);
+
+        MapperParsingException exception = expectThrows(
+            MapperParsingException.class,
+            () -> new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class))
+        );
+        assertTrue(exception.getMessage(), exception.getMessage().contains(FORWARD_INDEX_FIELD));
     }
 
     public void testSparseTypeParser_rejectsNativeEngineWhenDisabled() {
@@ -302,6 +335,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         assertEquals("3.0", attributes.get(QUANTIZATION_CEILING_SEARCH_FIELD));
         // The engine attribute is what the codec dispatches the field on at write time
         assertEquals(SparseEngine.DEFAULT.getName(), attributes.get(ENGINE_FIELD));
+        assertEquals(SparseForwardIndex.DEFAULT.getName(), attributes.get(FORWARD_INDEX_FIELD));
     }
 
     public void testSparseTypeParser_withValidInput_returnsBuilder() throws MapperParsingException {

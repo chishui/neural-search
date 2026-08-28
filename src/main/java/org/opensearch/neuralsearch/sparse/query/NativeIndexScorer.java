@@ -19,8 +19,10 @@ import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.commons.lang3.time.StopWatch;
 import org.opensearch.neuralsearch.jni.NativeLibrary;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.nativeindex.SegmentNativeIndex;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
+import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.neuralsearch.sparse.common.SparseQueryResult;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
 
@@ -29,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_BLOCK_BUDGET;
 
 @Log4j2
 public class NativeIndexScorer extends Scorer {
@@ -181,12 +185,19 @@ public class NativeIndexScorer extends Scorer {
         if (PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo)) {
             searchParameters.put("cut", sparseQueryContext.getTokens().size());
             searchParameters.put("heap_factor", sparseQueryContext.getHeapFactor());
-            // vmin/vmax select SeismicSQSearchParameters, which encodes the query at the
-            // search ceiling instead of the index's ingest one. Without them the quantized
+            // vmin/vmax select a quantized SearchParameters subtype, which encodes the query at
+            // the search ceiling instead of the index's ingest one. Without them the quantized
             // index falls back to its own doc-side quantizer, clamping every query weight
             // above the ingest ceiling to the top code.
             searchParameters.put("vmin", 0.0f);
             searchParameters.put("vmax", ByteQuantizationUtil.getCeilingValueSearch(fieldInfo));
+            if (SparseFieldUtils.getSparseForwardIndex(fieldInfo) == SparseForwardIndex.PER_BLOCK) {
+                // k_prime is what makes the range above land on DiskSeismicSQSearchParameters,
+                // the only subtype a disk_seismic_sq index reads a query range from. Pinned to
+                // nsparse's own default until it is exposed as a query parameter, so a per_block
+                // field quantizes like a shared one instead of at its ingest ceiling.
+                searchParameters.put("k_prime", DEFAULT_BLOCK_BUDGET);
+            }
         }
         return searchParameters;
     }

@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import org.apache.lucene.index.FieldInfo;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.cluster.ClusterState;
@@ -14,6 +15,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Collections;
@@ -25,6 +27,7 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 
 public class SparseFieldUtilsTests extends OpenSearchTestCase {
 
@@ -181,6 +184,25 @@ public class SparseFieldUtilsTests extends OpenSearchTestCase {
         long defaultDepth = MapperService.INDEX_MAPPING_DEPTH_LIMIT_SETTING.getDefault(Settings.EMPTY);
 
         assertEquals(defaultDepth, SparseFieldUtils.getMaxDepth(TEST_INDEX_NAME, clusterService));
+    }
+
+    public void testGetSparseForwardIndex_withPerBlockAttribute() {
+        FieldInfo fieldInfo = mock(FieldInfo.class);
+        when(fieldInfo.getAttribute(FORWARD_INDEX_FIELD)).thenReturn(SparseForwardIndex.PER_BLOCK.getName());
+
+        assertEquals(SparseForwardIndex.PER_BLOCK, SparseFieldUtils.getSparseForwardIndex(fieldInfo));
+    }
+
+    public void testGetSparseForwardIndex_withMissingOrUnknownAttribute_fallsBackToDefault() {
+        FieldInfo fieldInfo = mock(FieldInfo.class);
+        assertEquals(SparseForwardIndex.DEFAULT, SparseFieldUtils.getSparseForwardIndex(fieldInfo));
+
+        when(fieldInfo.getAttribute(FORWARD_INDEX_FIELD)).thenReturn("not_a_forward_index");
+        assertEquals(SparseForwardIndex.DEFAULT, SparseFieldUtils.getSparseForwardIndex(fieldInfo));
+    }
+
+    public void testGetSparseForwardIndex_withNullFieldInfo_fallsBackToDefault() {
+        assertEquals(SparseForwardIndex.DEFAULT, SparseFieldUtils.getSparseForwardIndex(null));
     }
 
     private void configureSparseIndexSetting(boolean isSparseIndex) {
