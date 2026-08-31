@@ -4,7 +4,6 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
-import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 
 import java.io.ByteArrayInputStream;
@@ -28,10 +27,10 @@ public class BinaryVectorUtils {
      */
     public static Map<Integer, Float> readToMap(BytesRef bytesRef) throws IOException {
         Map<Integer, Float> map = new HashMap<>();
+        // Windowed rather than copied: ArrayUtil.copyOfSubArray takes (from, to), so passing the
+        // length as the second argument truncated any BytesRef whose offset was not 0.
         try (
-            ByteArrayInputStream bais = new ByteArrayInputStream(
-                ArrayUtil.copyOfSubArray(bytesRef.bytes, bytesRef.offset, bytesRef.length)
-            );
+            ByteArrayInputStream bais = new ByteArrayInputStream(bytesRef.bytes, bytesRef.offset, bytesRef.length);
             DataInputStream dis = new DataInputStream(bais)
         ) {
             while (bais.available() > 0) {
@@ -52,10 +51,10 @@ public class BinaryVectorUtils {
      * @param values   receives the weights, index-aligned with {@code keys}
      */
     public static void readToList(BytesRef bytesRef, List<Integer> keys, List<Float> values) throws IOException {
+        // Windowed rather than copied: ArrayUtil.copyOfSubArray takes (from, to), so passing the
+        // length as the second argument truncated any BytesRef whose offset was not 0.
         try (
-            ByteArrayInputStream bais = new ByteArrayInputStream(
-                ArrayUtil.copyOfSubArray(bytesRef.bytes, bytesRef.offset, bytesRef.length)
-            );
+            ByteArrayInputStream bais = new ByteArrayInputStream(bytesRef.bytes, bytesRef.offset, bytesRef.length);
             DataInputStream dis = new DataInputStream(bais)
         ) {
             while (bais.available() > 0) {
