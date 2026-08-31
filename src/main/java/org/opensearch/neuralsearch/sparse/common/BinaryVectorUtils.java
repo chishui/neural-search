@@ -14,7 +14,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Decodes a sparse vector from the binary doc value it is stored as: a flat sequence of
+ * (token id, weight) pairs, each a big-endian {@code int} followed by a {@code float}, in the order
+ * the parser produced them rather than sorted by token.
+ */
 public class BinaryVectorUtils {
+    /**
+     * Reads the vector into a token-to-weight map. A repeated token keeps its last weight.
+     *
+     * @param bytesRef the encoded vector
+     * @return the decoded pairs, unordered
+     */
     public static Map<Integer, Float> readToMap(BytesRef bytesRef) throws IOException {
         Map<Integer, Float> map = new HashMap<>();
         try (
@@ -32,6 +43,14 @@ public class BinaryVectorUtils {
         return map;
     }
 
+    /**
+     * Appends the vector to two parallel lists, preserving the encoded order and any duplicate
+     * tokens. Used where the pairs feed a CSR buffer and the map's rehashing would be wasted.
+     *
+     * @param bytesRef the encoded vector
+     * @param keys     receives the token ids
+     * @param values   receives the weights, index-aligned with {@code keys}
+     */
     public static void readToList(BytesRef bytesRef, List<Integer> keys, List<Float> values) throws IOException {
         try (
             ByteArrayInputStream bais = new ByteArrayInputStream(

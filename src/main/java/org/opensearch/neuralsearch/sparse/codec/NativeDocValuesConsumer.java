@@ -20,6 +20,15 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseVectorField;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Writes the native engine file for every {@link SparseEngine#NATIVE} field in a segment, on both
+ * flush and merge, by delegating each field to a {@link DefaultNativeIndexWriter}.
+ *
+ * Fields on another engine, non-sparse fields, and — because building requires loading the JNI
+ * library — every field while the native engine is disabled are skipped. The raw vectors are
+ * written by the sibling consumer regardless, so a skipped segment can be rebuilt by force-merging
+ * once the engine is back on.
+ */
 @Log4j2
 @AllArgsConstructor
 public class NativeDocValuesConsumer extends SparseVectorBinaryConsumer {

@@ -34,12 +34,31 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Builds the native engine file for one sparse field of one segment.
+ *
+ * The doc values are streamed into off-heap CSR memory, handed to nsparse in a single
+ * {@code insertToIndex} call, and the built index is serialized into the segment's
+ * {@link SparseEngine#NATIVE} file. Which nsparse index type gets built is derived from the field
+ * mapping, so this is also where the mapping's seismic parameters turn into nsparse ones.
+ *
+ * One instance writes one field; both flush and merge go through {@link #WriteIndex}.
+ */
 @Log4j2
 @AllArgsConstructor
 public class DefaultNativeIndexWriter {
     private final SegmentWriteState state;
     private final FieldInfo fieldInfo;
 
+    /**
+     * Builds the index over every document the iterator yields and writes it to the segment.
+     *
+     * A segment in which no document has the field still gets a footer-only file, so the name is
+     * always openable. The native index is freed on every path out.
+     *
+     * @param binaryDocValues the field's sparse vectors, from a flush or a merge
+     * @throws IOException if the engine file cannot be written
+     */
     public void WriteIndex(BinaryDocValues binaryDocValues) throws IOException {
         int threadCount = SparseSettings.state().getSettingValue(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY);
         final String engineFileName = CodecUtils.buildIndexFileName(
@@ -106,6 +125,12 @@ public class DefaultNativeIndexWriter {
         return buffer;
     }
 
+    /**
+     * Translates the field mapping into the nsparse {@code index_factory} parameter map.
+     *
+     * A field that has not reached the seismic threshold gets a plain inverted index, so a small
+     * segment is not clustered; past it, the layout follows the field's {@code forward_index}.
+     */
     private Map<String, Object> buildIndexParameters() {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("idmap", true);

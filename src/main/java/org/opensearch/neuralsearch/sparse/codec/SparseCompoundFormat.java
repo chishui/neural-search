@@ -18,6 +18,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Keeps the native engine file out of the segment's compound file.
+ *
+ * nsparse loads an index by filesystem path
+ * ({@link org.opensearch.neuralsearch.sparse.codec.nativeindex.SegmentNativeIndex}), so it cannot
+ * read one that has been folded into a {@code .cfs} as a slice. Before delegating, each
+ * {@code .nsparse} file is copied to a {@code .nsparsec} sibling and removed from the segment's
+ * file set, leaving a standalone file for the native side; {@link SparseCompoundDirectory} routes
+ * reads of those names back to the real directory. Everything else is the delegate's.
+ */
 @AllArgsConstructor
 public class SparseCompoundFormat extends CompoundFormat {
     private final CompoundFormat delegate;

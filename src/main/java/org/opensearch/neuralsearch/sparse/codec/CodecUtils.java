@@ -12,6 +12,10 @@ import java.util.Locale;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Naming of the per-field, per-segment engine file, shared by the writer that creates it and the
+ * readers that look it up.
+ */
 public class CodecUtils {
     private static String buildIndexFilePrefix(String segmentName) {
         return String.format(Locale.ROOT, "%s_", segmentName);

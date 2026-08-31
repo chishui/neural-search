@@ -34,6 +34,16 @@ import java.util.stream.Stream;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_BLOCK_BUDGET;
 
+/**
+ * Scores one segment against the native engine index.
+ *
+ * nsparse has no cursor: the whole top-k comes back from a single {@code queryIndex} call in the
+ * constructor, and this scorer then just replays those hits in doc order. So unlike the Lucene
+ * path, k is decided before iteration and the collector cannot make the query stop early.
+ *
+ * Filters are passed down as a candidate set for nsparse to restrict its search to; deletions are
+ * not, and are dropped from the returned hits instead.
+ */
 @Log4j2
 public class NativeIndexScorer extends Scorer {
     private final ResultsDocValueIterator<Float> resultsIterator;
