@@ -592,15 +592,8 @@ testClusters.integTest {
         configureSecurityPlugin(testClusters.integTest)
     }
 
-    // Install K-NN/ml-commons plugins on the integTest cluster nodes except security.
-    // -Pexcluded.cluster.plugins=a,b drops matching zips: the 3.9.0-SNAPSHOT distro ships
-    // jackson-core 2.22.1 and 3.2.1 side by side, which trips jar hell in opensearch-ml and
-    // stops the node before it starts. Benchmarks that need no inference can skip it.
-    def excludedClusterPlugins = (project.findProperty("excluded.cluster.plugins") ?: "")
-            .toString().split(",").findAll { !it.trim().isEmpty() }*.trim()
-    configurations.zipArchive.asFileTree.findAll { zip ->
-        !excludedClusterPlugins.any { zip.name.startsWith(it) }
-    }.each {
+    // Install K-NN/ml-commons plugins on the integTest cluster nodes except security
+    configurations.zipArchive.asFileTree.each {
         plugin(provider(new Callable<RegularFile>(){
                 @Override
                 RegularFile call() throws Exception {

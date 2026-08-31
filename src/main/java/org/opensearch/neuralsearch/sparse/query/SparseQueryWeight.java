@@ -174,13 +174,15 @@ public class SparseQueryWeight extends Weight {
     Scorer selectScorer(SparseVectorQuery query, LeafReaderContext context, SegmentInfo segmentInfo) throws IOException {
         FieldInfo fieldInfo = context.reader().getFieldInfos().fieldInfo(query.getFieldName());
 
-        BitSet filter = null;
         BitSetIterator filterBitIterator = null;
+        // Kept alongside the iterator: cardinality() is a scan of the bitset's words, and the exact
+        // match decision below needs the same number the iterator was built with.
+        int filterCardinality = 0;
         if (query.getFilterResults() != null) {
-            filter = query.getFilterResults().get(context.id());
+            BitSet filter = query.getFilterResults().get(context.id());
             if (filter != null) {
-                int ord = filter.cardinality();
-                filterBitIterator = new BitSetIterator(filter, ord);
+                filterCardinality = filter.cardinality();
+                filterBitIterator = new BitSetIterator(filter, filterCardinality);
             }
         }
         if (SparseEngine.NATIVE == SparseFieldUtils.getSparseEngine(fieldInfo)) {
@@ -206,11 +208,8 @@ public class SparseQueryWeight extends Weight {
             cacheGatedForwardIndexReader = getCacheGatedForwardIndexReader(cacheItem, context.reader(), query.getFieldName());
         }
         Similarity.SimScorer simScorer = ByteQuantizationUtil.getSimScorer(rescaledBoost);
-        if (filterBitIterator != null && filter != null) {
-            int ord = filter.cardinality();
-            if (ord <= query.getQueryContext().getK()) {
-                return new ExactMatchScorer(filterBitIterator, query.getQueryVector(), cacheGatedForwardIndexReader, simScorer);
-            }
+        if (filterBitIterator != null && filterCardinality <= query.getQueryContext().getK()) {
+            return new ExactMatchScorer(filterBitIterator, query.getQueryVector(), cacheGatedForwardIndexReader, simScorer);
         }
         return new OrderedPostingWithClustersScorer(
             query.getFieldName(),

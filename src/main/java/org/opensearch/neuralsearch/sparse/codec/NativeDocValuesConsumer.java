@@ -42,7 +42,7 @@ public class NativeDocValuesConsumer extends SparseVectorBinaryConsumer {
         }
         DefaultNativeIndexWriter indexWriter = new DefaultNativeIndexWriter(state, field);
         BinaryDocValues binaryDocValues = valuesProducer.getBinary(field);
-        indexWriter.WriteIndex(binaryDocValues);
+        indexWriter.writeIndex(binaryDocValues);
     }
 
     @Override
@@ -53,7 +53,7 @@ public class NativeDocValuesConsumer extends SparseVectorBinaryConsumer {
             }
             DefaultNativeIndexWriter indexWriter = new DefaultNativeIndexWriter(state, fieldInfo);
             SparseDocValuesReader sparseDocValuesReader = mergeHelper.newSparseDocValuesReader(mergeStateFacade);
-            indexWriter.WriteIndex(sparseDocValuesReader.getBinary(fieldInfo));
+            indexWriter.writeIndex(sparseDocValuesReader.getBinary(fieldInfo));
         }
     }
 

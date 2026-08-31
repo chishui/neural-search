@@ -80,11 +80,8 @@ public class SparseSettings {
         if (nativeEngineFeatureEnabled == false) {
             return false;
         }
-        // Before initialize() there is no cluster state to read the dynamic gate from, so fall back
-        // to its default (off) rather than assuming the engine is available.
-        if (clusterService == null) {
-            return SPARSE_NATIVE_ENGINE_ENABLED_SETTING.getDefault(Settings.EMPTY);
-        }
+        // Before initialize() this reads the dynamic gate's default, which is off -- the engine is
+        // not assumed available on a node that has no cluster state yet.
         return Boolean.TRUE.equals(getSettingValue(SPARSE_NATIVE_ENGINE_ENABLED));
     }
 
@@ -105,8 +102,17 @@ public class SparseSettings {
         return SparseSettings.state().getSettingValue(SPARSE_VECTOR_STREAMING_MEMORY_LIMIT);
     }
 
+    /**
+     * Current value of a sparse setting, or its default on a node that never called
+     * {@link #initialize}. There is no cluster state to read before then, and every caller wants the
+     * default rather than an NPE -- the codec reaches this during a flush, which must not fail.
+     */
     public <T> T getSettingValue(String key) {
-        return (T) clusterService.getClusterSettings().get(getSetting(key));
+        Setting<?> setting = getSetting(key);
+        if (clusterService == null) {
+            return (T) setting.getDefault(Settings.EMPTY);
+        }
+        return (T) clusterService.getClusterSettings().get(setting);
     }
 
     public List<Setting<?>> getSettings() {

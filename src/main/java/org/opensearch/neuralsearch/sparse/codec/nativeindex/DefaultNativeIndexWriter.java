@@ -42,7 +42,7 @@ import java.util.Map;
  * {@link SparseEngine#NATIVE} file. Which nsparse index type gets built is derived from the field
  * mapping, so this is also where the mapping's seismic parameters turn into nsparse ones.
  *
- * One instance writes one field; both flush and merge go through {@link #WriteIndex}.
+ * One instance writes one field; both flush and merge go through {@link #writeIndex}.
  */
 @Log4j2
 @AllArgsConstructor
@@ -59,7 +59,7 @@ public class DefaultNativeIndexWriter {
      * @param binaryDocValues the field's sparse vectors, from a flush or a merge
      * @throws IOException if the engine file cannot be written
      */
-    public void WriteIndex(BinaryDocValues binaryDocValues) throws IOException {
+    public void writeIndex(BinaryDocValues binaryDocValues) throws IOException {
         int threadCount = SparseSettings.state().getSettingValue(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY);
         final String engineFileName = CodecUtils.buildIndexFileName(
             state.segmentInfo.name,
@@ -84,7 +84,7 @@ public class DefaultNativeIndexWriter {
             // the whole segment's native index, and merges retry on every attempt.
             boolean ownershipTransferred = false;
             try {
-                long dataAddresses[] = buffer.getMemoryAddresses();
+                long[] dataAddresses = buffer.getMemoryAddresses();
                 NativeLibrary.insertToIndex(
                     indexAddress,
                     Ints.toArray(result.getDocIds()),

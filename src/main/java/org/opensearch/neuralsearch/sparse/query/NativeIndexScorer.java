@@ -15,6 +15,7 @@ import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.commons.lang3.time.StopWatch;
@@ -27,9 +28,12 @@ import org.opensearch.neuralsearch.sparse.common.SparseQueryResult;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_BLOCK_BUDGET;
@@ -46,6 +50,11 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.
  */
 @Log4j2
 public class NativeIndexScorer extends Scorer {
+    /**
+     * nsparse's selector kind for the filter ids: 0 builds a SetIDSelector, 1 an ArrayIDSelector.
+     */
+    private static final int FILTER_IDS_TYPE_SET = 0;
+
     private final ResultsDocValueIterator<Float> resultsIterator;
     /**
      * nsparse decodes its own quantization, so unlike the Lucene path there is no rescaling to
@@ -85,7 +94,7 @@ public class NativeIndexScorer extends Scorer {
             }
         }
         searchUpfrontStopWatch.stop();
-        log.debug("searchUpfront took {} ms", searchUpfrontStopWatch.getTime(java.util.concurrent.TimeUnit.MILLISECONDS));
+        log.debug("searchUpfront took {} ms", searchUpfrontStopWatch.getTime(TimeUnit.MILLISECONDS));
         resultsIterator = new ResultsDocValueIterator<>(results);
     }
 
@@ -99,16 +108,16 @@ public class NativeIndexScorer extends Scorer {
         LeafReader leafReader,
         SegmentInfo segmentInfo
     ) throws IOException {
-        int tokens[] = Ints.toArray(rawQueryVector.keySet());
-        float weights[] = Floats.toArray(rawQueryVector.values());
+        int[] tokens = Ints.toArray(rawQueryVector.keySet());
+        float[] weights = Floats.toArray(rawQueryVector.values());
         Map<String, Object> searchParameters = buildSearchParameters(sparseQueryContext, segmentInfo, fieldInfo);
-        SparseQueryResult results[];
+        SparseQueryResult[] results;
 
         StopWatch loadIndexStopWatch = StopWatch.createStarted();
         try (SegmentNativeIndex nativeIndex = SegmentNativeIndex.open(leafReader, segmentInfo, fieldInfo.getName())) {
             long indexAddress = nativeIndex.address();
             loadIndexStopWatch.stop();
-            log.debug("loadIndex took {} ms", loadIndexStopWatch.getTime(java.util.concurrent.TimeUnit.MILLISECONDS));
+            log.debug("loadIndex took {} ms", loadIndexStopWatch.getTime(TimeUnit.MILLISECONDS));
 
             // Only a query filter is a candidate set. Live docs are a mask: handing them to nsparse as a
             // filter would make every query on a segment with a single deletion an enumeration of every
@@ -124,9 +133,17 @@ public class NativeIndexScorer extends Scorer {
             if (docsIds == null) {
                 results = NativeLibrary.queryIndex(indexAddress, tokens, weights, fetchSize, searchParameters);
             } else {
-                results = NativeLibrary.queryIndexWithFilter(indexAddress, tokens, weights, fetchSize, searchParameters, docsIds, 0);
+                results = NativeLibrary.queryIndexWithFilter(
+                    indexAddress,
+                    tokens,
+                    weights,
+                    fetchSize,
+                    searchParameters,
+                    docsIds,
+                    FILTER_IDS_TYPE_SET
+                );
             }
-            Stream<Pair<Integer, Float>> hits = java.util.Arrays.stream(results).map(r -> Pair.of(r.getId(), r.getScore()));
+            Stream<Pair<Integer, Float>> hits = Arrays.stream(results).map(r -> Pair.of(r.getId(), r.getScore()));
             if (maskDeletedDocs) {
                 hits = hits.filter(hit -> acceptedDocs.get(hit.getLeft())).limit(resultSize);
             }
@@ -134,7 +151,7 @@ public class NativeIndexScorer extends Scorer {
             // order. Emitting them by score trips a Lucene assertion as soon as the scorer is wrapped in
             // a conjunction -- a nested query does that, and the assertion kills the node. The score order
             // has to survive until after the limit above, which keeps the k best rather than k arbitrary.
-            return hits.sorted(java.util.Comparator.comparingInt(Pair::getLeft)).toList();
+            return hits.sorted(Comparator.comparingInt(Pair::getLeft)).toList();
         } catch (Exception e) {
             log.error("search parameters: {}", searchParameters);
             throw e;
@@ -148,11 +165,15 @@ public class NativeIndexScorer extends Scorer {
             ? new FilteredBitSetIterator(filterBitSetIterator, acceptedDocs)
             : filterBitSetIterator;
 
-        List<Long> docIds = new java.util.ArrayList<>();
+        // cost() is the filter bitset's cardinality, so it is exact unless the live-doc mask above
+        // drops something -- an upper bound either way, and the array is trimmed to fit at the end.
+        long[] docIds = new long[Math.max(1, (int) Math.min(iterator.cost(), Integer.MAX_VALUE))];
+        int size = 0;
         for (int doc = iterator.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = iterator.nextDoc()) {
-            docIds.add((long) doc);
+            docIds = ArrayUtil.grow(docIds, size + 1);
+            docIds[size++] = doc;
         }
-        return docIds.stream().mapToLong(Long::longValue).toArray();
+        return size == docIds.length ? docIds : ArrayUtil.copyOfSubArray(docIds, 0, size);
     }
 
     /**
