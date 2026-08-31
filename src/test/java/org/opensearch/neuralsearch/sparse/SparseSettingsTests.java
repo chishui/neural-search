@@ -36,12 +36,15 @@ public class SparseSettingsTests extends AbstractSparseTestBase {
             .put(SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED, featureEnabled)
             .put(SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED, dynamicEnabled)
             .build();
+        // Every node-scoped sparse setting: IS_SPARSE_INDEX_SETTING is index-scoped and cannot go
+        // into ClusterSettings, the rest are what a real node registers.
         ClusterSettings clusterSettings = new ClusterSettings(
             nodeSettings,
             Set.of(
                 SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
                 SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING,
-                SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
+                SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
+                SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING
             )
         );
         ClusterService clusterService = mock(ClusterService.class);
@@ -142,5 +145,28 @@ public class SparseSettingsTests extends AbstractSparseTestBase {
     public void testGetSettingValueRejectsUnknownKey() {
         initializeWith(true, true);
         expectThrows(IllegalArgumentException.class, () -> SparseSettings.state().getSettingValue("plugins.neural_search.sparse.nope"));
+    }
+
+    public void testGetSettingValueFallsBackToDefaultsBeforeInitialize() {
+        SparseSettings.reset();
+
+        // The codec reads both of these during a flush, so an uninitialized node must not throw
+        assertEquals(
+            SparseSettings.DEFAULT_INDEX_THREAD_QTY,
+            (int) SparseSettings.state().getSettingValue(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY)
+        );
+        assertNotNull(SparseSettings.getSparseVectorStreamingMemoryLimit());
+    }
+
+    public void testGetSparseVectorStreamingMemoryLimitReadsTheSetting() {
+        initializeWith(true, true);
+
+        assertNotNull(SparseSettings.getSparseVectorStreamingMemoryLimit());
+    }
+
+    public void testGetSettingsListsEverySparseSetting() {
+        assertEquals(5, SparseSettings.state().getSettings().size());
+        assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING));
+        assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING));
     }
 }
