@@ -21,6 +21,9 @@ namespace neural_search_jni {
  *
  * If an address is 0, a new vector is heap-allocated and the address is written back.
  * Otherwise, data is appended to the existing vector.
+ *
+ * Every length may be 0; a call that transfers nothing leaves the vectors valid
+ * for the next one.
  */
 inline void transferVectors(
     int64_t* memoryAddresses,
@@ -37,10 +40,17 @@ inline void transferVectors(
     if (memoryAddresses[0] == 0) {
         indicesVec = new std::vector<int32_t>();
         memoryAddresses[0] = reinterpret_cast<int64_t>(indicesVec);
-        indicesVec->insert(indicesVec->end(), indices, indices + indicesLen);
     } else {
         indicesVec = reinterpret_cast<std::vector<int32_t>*>(memoryAddresses[0]);
-        int32_t offset = indicesVec->back();
+    }
+    // Emptiness, not a null address, decides which branch applies: a first call
+    // carrying no indptr at all leaves an allocated-but-empty vector behind, and
+    // the append path below would then read back() from it and skip a leading 0
+    // that was never stored.
+    if (indicesVec->empty()) {
+        indicesVec->insert(indicesVec->end(), indices, indices + indicesLen);
+    } else {
+        const int32_t offset = indicesVec->back();
         // Skip indices[0] (always 0) and offset the rest
         for (int i = 1; i < indicesLen; ++i) {
             indicesVec->push_back(indices[i] + offset);

@@ -136,3 +136,41 @@ TEST(TransferVectorsTest, EmptyAppendDoesNotCorruptIndptr) {
     EXPECT_EQ(*off.indices(), (std::vector<int32_t>{0, 3}));
     EXPECT_EQ(off.tokens()->size(), 3u);
 }
+
+TEST(TransferVectorsTest, ZeroLengthFirstCallLeavesBuffersUsable) {
+    OffHeap off;
+    // A first call carrying nothing still allocates, so the next call sees a
+    // non-null address pointing at an empty vector. Reading back() from it would
+    // be undefined, and treating the next indptr as relative would drop its
+    // leading 0 and leave the CSR one entry short of its doc count.
+    transferVectors(off.addr, nullptr, 0, nullptr, 0, nullptr, 0);
+    ASSERT_NE(off.addr[0], 0);
+    EXPECT_TRUE(off.indices()->empty());
+
+    std::vector<int32_t> indptr = {0, 3, 7};  // 2 docs
+    std::vector<int32_t> tok = {1, 2, 3, 4, 5, 6, 7};
+    std::vector<float> w(7, 1.0f);
+    transferVectors(off.addr, indptr.data(), indptr.size(), tok.data(),
+                    tok.size(), w.data(), w.size());
+
+    EXPECT_EQ(*off.indices(), (std::vector<int32_t>{0, 3, 7}));
+    EXPECT_EQ(off.tokens()->size(), 7u);
+}
+
+TEST(TransferVectorsTest, LeadingZeroOnlyFirstCallDoesNotDoubleCount) {
+    OffHeap off;
+    // The boundary next to the case above: {0} is already a valid empty CSR, so
+    // the following flush is a genuine append and its leading 0 is redundant.
+    std::vector<int32_t> indptrZero = {0};
+    transferVectors(off.addr, indptrZero.data(), indptrZero.size(), nullptr, 0,
+                    nullptr, 0);
+    EXPECT_EQ(*off.indices(), (std::vector<int32_t>{0}));
+
+    std::vector<int32_t> indptr = {0, 3, 7};
+    std::vector<int32_t> tok = {1, 2, 3, 4, 5, 6, 7};
+    std::vector<float> w(7, 1.0f);
+    transferVectors(off.addr, indptr.data(), indptr.size(), tok.data(),
+                    tok.size(), w.data(), w.size());
+
+    EXPECT_EQ(*off.indices(), (std::vector<int32_t>{0, 3, 7}));
+}
