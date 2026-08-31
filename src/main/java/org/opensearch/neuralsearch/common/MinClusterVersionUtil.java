@@ -32,6 +32,14 @@ public final class MinClusterVersionUtil {
     public static final Version MINIMAL_SUPPORTED_VERSION_METRICS_STATS = Version.V_3_3_0;
     private static final Version MINIMAL_SUPPORTED_VERSION_NEURAL_KNN_QUERY_BUILDER = Version.V_3_0_0;
     private static final Version MINIMAL_SUPPORTED_VERSION_AGENTIC_EMBEDDING_MODEL_ID = Version.V_3_6_0;
+    /**
+     * First version whose {@code SparseMethodContext} carries the engine and forward_index fields.
+     * The context has been Writeable since 3.3, so the two fields have to stay off the stream when
+     * the peer predates them -- an older node writes name followed directly by the component
+     * context, and a reader that consumed two optional strings first would take those bytes for the
+     * engine.
+     */
+    public static final Version MINIMAL_SUPPORTED_VERSION_SPARSE_NATIVE_ENGINE = Version.V_3_9_0;
 
     // Constant for neural_knn_query version check
     public static final String NEURAL_KNN_QUERY = "neural_knn_query";

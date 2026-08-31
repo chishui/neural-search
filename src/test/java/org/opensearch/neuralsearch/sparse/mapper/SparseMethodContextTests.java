@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.sparse.mapper;
 import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.opensearch.Version;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.common.bytes.BytesReference;
@@ -38,6 +39,8 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
     public void setUp() {
         super.setUp();
         MockitoAnnotations.openMocks(this);
+        // The stream constructor branches on the peer version before reading the new fields
+        when(mockStreamInput.getVersion()).thenReturn(Version.CURRENT);
     }
 
     public void testParseWithEmptyName() {
@@ -189,6 +192,90 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         assertEquals(engine, readContext.getSparseEngine());
         assertEquals(forwardIndex, readContext.getForwardIndex());
         assertEquals(methodComponentContext, readContext.getMethodComponentContext());
+    }
+
+    public void testNonDefaultEngineAndForwardIndexSurviveRoundTrip() throws IOException {
+        SparseMethodContext context = context(SparseEngine.NATIVE.getName(), SparseForwardIndex.PER_BLOCK.getName());
+
+        SparseMethodContext readContext = roundTrip(context, Version.CURRENT);
+
+        assertEquals(SparseEngine.NATIVE.getName(), readContext.getSparseEngine());
+        assertEquals(SparseForwardIndex.PER_BLOCK.getName(), readContext.getForwardIndex());
+        assertEquals(context.getMethodComponentContext(), readContext.getMethodComponentContext());
+    }
+
+    /**
+     * The context has been Writeable since 3.3, so what a pre-3.9 peer sees has to stay exactly what
+     * 3.8 wrote: the name followed straight by the component context, with no optional strings in
+     * between.
+     */
+    public void testBytesWrittenToAnOlderPeerMatchTheReleasedFormat() throws IOException {
+        SparseMethodContext context = context(SparseEngine.NATIVE.getName(), SparseForwardIndex.PER_BLOCK.getName());
+
+        BytesStreamOutput actual = new BytesStreamOutput();
+        actual.setVersion(Version.V_3_8_0);
+        context.writeTo(actual);
+
+        BytesStreamOutput expected = new BytesStreamOutput();
+        expected.setVersion(Version.V_3_8_0);
+        expected.writeString(context.getName());
+        context.getMethodComponentContext().writeTo(expected);
+
+        assertEquals(expected.bytes(), actual.bytes());
+    }
+
+    public void testReadFromAnOlderPeerFallsBackToDefaults() throws IOException {
+        SparseMethodContext context = context(SparseEngine.NATIVE.getName(), SparseForwardIndex.PER_BLOCK.getName());
+
+        SparseMethodContext readContext = roundTrip(context, Version.V_3_8_0);
+
+        // A pre-3.9 node only ever ran the Lucene engine, so that is what its stream means
+        assertEquals(SparseEngine.DEFAULT.getName(), readContext.getSparseEngine());
+        assertEquals(SparseForwardIndex.DEFAULT.getName(), readContext.getForwardIndex());
+    }
+
+    /**
+     * The regression the version guard exists for. Reading two optional strings off a pre-3.9 stream
+     * swallows the parameter map, and because {@link MethodComponentContext} decides on
+     * {@code available() > 0} the loss is silent: the seismic parameters come back null rather than
+     * failing.
+     */
+    public void testReadingAStreamFromAnOlderNodeKeepsTheMethodParameters() throws IOException {
+        SparseMethodContext context = context(SparseEngine.DEFAULT.getName(), SparseForwardIndex.DEFAULT.getName());
+
+        // Hand-written in the 3.8 layout rather than round-tripped: only an asymmetric read, which is
+        // what a mixed cluster actually does, can consume the map bytes as the two optional strings.
+        BytesStreamOutput out = new BytesStreamOutput();
+        out.setVersion(Version.V_3_8_0);
+        out.writeString(context.getName());
+        context.getMethodComponentContext().writeTo(out);
+
+        StreamInput in = out.bytes().streamInput();
+        in.setVersion(Version.V_3_8_0);
+        SparseMethodContext readContext = new SparseMethodContext(in);
+
+        assertEquals(context.getName(), readContext.getName());
+        assertEquals(SparseEngine.DEFAULT.getName(), readContext.getSparseEngine());
+        assertEquals(SparseForwardIndex.DEFAULT.getName(), readContext.getForwardIndex());
+        assertEquals(Map.of("param1", "value1", "param2", 42), readContext.getMethodComponentContext().getParameters());
+    }
+
+    private SparseMethodContext context(String engine, String forwardIndex) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("param1", "value1");
+        parameters.put("param2", 42);
+        return new SparseMethodContext("testMethod", engine, forwardIndex, new MethodComponentContext("testMethod", parameters));
+    }
+
+    /** Serializes and deserializes as if both peers were on {@code version}. */
+    private SparseMethodContext roundTrip(SparseMethodContext context, Version version) throws IOException {
+        BytesStreamOutput out = new BytesStreamOutput();
+        out.setVersion(version);
+        context.writeTo(out);
+
+        StreamInput in = out.bytes().streamInput();
+        in.setVersion(version);
+        return new SparseMethodContext(in);
     }
 
     public void testParseWithNonMapParameterValues() {

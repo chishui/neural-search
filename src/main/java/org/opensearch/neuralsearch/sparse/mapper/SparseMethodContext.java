@@ -14,6 +14,7 @@ import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.mapper.MapperParsingException;
+import org.opensearch.neuralsearch.common.MinClusterVersionUtil;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.opensearch.neuralsearch.common.MinClusterVersionUtil.MINIMAL_SUPPORTED_VERSION_SPARSE_NATIVE_ENGINE;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
@@ -41,22 +43,36 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
 
     /**
      * Constructs from stream input.
+     *
+     * A peer older than {@link MinClusterVersionUtil#MINIMAL_SUPPORTED_VERSION_SPARSE_NATIVE_ENGINE}
+     * wrote neither field, and such a node only ever ran the Lucene engine, so the defaults are what
+     * it meant. Reading them unconditionally would instead consume the component context's bytes.
      */
     public SparseMethodContext(StreamInput in) throws IOException {
         this.name = in.readString();
-        this.sparseEngine = in.readOptionalString();
-        this.forwardIndex = in.readOptionalString();
+        if (in.getVersion().onOrAfter(MINIMAL_SUPPORTED_VERSION_SPARSE_NATIVE_ENGINE)) {
+            this.sparseEngine = in.readOptionalString();
+            this.forwardIndex = in.readOptionalString();
+        } else {
+            this.sparseEngine = SparseEngine.DEFAULT.getName();
+            this.forwardIndex = SparseForwardIndex.DEFAULT.getName();
+        }
         this.methodComponentContext = new MethodComponentContext(in, name);
     }
 
     /**
      * Writes to stream output.
+     *
+     * The two fields are dropped for a peer that predates them; it could not act on them anyway,
+     * since neither the native engine nor a per-block forward index exists there.
      */
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(this.name);
-        out.writeOptionalString(this.sparseEngine);
-        out.writeOptionalString(this.forwardIndex);
+        if (out.getVersion().onOrAfter(MINIMAL_SUPPORTED_VERSION_SPARSE_NATIVE_ENGINE)) {
+            out.writeOptionalString(this.sparseEngine);
+            out.writeOptionalString(this.forwardIndex);
+        }
         this.methodComponentContext.writeTo(out);
     }
 
