@@ -102,8 +102,28 @@ public class OffHeapSparseVectorsBuffer implements Closeable {
         }
     }
 
+    /**
+     * Hands the transferred vectors to the index, which takes ownership of them.
+     *
+     * The addresses are dropped first: {@code insertToIndex} adopts all three vectors before
+     * anything that can throw and frees them on every path out, so once it has been entered this
+     * buffer must never free them again. Pending on-heap vectors are not flushed -- the caller
+     * flushes when it is done adding, because a flush after this call would allocate vectors that
+     * the index has already been built without.
+     */
+    public void insertInto(long indexAddress, int[] docIds, int threadCount) {
+        long[] consumed = memoryAddresses.clone();
+        Arrays.fill(memoryAddresses, 0);
+        NativeLibrary.insertToIndex(indexAddress, docIds, consumed[0], consumed[1], consumed[2], threadCount);
+    }
+
+    /**
+     * Releases the off-heap vectors this buffer still owns, which is nothing at all once
+     * {@link #insertInto} has handed them over. Pending on-heap vectors are dropped rather than
+     * flushed: a caller that is closing has no way to reach the addresses a flush would allocate.
+     */
     @Override
     public void close() {
-        flush();
+        NativeLibrary.freeVectors(memoryAddresses);
     }
 }

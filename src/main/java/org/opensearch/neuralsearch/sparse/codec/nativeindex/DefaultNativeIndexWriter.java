@@ -68,9 +68,15 @@ public class DefaultNativeIndexWriter {
             SparseEngine.NATIVE.extension()
         );
         int totalDoc = state.segmentInfo.maxDoc();
-        try (IndexOutput output = state.directory.createOutput(engineFileName, state.context)) {
+        ByteSizeValue bytesLimit = SparseSettings.state().getSettingValue(SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT);
+        // The buffer is a resource because streaming transfers vectors off-heap as it goes: if the
+        // doc values throw partway, closing it is the only thing that can still free them.
+        try (
+            IndexOutput output = state.directory.createOutput(engineFileName, state.context);
+            OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(bytesLimit.getBytes())
+        ) {
             WriteBufferResult result = new WriteBufferResult();
-            OffHeapSparseVectorsBuffer buffer = writeToBuffer(binaryDocValues, result);
+            writeToBuffer(binaryDocValues, result, buffer);
             if (result.getDocIds().isEmpty()) {
                 // No document in this segment has the field, so there is no index to
                 // build. Still write the footer so the file stays a valid Lucene file.
@@ -84,15 +90,9 @@ public class DefaultNativeIndexWriter {
             // the whole segment's native index, and merges retry on every attempt.
             boolean ownershipTransferred = false;
             try {
-                long[] dataAddresses = buffer.getMemoryAddresses();
-                NativeLibrary.insertToIndex(
-                    indexAddress,
-                    Ints.toArray(result.getDocIds()),
-                    dataAddresses[0],
-                    dataAddresses[1],
-                    dataAddresses[2],
-                    threadCount
-                );
+                // Hands the vectors over too, so the close() above this frees only what a failure
+                // before this point left behind.
+                buffer.insertInto(indexAddress, Ints.toArray(result.getDocIds()), threadCount);
                 IndexOutputWrapper indexOutputWrapper = new IndexOutputWrapper(output);
                 ownershipTransferred = true;
                 NativeLibrary.writeIndex(indexAddress, indexOutputWrapper);
@@ -108,9 +108,8 @@ public class DefaultNativeIndexWriter {
         }
     }
 
-    private OffHeapSparseVectorsBuffer writeToBuffer(BinaryDocValues binaryDocValues, WriteBufferResult result) throws IOException {
-        ByteSizeValue bytesLimit = SparseSettings.state().getSettingValue(SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT);
-        OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(bytesLimit.getBytes());
+    private void writeToBuffer(BinaryDocValues binaryDocValues, WriteBufferResult result, OffHeapSparseVectorsBuffer buffer)
+        throws IOException {
         int docId = binaryDocValues.nextDoc();
         while (docId != DocIdSetIterator.NO_MORE_DOCS) {
             List<Integer> tokens = new ArrayList<>();
@@ -122,7 +121,6 @@ public class DefaultNativeIndexWriter {
             docId = binaryDocValues.nextDoc();
         }
         buffer.flush();
-        return buffer;
     }
 
     /**

@@ -85,4 +85,11 @@ public class NativeLibrary {
 
     // common functions
     public static native void transferVectors(long memoryAddresses[], int indices[], int tokens[], float weights[]);
+
+    /**
+     * Frees vectors from {@link #transferVectors} that were never handed to
+     * {@link #insertToIndex}, which is the only other routine that frees them. Each address is
+     * zeroed as it is freed, so a second call frees nothing.
+     */
+    public static native void freeVectors(long memoryAddresses[]);
 }

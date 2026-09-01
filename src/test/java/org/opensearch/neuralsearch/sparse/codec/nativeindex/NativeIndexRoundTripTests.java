@@ -242,19 +242,19 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void testVectorsSpanningSeveralBufferFlushesStayAligned() {
         FieldInfo fieldInfo = fieldInfo(SparseForwardIndex.SHARED, Integer.MAX_VALUE);
-        // One byte forces a flush per document, so every document lands in its own batch
-        OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(1L);
-        int[] docIds = new int[DOC_COUNT];
-        for (int doc = 0; doc < DOC_COUNT; doc++) {
-            buffer.addVector(List.of(7), List.of(1.0f + doc));
-            docIds[doc] = doc;
-        }
-        buffer.flush();
-
-        long[] addresses = buffer.getMemoryAddresses();
         long indexAddress = NativeLibrary.initIndex(DOC_COUNT, 4096, indexParameters());
         loadedIndexes.add(indexAddress);
-        NativeLibrary.insertToIndex(indexAddress, docIds, addresses[0], addresses[1], addresses[2], 1);
+        // One byte forces a flush per document, so every document lands in its own batch
+        try (OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(1L)) {
+            int[] docIds = new int[DOC_COUNT];
+            for (int doc = 0; doc < DOC_COUNT; doc++) {
+                buffer.addVector(List.of(7), List.of(1.0f + doc));
+                docIds[doc] = doc;
+            }
+            buffer.flush();
+            buffer.insertInto(indexAddress, docIds, 1);
+        }
+
         SparseQueryResult[] results = NativeLibrary.queryIndex(indexAddress, new int[] { 7 }, new float[] { 1.0f }, 1, new HashMap<>());
 
         // The highest weight belongs to the last document, which is only true if the per-flush
@@ -468,20 +468,19 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
     public void testVectorsBeyondTheDefaultBufferCapacity() {
         int docCount = 1200;
         int[] docIds = new int[docCount];
-        long[] addresses;
-        // close() flushes what is pending, so the try-with-resources is the flush
+        long indexAddress = NativeLibrary.initIndex(docCount, 4096, indexParameters());
+        loadedIndexes.add(indexAddress);
+        // close() frees whatever insertInto has not taken over, so the insert belongs inside
         try (OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(Long.MAX_VALUE)) {
             for (int doc = 0; doc < docCount; doc++) {
                 // Two non-zeros per doc pushes the token array past 1024 before the doc array
                 buffer.addVector(List.of(7, 9), List.of(1.0f + doc, 1.0f));
                 docIds[doc] = doc;
             }
-            addresses = buffer.getMemoryAddresses();
+            buffer.flush();
+            buffer.insertInto(indexAddress, docIds, 1);
         }
 
-        long indexAddress = NativeLibrary.initIndex(docCount, 4096, indexParameters());
-        loadedIndexes.add(indexAddress);
-        NativeLibrary.insertToIndex(indexAddress, docIds, addresses[0], addresses[1], addresses[2], 1);
         SparseQueryResult[] results = NativeLibrary.queryIndex(indexAddress, new int[] { 7 }, new float[] { 1.0f }, 1, new HashMap<>());
 
         assertEquals(1, results.length);

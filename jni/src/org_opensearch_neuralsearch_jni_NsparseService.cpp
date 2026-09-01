@@ -274,4 +274,18 @@ Java_org_opensearch_neuralsearch_jni_NativeLibrary_transferVectors(
     }
 }
 
+JNIEXPORT void JNICALL
+Java_org_opensearch_neuralsearch_jni_NativeLibrary_freeVectors(
+    JNIEnv* env, jclass cls, jlongArray jmemoryAddresses) {
+    try {
+        // Release mode 0: freeVectors zeroes each address as it frees it, and Java
+        // reads those zeroes back to know the buffer no longer owns anything.
+        neural_search_jni::ScopedLongArray memAddrs(env, jmemoryAddresses, 0);
+        neural_search_jni::freeVectors(
+            reinterpret_cast<int64_t*>(memAddrs.data()));
+    } catch (...) {
+        neural_search_jni::CatchCppExceptionAndThrowJava(env);
+    }
+}
+
 }  // extern "C"
