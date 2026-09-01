@@ -25,6 +25,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.Version;
+import org.mockito.ArgumentCaptor;
 import org.opensearch.neuralsearch.jni.NativeLibrary;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
@@ -72,6 +74,13 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
 
     private Directory directory;
     private SegmentInfo segmentInfo;
+    /**
+     * Every handle this test loaded. nsparse maps the engine file, and Windows refuses to delete a
+     * mapped file, so the test framework's temp-dir cleanup fails unless all of them are freed --
+     * including on the paths where an assertion threw before the test could free its own.
+     */
+    private final List<Long> loadedIndexes = new ArrayList<>();
+    private final List<IndexReader.ClosedListener> coreClosedListeners = new ArrayList<>();
 
     @SneakyThrows
     @Override
@@ -84,6 +93,17 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
     @SneakyThrows
     @Override
     public void tearDown() {
+        // Core-scoped handles are freed by the core closing, which nothing else fires here
+        for (IndexReader.ClosedListener listener : coreClosedListeners) {
+            listener.onClose(null);
+        }
+        for (long address : loadedIndexes) {
+            if (address != 0) {
+                NativeLibrary.freeIndex(address);
+            }
+        }
+        loadedIndexes.clear();
+        coreClosedListeners.clear();
         directory.close();
         super.tearDown();
     }
@@ -104,7 +124,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         // Highest weight first: the last documents carry the largest weight for token 7
         assertEquals(DOC_COUNT - 1, results[0].getId());
         assertTrue("scores should descend", results[0].getScore() >= results[1].getScore());
-        NativeLibrary.freeIndex(address);
     }
 
     /** Same documents through disk_seismic_sq, which stores each block's vectors inline. */
@@ -120,7 +139,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
 
         assertEquals(3, results.length);
         assertEquals(DOC_COUNT - 1, results[0].getId());
-        NativeLibrary.freeIndex(address);
     }
 
     /**
@@ -138,7 +156,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         assertEquals(DOC_COUNT - 1, results[0].getId());
         // Unquantized, so the score is the exact dot product of the highest weight with 1.0
         assertEquals((float) DOC_COUNT, results[0].getScore(), 0.001f);
-        NativeLibrary.freeIndex(address);
     }
 
     /** Only the documents that share a token with the query can come back. */
@@ -157,7 +174,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         for (SparseQueryResult result : results) {
             assertEquals("only even docs carry token 7", 0, result.getId() % 2);
         }
-        NativeLibrary.freeIndex(address);
     }
 
     /**
@@ -182,7 +198,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         for (SparseQueryResult result : results) {
             assertTrue("doc " + result.getId() + " was not in the filter", Arrays.stream(candidates).anyMatch(c -> c == result.getId()));
         }
-        NativeLibrary.freeIndex(address);
     }
 
     /**
@@ -218,7 +233,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
 
         assertEquals(1, results.length);
         assertEquals(DOC_COUNT - 1, results[0].getId());
-        NativeLibrary.freeIndex(address);
     }
 
     /**
@@ -239,6 +253,7 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
 
         long[] addresses = buffer.getMemoryAddresses();
         long indexAddress = NativeLibrary.initIndex(DOC_COUNT, 4096, indexParameters());
+        loadedIndexes.add(indexAddress);
         NativeLibrary.insertToIndex(indexAddress, docIds, addresses[0], addresses[1], addresses[2], 1);
         SparseQueryResult[] results = NativeLibrary.queryIndex(indexAddress, new int[] { 7 }, new float[] { 1.0f }, 1, new HashMap<>());
 
@@ -247,7 +262,6 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         assertEquals(1, results.length);
         assertEquals(DOC_COUNT - 1, results[0].getId());
         assertEquals((float) DOC_COUNT, results[0].getScore(), 0.001f);
-        NativeLibrary.freeIndex(indexAddress);
     }
 
     /** Two opens of the same core share one loaded index, so a query cannot pay for a reload. */
@@ -277,8 +291,11 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         IndexReader.CacheHelper cacheHelper = mock(IndexReader.CacheHelper.class);
         when(cacheHelper.getKey()).thenReturn(mock(IndexReader.CacheKey.class));
         when(reader.getCoreCacheHelper()).thenReturn(cacheHelper);
+        ArgumentCaptor<IndexReader.ClosedListener> listener = ArgumentCaptor.forClass(IndexReader.ClosedListener.class);
 
         SegmentNativeIndex first = SegmentNativeIndex.open(reader, segmentInfo, FIELD);
+        verify(cacheHelper).addClosedListener(listener.capture());
+        coreClosedListeners.add(listener.getValue());
         long address = first.address();
         // close() must not free a core-scoped handle: the core owns it and other queries hold it
         first.close();
@@ -292,7 +309,9 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
     private long writeAndLoad(FieldInfo fieldInfo, List<Map<Integer, Float>> vectors) {
         new DefaultNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
         String path = ((FSDirectory) directory).getDirectory().resolve(engineFileName()).toString();
-        return NativeLibrary.loadIndex(path);
+        long address = NativeLibrary.loadIndex(path);
+        loadedIndexes.add(address);
+        return address;
     }
 
     private String engineFileName() {
@@ -461,12 +480,12 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         }
 
         long indexAddress = NativeLibrary.initIndex(docCount, 4096, indexParameters());
+        loadedIndexes.add(indexAddress);
         NativeLibrary.insertToIndex(indexAddress, docIds, addresses[0], addresses[1], addresses[2], 1);
         SparseQueryResult[] results = NativeLibrary.queryIndex(indexAddress, new int[] { 7 }, new float[] { 1.0f }, 1, new HashMap<>());
 
         assertEquals(1, results.length);
         assertEquals(docCount - 1, results[0].getId());
         assertEquals((float) docCount, results[0].getScore(), 0.001f);
-        NativeLibrary.freeIndex(indexAddress);
     }
 }

@@ -405,10 +405,18 @@ public class SparseTestCommon {
         mappingBuilder.startObject(sparseFieldName)
             .field("type", SparseVectorFieldMapper.CONTENT_TYPE)
             .startObject("method")
-            .field("name", ALGO_NAME)
-            .field(SparseConstants.ENGINE_FIELD, engine.getName())
-            .field(SparseConstants.FORWARD_INDEX_FIELD, forwardIndex.getName())
-            .startObject("parameters")
+            .field("name", ALGO_NAME);
+        // Only sent when they are not the default. Both keys arrive in 3.9, and an older node
+        // rejects an unknown one outright ("Invalid parameter: engine"), so a mapping that does not
+        // need them has to look exactly like it did before they existed -- the BWC tests create
+        // their index on the old cluster.
+        if (engine != SparseEngine.DEFAULT) {
+            mappingBuilder.field(SparseConstants.ENGINE_FIELD, engine.getName());
+        }
+        if (forwardIndex != SparseForwardIndex.DEFAULT) {
+            mappingBuilder.field(SparseConstants.FORWARD_INDEX_FIELD, forwardIndex.getName());
+        }
+        mappingBuilder.startObject("parameters")
             .field("n_postings", nPostings)
             .field("summary_prune_ratio", alpha)
             .field("cluster_ratio", clusterRatio)
