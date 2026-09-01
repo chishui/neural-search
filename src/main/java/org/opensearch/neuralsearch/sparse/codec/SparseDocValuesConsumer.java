@@ -92,7 +92,9 @@ public class SparseDocValuesConsumer extends SparseVectorBinaryConsumer {
                 }
             }
         } catch (Exception e) {
+            // Rethrow so Lucene aborts the merge: see BaseSparseDocValuesConsumer#merge.
             log.error("Merge sparse doc values error", e);
+            throw e;
         }
     }
 }

@@ -201,6 +201,8 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void testMerge_WithSparseField_noCachedVector() {
         when(binaryDocValues.cachedSparseVector()).thenReturn(null);
+        // Without a real encoded value the decode throws, which the merge now propagates
+        when(binaryDocValues.binaryValue()).thenReturn(TestsPrepareUtils.prepareValidSparseVectorBytes());
 
         sparseDocValuesConsumer.merge(List.of(sparseFieldInfo), mockMergeStateFacade);
 
@@ -237,11 +239,16 @@ public class SparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(mockMergeHelper, never()).newSparseDocValuesReader(any());
     }
 
+    /** A merge failure must reach Lucene, which is the only thing that can abort the merge. */
     @SneakyThrows
-    public void testMerge_SwallowsException() {
+    public void testMerge_PropagatesException() {
         when(mockMergeHelper.newSparseDocValuesReader(any())).thenThrow(new RuntimeException("Test exception"));
 
-        // Should not throw, just log
-        sparseDocValuesConsumer.merge(List.of(sparseFieldInfo), mockMergeStateFacade);
+        RuntimeException thrown = expectThrows(
+            RuntimeException.class,
+            () -> sparseDocValuesConsumer.merge(List.of(sparseFieldInfo), mockMergeStateFacade)
+        );
+
+        assertEquals("Test exception", thrown.getMessage());
     }
 }

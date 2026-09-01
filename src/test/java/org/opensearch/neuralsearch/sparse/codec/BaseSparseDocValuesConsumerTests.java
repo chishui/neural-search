@@ -209,15 +209,19 @@ public class BaseSparseDocValuesConsumerTests extends AbstractSparseTestBase {
         verify(nativeConsumer, never()).merge(any(), any());
     }
 
+    /**
+     * A merge failure has to reach Lucene. Swallowing it leaves the sparse side files half written
+     * while the merge reports success, so the commit publishes a segment that cannot be read back.
+     */
     @SneakyThrows
-    public void testMerge_SwallowsException() {
+    public void testMerge_PropagatesException() {
         FieldInfos infos = mock(FieldInfos.class);
         when(infos.iterator()).thenThrow(new RuntimeException("Test exception")).thenReturn(emptyIterator());
         when(mergeStateFacade.getMergeFieldInfos()).thenReturn(infos);
 
-        // Should not throw, just log
-        consumer.merge(mergeState);
+        RuntimeException thrown = expectThrows(RuntimeException.class, () -> consumer.merge(mergeState));
 
+        assertEquals("Test exception", thrown.getMessage());
         verify(delegate, times(1)).merge(mergeState);
         verify(luceneConsumer, never()).merge(any(), any());
         verify(nativeConsumer, never()).merge(any(), any());

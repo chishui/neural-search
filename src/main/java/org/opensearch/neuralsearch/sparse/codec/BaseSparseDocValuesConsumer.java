@@ -110,7 +110,11 @@ public class BaseSparseDocValuesConsumer extends DocValuesConsumer {
                 this.nativeDocValuesConsumer.merge(nativeFieldInfos, mergeStateFacade);
             }
         } catch (Exception e) {
+            // Rethrow: swallowing this leaves the side files half written while Lucene believes the
+            // merge succeeded, so it commits a segment whose sparse files are truncated. Only the
+            // exception reaching Lucene aborts the merge and deletes what was written.
             log.error("Merge sparse doc values error", e);
+            throw e;
         }
     }
 }
