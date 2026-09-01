@@ -43,9 +43,10 @@ public class SparseSettings {
 
     private static SparseSettings INSTANCE;
     private ClusterService clusterService;
-    // Read once off the node settings: the feature flag is not dynamic, so there is no
-    // cluster state to consult, and a node that never called initialize() must still answer.
-    private boolean nativeEngineFeatureEnabled = SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING.getDefault(Settings.EMPTY);
+    // Only the static gate; the dynamic one is read live in isNativeEngineEnabled(). Read once off
+    // the node settings: the static flag has no cluster state to consult, and a node that never
+    // called initialize() must still answer.
+    private boolean staticNativeEngineEnabled = SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING.getDefault(Settings.EMPTY);
 
     public static synchronized SparseSettings state() {
         if (INSTANCE == null) {
@@ -66,7 +67,7 @@ public class SparseSettings {
 
     public void initialize(ClusterService clusterService, Settings settings) {
         this.clusterService = clusterService;
-        this.nativeEngineFeatureEnabled = SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING.get(settings);
+        this.staticNativeEngineEnabled = SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING.get(settings);
         registerSettingsCallbacks(clusterService, settings);
     }
 
@@ -77,7 +78,7 @@ public class SparseSettings {
      * off disables it.
      */
     public boolean isNativeEngineEnabled() {
-        if (nativeEngineFeatureEnabled == false) {
+        if (staticNativeEngineEnabled == false) {
             return false;
         }
         // Before initialize() this reads the dynamic gate's default, which is off -- the engine is
