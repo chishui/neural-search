@@ -78,7 +78,10 @@ public class SparseIndexingIT extends SparseBaseIT {
 
         assertEquals("true", indexSettingsMap.get("sparse"));
 
-        assertEquals(engine.getName(), getSparseMethodConfig(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME).get(SparseConstants.ENGINE_FIELD));
+        // The default engine is left out of the mapping the cluster returns, which is what keeps a
+        // pre-3.9 index's mapping source stable across an upgrade; see SparseMethodContext#toXContent.
+        Object engineInMapping = getSparseMethodConfig(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME).get(SparseConstants.ENGINE_FIELD);
+        assertEquals(engine == SparseEngine.DEFAULT ? null : engine.getName(), engineInMapping);
     }
 
     @SuppressWarnings("unchecked")

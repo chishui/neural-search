@@ -78,11 +78,23 @@ public class SparseMethodContext implements ToXContentFragment, Writeable {
 
     /**
      * Converts to XContent format.
+     *
+     * A default-valued field is left out. This is what the mapping source is compared against:
+     * an index created before these fields existed has neither in the source stored in cluster
+     * state, and {@code MapperService#assertMappingVersion} fails the node with an
+     * {@link AssertionError} when a re-serialization does not match that source byte for byte.
+     * Emitting the defaults would therefore kill every upgraded node holding such an index.
+     * The cost is that an explicit {@code "engine": "lucene"} is not echoed back, the same way
+     * the rest of the mapping drops values it resolved to a default.
      */
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.field(ENGINE_FIELD, sparseEngine);
-        builder.field(FORWARD_INDEX_FIELD, forwardIndex);
+        if (sparseEngine != null && SparseEngine.fromName(sparseEngine) != SparseEngine.DEFAULT) {
+            builder.field(ENGINE_FIELD, sparseEngine);
+        }
+        if (forwardIndex != null && SparseForwardIndex.fromName(forwardIndex) != SparseForwardIndex.DEFAULT) {
+            builder.field(FORWARD_INDEX_FIELD, forwardIndex);
+        }
         builder = methodComponentContext.toXContent(builder, params);
         return builder;
     }

@@ -10,10 +10,13 @@ import org.mockito.MockitoAnnotations;
 import org.opensearch.Version;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.core.common.bytes.BytesArray;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.core.xcontent.MediaTypeRegistry;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
@@ -21,10 +24,12 @@ import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.NAME_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.PARAMETERS_FIELD;
@@ -169,6 +174,69 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         assertTrue(result.contains("value1"));
         assertTrue(result.contains("param2"));
         assertTrue(result.contains("42"));
+    }
+
+    /**
+     * An index created before these fields existed has neither in the mapping source held in cluster
+     * state. MapperService compares a re-serialization against that source and fails the node with an
+     * AssertionError when they differ, so emitting the defaults kills every upgraded node holding one.
+     */
+    public void testToXContentOmitsDefaultEngineAndForwardIndex() throws IOException {
+        SparseMethodContext context = new SparseMethodContext(
+            "seismic",
+            SparseEngine.DEFAULT.getName(),
+            SparseForwardIndex.DEFAULT.getName(),
+            new MethodComponentContext("seismic", new HashMap<>())
+        );
+
+        String result = toXContentString(context);
+        assertFalse(result.contains("\"" + ENGINE_FIELD + "\""));
+        assertFalse(result.contains("\"" + FORWARD_INDEX_FIELD + "\""));
+    }
+
+    public void testToXContentEmitsNonDefaultEngineAndForwardIndex() throws IOException {
+        SparseMethodContext context = new SparseMethodContext(
+            "seismic",
+            SparseEngine.NATIVE.getName(),
+            SparseForwardIndex.PER_BLOCK.getName(),
+            new MethodComponentContext("seismic", new HashMap<>())
+        );
+
+        String result = toXContentString(context);
+        assertTrue(result.contains("\"" + ENGINE_FIELD + "\":\"" + SparseEngine.NATIVE.getName() + "\""));
+        assertTrue(result.contains("\"" + FORWARD_INDEX_FIELD + "\":\"" + SparseForwardIndex.PER_BLOCK.getName() + "\""));
+    }
+
+    /**
+     * The mapping-source comparison is what parse and serialize have to agree on: serializing a
+     * context and parsing the result back must land on the same context, whichever fields the
+     * original source carried.
+     */
+    public void testToXContentRoundTripsWhatParseAccepts() throws IOException {
+        Map<String, Object> withoutEngine = new HashMap<>();
+        withoutEngine.put(NAME_FIELD, "seismic");
+        withoutEngine.put(PARAMETERS_FIELD, new HashMap<>());
+        Map<String, Object> withEngine = new HashMap<>(withoutEngine);
+        withEngine.put(ENGINE_FIELD, SparseEngine.NATIVE.getName());
+        withEngine.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
+
+        for (Map<String, Object> source : List.of(withoutEngine, withEngine)) {
+            SparseMethodContext parsed = SparseMethodContext.parse(source);
+            Map<String, Object> reserialized = XContentHelper.convertToMap(
+                new BytesArray(toXContentString(parsed)),
+                false,
+                MediaTypeRegistry.JSON
+            ).v2();
+            assertEquals(parsed, SparseMethodContext.parse(reserialized));
+        }
+    }
+
+    private String toXContentString(SparseMethodContext context) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        context.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        builder.endObject();
+        return builder.toString();
     }
 
     public void testWriteToAndReadFrom() throws IOException {
