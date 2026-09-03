@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * [Sparse ANN] Fold sparse vector tokens into the signed-short range (modulus 32768) so folded tokens are never sign-extended to a negative value when stored in short[] ([#1926](https://github.com/opensearch-project/neural-search/pull/1926))
 * [Hybrid Query] Read the current document and its sub-query matches from the positioned disjunction iterator, fixing an ArrayIndexOutOfBoundsException and silently misattributed scores when a sub-query has a two-phase iterator ([#1946](https://github.com/opensearch-project/neural-search/issues/1946))
 * [RRF] Reject a combination technique other than rrf when creating a score-ranker-processor, instead of accepting the pipeline and throwing NullPointerException on every query ([#1949](https://github.com/opensearch-project/neural-search/pull/1949))
+* [Sparse ANN] Skip cache cleanup for a closed index's shards, which have no MapperService, so reopening a sparse index no longer leaks the shard lock and leaves the shard unassigned ([#1982](https://github.com/opensearch-project/neural-search/issues/1982))
 
 ### Infrastructure
 * [Sparse ANN] Add scripts/build.sh so the distribution build ships the native sparse engine: every SIMD variant the target architecture may need is built into the plugin zip, and the variant to load is picked from the host's CPU flags at runtime ([#1978](https://github.com/opensearch-project/neural-search/pull/1978))
