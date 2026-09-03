@@ -15,7 +15,10 @@ allprojects {
             targetExclude nativeExcludes
 
             removeUnusedImports()
-            eclipse().withP2Mirrors(Map.of("https://download.eclipse.org/", "https://ci.opensearch.org/")).configFile rootProject.file('formatter/formatterConfig.xml')
+            // Pin 4.29 explicitly: spotless 8.10.0+ ships an embedded lockfile for it, so the
+            // formatter resolves from Maven Central through the mirrors configured above,
+            // instead of querying a P2 update site at configuration time.
+            eclipse('4.29').configFile rootProject.file('formatter/formatterConfig.xml')
             trimTrailingWhitespace()
             endWithNewline();
 
