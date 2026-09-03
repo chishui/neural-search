@@ -22,6 +22,9 @@ jobs:
   Restart-Upgrade-BWCTests-NeuralSearch:
     needs: Get-CI-Image-Tag
     strategy:
+      # One transient failure (formatter download, Maven 429) must not cancel the
+      # rest of the matrix; that turns a single flake into dozens of red checks.
+      fail-fast: false
       matrix:
         java: [21, 25]
         os: [ubuntu-latest]
@@ -64,6 +67,9 @@ jobs:
   Rolling-Upgrade-BWCTests-NeuralSearch:
     needs: Get-CI-Image-Tag
     strategy:
+      # One transient failure (formatter download, Maven 429) must not cancel the
+      # rest of the matrix; that turns a single flake into dozens of red checks.
+      fail-fast: false
       matrix:
         java: [21, 25]
         os: [ubuntu-latest]
