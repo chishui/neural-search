@@ -28,7 +28,8 @@ import static org.opensearch.neuralsearch.util.TestUtils.DELTA_FOR_SCORE_ASSERTI
  * Integration tests for neural sparse cache operations (warm up and clear cache).
  *
  * <p>Lucene engine only: warm up and clear cache operate on the sparse cache, which the native
- * engine bypasses in favour of an mmap'd index file.
+ * engine bypasses in favour of an mmap'd index file. That both APIs skip a native-engine index
+ * instead of failing on it is covered by {@link NeuralSparseNativeCacheOperationIT}.
  */
 public class NeuralSparseCacheOperationIT extends SparseBaseIT {
 
