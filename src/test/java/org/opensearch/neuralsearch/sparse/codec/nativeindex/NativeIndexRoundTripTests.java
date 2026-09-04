@@ -48,6 +48,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTERING_BATCH_SIZE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
@@ -300,6 +301,145 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         // close() must not free a core-scoped handle: the core owns it and other queries hold it
         first.close();
         assertEquals(address, SegmentNativeIndex.open(reader, segmentInfo, FIELD).address());
+    }
+
+    /**
+     * The CSR-file writer produces an index that answers a query the same way the streaming writer's
+     * does. Both quantize the same weights with the same ByteQuantizer over the same range -- one in
+     * Java on the way into the file, one in nsparse's add() -- so the codes, and therefore the built
+     * index, are identical; only where the vectors lived in between differs.
+     */
+    @SneakyThrows
+    public void testCsrFileWriterMatchesTheStreamingWriter() {
+        FieldInfo fieldInfo = fieldInfo(SparseForwardIndex.SHARED, 1);
+        List<Map<Integer, Float>> vectors = risingWeightVectors();
+
+        long streamed = writeAndLoad(fieldInfo, vectors);
+        SparseQueryResult[] fromStreaming = NativeLibrary.queryIndex(
+            streamed,
+            new int[] { 7 },
+            new float[] { 1.0f },
+            5,
+            searchParameters()
+        );
+
+        // Same segment, same file name, so the streamed one has to go before the staged one is written
+        directory.deleteFile(engineFileName());
+        assertTrue("the CSR writer should take a quantized field", CsrFileNativeIndexWriter.supports(writeState(fieldInfo)));
+        new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
+        long staged = NativeLibrary.loadIndex(CodecUtils.resolveFilePath(directory, engineFileName()));
+        loadedIndexes.add(staged);
+        SparseQueryResult[] fromCsrFile = NativeLibrary.queryIndex(staged, new int[] { 7 }, new float[] { 1.0f }, 5, searchParameters());
+
+        assertEquals(fromStreaming.length, fromCsrFile.length);
+        for (int i = 0; i < fromStreaming.length; i++) {
+            assertEquals("hit " + i + " doc id", fromStreaming[i].getId(), fromCsrFile[i].getId());
+            assertEquals("hit " + i + " score", fromStreaming[i].getScore(), fromCsrFile[i].getScore(), 0.0f);
+        }
+    }
+
+    /** Same, for the per_block layout, whose forward vectors live inline next to each block. */
+    @SneakyThrows
+    public void testCsrFileWriterMatchesTheStreamingWriterPerBlock() {
+        FieldInfo fieldInfo = fieldInfo(SparseForwardIndex.PER_BLOCK, 1);
+        List<Map<Integer, Float>> vectors = risingWeightVectors();
+        Map<String, Object> parameters = searchParameters();
+        parameters.put("k_prime", 10);
+
+        long streamed = writeAndLoad(fieldInfo, vectors);
+        SparseQueryResult[] fromStreaming = NativeLibrary.queryIndex(streamed, new int[] { 7 }, new float[] { 1.0f }, 5, parameters);
+
+        directory.deleteFile(engineFileName());
+        new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
+        long staged = NativeLibrary.loadIndex(CodecUtils.resolveFilePath(directory, engineFileName()));
+        loadedIndexes.add(staged);
+        SparseQueryResult[] fromCsrFile = NativeLibrary.queryIndex(staged, new int[] { 7 }, new float[] { 1.0f }, 5, parameters);
+
+        assertEquals(fromStreaming.length, fromCsrFile.length);
+        for (int i = 0; i < fromStreaming.length; i++) {
+            assertEquals("hit " + i + " doc id", fromStreaming[i].getId(), fromCsrFile[i].getId());
+            assertEquals("hit " + i + " score", fromStreaming[i].getScore(), fromCsrFile[i].getScore(), 0.0f);
+        }
+    }
+
+    /** A segment with no document for the field still has to leave an openable file behind. */
+    @SneakyThrows
+    public void testCsrFileWriterWritesAFooterOnlyFileForAnEmptySegment() {
+        FieldInfo fieldInfo = fieldInfo(SparseForwardIndex.SHARED, 1);
+        new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(List.of()));
+
+        assertTrue("the engine file should exist", Arrays.asList(directory.listAll()).contains(engineFileName()));
+        // Nothing staged may outlive the write: the files are not part of the segment
+        assertTrue(Arrays.toString(directory.listAll()), Arrays.stream(directory.listAll()).noneMatch(name -> name.contains("csr")));
+    }
+
+    /**
+     * The sub-threshold path: an unquantized inverted index, staged as float32 because that is the
+     * width it borrows at. Scores are exact dot products there, so this also pins that the CSR path
+     * does not quietly quantize a field that is not meant to be quantized.
+     */
+    @SneakyThrows
+    public void testCsrFileWriterMatchesTheStreamingWriterForInvertedIndex() {
+        FieldInfo fieldInfo = fieldInfo(SparseForwardIndex.SHARED, Integer.MAX_VALUE);
+        List<Map<Integer, Float>> vectors = risingWeightVectors();
+
+        long streamed = writeAndLoad(fieldInfo, vectors);
+        SparseQueryResult[] fromStreaming = NativeLibrary.queryIndex(streamed, new int[] { 7 }, new float[] { 1.0f }, 5, new HashMap<>());
+
+        directory.deleteFile(engineFileName());
+        assertTrue("the CSR writer should take a sub-threshold field", CsrFileNativeIndexWriter.supports(writeState(fieldInfo)));
+        new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
+        long staged = NativeLibrary.loadIndex(CodecUtils.resolveFilePath(directory, engineFileName()));
+        loadedIndexes.add(staged);
+        SparseQueryResult[] fromCsrFile = NativeLibrary.queryIndex(staged, new int[] { 7 }, new float[] { 1.0f }, 5, new HashMap<>());
+
+        assertEquals(fromStreaming.length, fromCsrFile.length);
+        for (int i = 0; i < fromStreaming.length; i++) {
+            assertEquals("hit " + i + " doc id", fromStreaming[i].getId(), fromCsrFile[i].getId());
+            assertEquals("hit " + i + " score", fromStreaming[i].getScore(), fromCsrFile[i].getScore(), 0.0f);
+        }
+        // Unquantized, so the top score is the exact dot product rather than a rounded one
+        assertEquals((float) DOC_COUNT, fromCsrFile[0].getScore(), 0.001f);
+    }
+
+    /**
+     * A field configured for a batched build, written by the CSR writer: the whole chain, from the
+     * field attribute through {@link NativeIndexParameters} to a batched nsparse build over a mapped
+     * CSR. Batching is a memory bound, so it must not move the result -- the streaming writer over the
+     * same field is the reference.
+     */
+    @SneakyThrows
+    public void testCsrFileWriterHonoursTheClusteringBatchSize() {
+        FieldInfo fieldInfo = fieldInfo(SparseForwardIndex.SHARED, 1);
+        fieldInfo.putAttribute(CLUSTERING_BATCH_SIZE_FIELD, "4");
+        List<Map<Integer, Float>> vectors = risingWeightVectors();
+
+        long streamed = writeAndLoad(fieldInfo, vectors);
+        SparseQueryResult[] fromStreaming = NativeLibrary.queryIndex(
+            streamed,
+            new int[] { 7 },
+            new float[] { 1.0f },
+            5,
+            searchParameters()
+        );
+
+        directory.deleteFile(engineFileName());
+        new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
+        long staged = NativeLibrary.loadIndex(CodecUtils.resolveFilePath(directory, engineFileName()));
+        loadedIndexes.add(staged);
+        SparseQueryResult[] fromCsrFile = NativeLibrary.queryIndex(staged, new int[] { 7 }, new float[] { 1.0f }, 5, searchParameters());
+
+        assertEquals(fromStreaming.length, fromCsrFile.length);
+        for (int i = 0; i < fromStreaming.length; i++) {
+            assertEquals("hit " + i + " doc id", fromStreaming[i].getId(), fromCsrFile[i].getId());
+            assertEquals("hit " + i + " score", fromStreaming[i].getScore(), fromCsrFile[i].getScore(), 0.0f);
+        }
+        // nsparse unlinks each window's spill as soon as it has mapped it, and those files are created
+        // outside the Lucene Directory, so nothing may be left in the segment directory either way.
+        assertTrue(
+            Arrays.toString(directory.listAll()),
+            Arrays.stream(directory.listAll()).noneMatch(name -> name.contains("clustered-lists") || name.contains("csr"))
+        );
     }
 
     // ---- helpers ----

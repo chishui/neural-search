@@ -203,7 +203,7 @@ public class NeuralSearchTests extends OpenSearchQueryTestCase {
 
     public void testGetSettings() {
         List<Setting<?>> settings = plugin.getSettings();
-        assertEquals(12, settings.size());
+        assertEquals(11, settings.size());
         // getSettings() folds in SparseSettings.state().getSettings() rather than
         // listing the sparse settings inline, so assert they actually arrive --
         // a bare count passes even if that call is dropped, as long as something

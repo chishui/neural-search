@@ -5,8 +5,13 @@
 package org.opensearch.neuralsearch.sparse.codec;
 
 import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.FilterDirectory;
 import org.opensearch.neuralsearch.sparse.common.SparseConstants;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.List;
@@ -65,5 +70,34 @@ public class CodecUtils {
             .sorted(Comparator.comparingInt(String::length))
             .collect(Collectors.toList());
         return engineFiles;
+    }
+
+    /**
+     * The filesystem directory behind a Lucene {@link Directory}, which nsparse needs because it
+     * maps files itself rather than reading them through an
+     * {@link org.apache.lucene.store.IndexInput}.
+     *
+     * @param directory the directory to unwrap
+     * @return the underlying filesystem path
+     * @throws IOException if the directory is not filesystem-backed
+     */
+    public static Path resolveDirectoryPath(Directory directory) throws IOException {
+        Directory unwrapped = FilterDirectory.unwrap(directory);
+        if (unwrapped instanceof FSDirectory fsDirectory) {
+            return fsDirectory.getDirectory();
+        }
+        throw new IOException("Cannot resolve a filesystem path from directory type: " + directory.getClass().getName());
+    }
+
+    /**
+     * The filesystem path of one file in a {@link Directory}. The file is not required to exist.
+     *
+     * @param directory the directory holding the file
+     * @param fileName  the file's name within the directory
+     * @return the file's absolute path
+     * @throws IOException if the directory is not filesystem-backed
+     */
+    public static String resolveFilePath(Directory directory, String fileName) throws IOException {
+        return resolveDirectoryPath(directory).resolve(fileName).toString();
     }
 }

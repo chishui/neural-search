@@ -34,7 +34,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Set;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
@@ -238,14 +237,16 @@ public class NativeDocValuesConsumerTests extends AbstractSparseTestBase {
                 .put(SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED, true)
                 .put(SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED, true)
                 .build();
+            // Every node-scoped sparse setting the plugin registers, rather than the few this test
+            // reads: the consumer consults whichever ones its writers need, and an unregistered one
+            // throws rather than defaulting.
             ClusterSettings clusterSettings = new ClusterSettings(
                 nodeSettings,
-                Set.of(
-                    SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
-                    SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING,
-                    SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
-                    SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING
-                )
+                SparseSettings.state()
+                    .getSettings()
+                    .stream()
+                    .filter(setting -> setting.hasNodeScope())
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet())
             );
             ClusterService clusterService = mock(ClusterService.class);
             when(clusterService.getSettings()).thenReturn(nodeSettings);

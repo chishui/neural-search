@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.common;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.lucene.index.FieldInfo;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -24,12 +25,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTERING_BATCH_SIZE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTERING_BATCH_SIZE;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_N_POSTINGS;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_MINIMUM_LENGTH;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_POSTING_PRUNE_RATIO;
@@ -138,6 +141,23 @@ public class SparseFieldUtils {
         }
         SparseForwardIndex forwardIndex = SparseForwardIndex.fromName(fieldInfo.getAttribute(FORWARD_INDEX_FIELD));
         return forwardIndex != null ? forwardIndex : SparseForwardIndex.DEFAULT;
+    }
+
+    /**
+     * Retrieves how many inverted lists the native engine clusters per batch from the field attributes.
+     *
+     * Tolerates a missing or unparseable attribute rather than failing the segment: only the native
+     * engine writes it, so a field from a Lucene-engine index has none.
+     *
+     * @param fieldInfo The field info containing the clustering batch size attribute
+     * @return The clustering batch size configured for the field, or {@link SparseConstants.Seismic#DEFAULT_CLUSTERING_BATCH_SIZE}
+     */
+    public static int getClusteringBatchSize(FieldInfo fieldInfo) {
+        if (fieldInfo == null) {
+            // A segment that holds no document with the field has no FieldInfo for it.
+            return DEFAULT_CLUSTERING_BATCH_SIZE;
+        }
+        return NumberUtils.toInt(fieldInfo.getAttribute(CLUSTERING_BATCH_SIZE_FIELD), DEFAULT_CLUSTERING_BATCH_SIZE);
     }
 
     /**

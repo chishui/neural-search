@@ -43,8 +43,7 @@ public class SparseSettingsTests extends AbstractSparseTestBase {
             Set.of(
                 SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
                 SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING,
-                SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
-                SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING
+                SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING
             )
         );
         ClusterService clusterService = mock(ClusterService.class);
@@ -150,22 +149,17 @@ public class SparseSettingsTests extends AbstractSparseTestBase {
     public void testGetSettingValueFallsBackToDefaultsBeforeInitialize() {
         SparseSettings.reset();
 
-        // The codec reads both of these during a flush, so an uninitialized node must not throw
+        // The codec reads this during a flush, so an uninitialized node must not throw
         assertEquals(
             SparseSettings.DEFAULT_INDEX_THREAD_QTY,
             (int) SparseSettings.state().getSettingValue(SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY)
         );
-        assertNotNull(SparseSettings.getSparseVectorStreamingMemoryLimit());
-    }
-
-    public void testGetSparseVectorStreamingMemoryLimitReadsTheSetting() {
-        initializeWith(true, true);
-
-        assertNotNull(SparseSettings.getSparseVectorStreamingMemoryLimit());
     }
 
     public void testGetSettingsListsEverySparseSetting() {
-        assertEquals(5, SparseSettings.state().getSettings().size());
+        // An unlisted setting is unregistered at node start, and reading one then throws rather than
+        // falling back to its default -- so the list, not the field count, is what has to be complete.
+        assertEquals(4, SparseSettings.state().getSettings().size());
         assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING));
         assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING));
     }

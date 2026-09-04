@@ -66,28 +66,27 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         assertEquals("Invalid parameter: invalidKey", exception.getMessage());
     }
 
-    public void testParseWithoutForwardIndex_usesDefault() {
-        Map<String, Object> input = new HashMap<>();
-        input.put(NAME_FIELD, "testMethod");
-
-        assertEquals(SparseForwardIndex.DEFAULT.getName(), SparseMethodContext.parse(input).getForwardIndex());
-    }
-
-    public void testParseWithForwardIndex() {
+    /** It moved into method.parameters, where {@link org.opensearch.neuralsearch.sparse.algorithm.seismic.Seismic} validates it. */
+    public void testParseRejectsForwardIndexOutsideParameters() {
         Map<String, Object> input = new HashMap<>();
         input.put(NAME_FIELD, "testMethod");
         input.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
 
-        assertEquals(SparseForwardIndex.PER_BLOCK.getName(), SparseMethodContext.parse(input).getForwardIndex());
+        MapperParsingException exception = expectThrows(MapperParsingException.class, () -> SparseMethodContext.parse(input));
+        assertEquals("Invalid parameter: " + FORWARD_INDEX_FIELD, exception.getMessage());
     }
 
-    public void testParseWithInvalidForwardIndex() {
+    public void testParseKeepsForwardIndexAsAMethodParameter() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
         Map<String, Object> input = new HashMap<>();
         input.put(NAME_FIELD, "testMethod");
-        input.put(FORWARD_INDEX_FIELD, "not_a_forward_index");
+        input.put(PARAMETERS_FIELD, parameters);
 
-        MapperParsingException exception = expectThrows(MapperParsingException.class, () -> SparseMethodContext.parse(input));
-        assertEquals("forward_index needs to be valid forward index", exception.getMessage());
+        assertEquals(
+            SparseForwardIndex.PER_BLOCK.getName(),
+            SparseMethodContext.parse(input).getMethodComponentContext().getParameters().get(FORWARD_INDEX_FIELD)
+        );
     }
 
     public void testParseWithInvalidParametersType() {
@@ -156,12 +155,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         parameters.put("param2", 42);
 
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
-        SparseMethodContext sparseMethodContext = new SparseMethodContext(
-            name,
-            SparseEngine.DEFAULT.getName(),
-            SparseForwardIndex.DEFAULT.getName(),
-            methodComponentContext
-        );
+        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, SparseEngine.DEFAULT.getName(), methodComponentContext);
 
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
@@ -177,34 +171,30 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
     }
 
     /**
-     * An index created before these fields existed has neither in the mapping source held in cluster
+     * An index created before this field existed does not have it in the mapping source held in cluster
      * state. MapperService compares a re-serialization against that source and fails the node with an
-     * AssertionError when they differ, so emitting the defaults kills every upgraded node holding one.
+     * AssertionError when they differ, so emitting the default kills every upgraded node holding one.
      */
-    public void testToXContentOmitsDefaultEngineAndForwardIndex() throws IOException {
+    public void testToXContentOmitsDefaultEngine() throws IOException {
         SparseMethodContext context = new SparseMethodContext(
             "seismic",
             SparseEngine.DEFAULT.getName(),
-            SparseForwardIndex.DEFAULT.getName(),
             new MethodComponentContext("seismic", new HashMap<>())
         );
 
         String result = toXContentString(context);
         assertFalse(result.contains("\"" + ENGINE_FIELD + "\""));
-        assertFalse(result.contains("\"" + FORWARD_INDEX_FIELD + "\""));
     }
 
-    public void testToXContentEmitsNonDefaultEngineAndForwardIndex() throws IOException {
+    public void testToXContentEmitsNonDefaultEngine() throws IOException {
         SparseMethodContext context = new SparseMethodContext(
             "seismic",
             SparseEngine.NATIVE.getName(),
-            SparseForwardIndex.PER_BLOCK.getName(),
             new MethodComponentContext("seismic", new HashMap<>())
         );
 
         String result = toXContentString(context);
         assertTrue(result.contains("\"" + ENGINE_FIELD + "\":\"" + SparseEngine.NATIVE.getName() + "\""));
-        assertTrue(result.contains("\"" + FORWARD_INDEX_FIELD + "\":\"" + SparseForwardIndex.PER_BLOCK.getName() + "\""));
     }
 
     /**
@@ -218,7 +208,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         withoutEngine.put(PARAMETERS_FIELD, new HashMap<>());
         Map<String, Object> withEngine = new HashMap<>(withoutEngine);
         withEngine.put(ENGINE_FIELD, SparseEngine.NATIVE.getName());
-        withEngine.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
+        withEngine.put(PARAMETERS_FIELD, Map.of(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName()));
 
         for (Map<String, Object> source : List.of(withoutEngine, withEngine)) {
             SparseMethodContext parsed = SparseMethodContext.parse(source);
@@ -246,8 +236,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         parameters.put("param2", 42);
         MethodComponentContext methodComponentContext = new MethodComponentContext(name, parameters);
         String engine = SparseEngine.DEFAULT.getName();
-        String forwardIndex = SparseForwardIndex.DEFAULT.getName();
-        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, engine, forwardIndex, methodComponentContext);
+        SparseMethodContext sparseMethodContext = new SparseMethodContext(name, engine, methodComponentContext);
 
         BytesStreamOutput out = new BytesStreamOutput();
         sparseMethodContext.writeTo(out);
@@ -258,7 +247,6 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
 
         assertEquals(name, readContext.getName());
         assertEquals(engine, readContext.getSparseEngine());
-        assertEquals(forwardIndex, readContext.getForwardIndex());
         assertEquals(methodComponentContext, readContext.getMethodComponentContext());
     }
 
@@ -268,13 +256,12 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         SparseMethodContext readContext = roundTrip(context, Version.CURRENT);
 
         assertEquals(SparseEngine.NATIVE.getName(), readContext.getSparseEngine());
-        assertEquals(SparseForwardIndex.PER_BLOCK.getName(), readContext.getForwardIndex());
         assertEquals(context.getMethodComponentContext(), readContext.getMethodComponentContext());
     }
 
     /**
      * The context has been Writeable since 3.3, so what a pre-3.9 peer sees has to stay exactly what
-     * 3.8 wrote: the name followed straight by the component context, with no optional strings in
+     * 3.8 wrote: the name followed straight by the component context, with no optional string in
      * between.
      */
     public void testBytesWrittenToAnOlderPeerMatchTheReleasedFormat() throws IOException {
@@ -299,11 +286,10 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
 
         // A pre-3.9 node only ever ran the Lucene engine, so that is what its stream means
         assertEquals(SparseEngine.DEFAULT.getName(), readContext.getSparseEngine());
-        assertEquals(SparseForwardIndex.DEFAULT.getName(), readContext.getForwardIndex());
     }
 
     /**
-     * The regression the version guard exists for. Reading two optional strings off a pre-3.9 stream
+     * The regression the version guard exists for. Reading an optional string off a pre-3.9 stream
      * swallows the parameter map, and because {@link MethodComponentContext} decides on
      * {@code available() > 0} the loss is silent: the seismic parameters come back null rather than
      * failing.
@@ -312,7 +298,7 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
         SparseMethodContext context = context(SparseEngine.DEFAULT.getName(), SparseForwardIndex.DEFAULT.getName());
 
         // Hand-written in the 3.8 layout rather than round-tripped: only an asymmetric read, which is
-        // what a mixed cluster actually does, can consume the map bytes as the two optional strings.
+        // what a mixed cluster actually does, can consume the map bytes as the optional string.
         BytesStreamOutput out = new BytesStreamOutput();
         out.setVersion(Version.V_3_8_0);
         out.writeString(context.getName());
@@ -324,15 +310,18 @@ public class SparseMethodContextTests extends AbstractSparseTestBase {
 
         assertEquals(context.getName(), readContext.getName());
         assertEquals(SparseEngine.DEFAULT.getName(), readContext.getSparseEngine());
-        assertEquals(SparseForwardIndex.DEFAULT.getName(), readContext.getForwardIndex());
-        assertEquals(Map.of("param1", "value1", "param2", 42), readContext.getMethodComponentContext().getParameters());
+        assertEquals(
+            Map.of("param1", "value1", "param2", 42, FORWARD_INDEX_FIELD, SparseForwardIndex.DEFAULT.getName()),
+            readContext.getMethodComponentContext().getParameters()
+        );
     }
 
     private SparseMethodContext context(String engine, String forwardIndex) {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("param1", "value1");
         parameters.put("param2", 42);
-        return new SparseMethodContext("testMethod", engine, forwardIndex, new MethodComponentContext("testMethod", parameters));
+        parameters.put(FORWARD_INDEX_FIELD, forwardIndex);
+        return new SparseMethodContext("testMethod", engine, new MethodComponentContext("testMethod", parameters));
     }
 
     /** Serializes and deserializes as if both peers were on {@code version}. */

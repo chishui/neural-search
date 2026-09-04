@@ -23,18 +23,11 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.Version;
-import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.core.common.unit.ByteSizeUnit;
-import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.neuralsearch.jni.NativeLibrary;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
-import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
 import org.opensearch.neuralsearch.sparse.common.SparseQueryResult;
-import org.opensearch.threadpool.ThreadPool;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -45,10 +38,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.mapper.SparseVectorField.SPARSE_FIELD;
@@ -152,7 +142,9 @@ public class OffHeapVectorOwnershipTests extends AbstractSparseTestBase {
 
     /**
      * The reachable leak: {@link DefaultNativeIndexWriter#writeIndex} streams doc values into the
-     * buffer, and the buffer transfers off-heap every time the streaming limit is hit. If the doc
+     * buffer, and the buffer transfers off-heap every time its batch limit is hit -- one attempt here
+     * is ~24 MiB of vectors against a limit of 1% of the test JVM's heap, so it transfers many times.
+     * If the doc
      * values then throw -- a corrupt value, an I/O error mid-merge -- the buffer is a local that was
      * never returned, so its addresses die with the frame and {@code insertToIndex} is never reached.
      *
@@ -165,7 +157,9 @@ public class OffHeapVectorOwnershipTests extends AbstractSparseTestBase {
     @SneakyThrows
     public void testFailedWriteDoesNotAbandonTransferredVectors() {
         assumeTrue("resident size is read from /proc", Files.exists(Path.of("/proc/self/statm")));
-        initializeStreamingLimit(new ByteSizeValue(1, ByteSizeUnit.MB));
+        // Defaults, so the writer's batch limit is derived from the heap rather than read from a
+        // setting; nothing here needs a cluster service.
+        SparseSettings.reset();
 
         runFailingWrites(0);
         long settled = residentBytes();
@@ -207,26 +201,6 @@ public class OffHeapVectorOwnershipTests extends AbstractSparseTestBase {
         // resident, and freeing them returns the pages to the OS.
         String[] fields = Files.readString(Path.of("/proc/self/statm")).trim().split("\\s+");
         return Long.parseLong(fields[1]) * 4096L;
-    }
-
-    /** Makes the buffer transfer often, so a failure has something off-heap to abandon. */
-    private void initializeStreamingLimit(ByteSizeValue limit) {
-        Settings nodeSettings = Settings.builder().put(SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT, limit.getBytes() + "b").build();
-        ClusterSettings clusterSettings = new ClusterSettings(
-            nodeSettings,
-            Set.of(
-                SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING,
-                SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
-                SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
-                SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING
-            )
-        );
-        ClusterService clusterService = mock(ClusterService.class);
-        when(clusterService.getSettings()).thenReturn(nodeSettings);
-        when(clusterService.getClusterSettings()).thenReturn(clusterSettings);
-        ClusterTrainingExecutor.getInstance().initialize(mock(ThreadPool.class));
-        SparseSettings.reset();
-        SparseSettings.state().initialize(clusterService, nodeSettings);
     }
 
     /**

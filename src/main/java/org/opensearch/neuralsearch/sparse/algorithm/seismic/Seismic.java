@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.opensearch.common.ValidationException;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseAlgorithm;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.mapper.SparseMethodContext;
 
 import java.util.ArrayList;
@@ -18,6 +19,10 @@ import java.util.Locale;
 import java.util.Map;
 
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTERING_BATCH_SIZE_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.MAX_CLUSTERING_BATCH_SIZE;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.MIN_CLUSTERING_BATCH_SIZE;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_SEARCH_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
@@ -53,6 +58,8 @@ public class Seismic implements SparseAlgorithm {
         validateApproximateThreshold(parameters, errorMessages);
         validateQuantizationCeilingIngest(parameters, errorMessages);
         validateQuantizationCeilingSearch(parameters, errorMessages);
+        validateForwardIndex(parameters, errorMessages);
+        validateClusteringBatchSize(parameters, errorMessages);
         for (String key : parameters.keySet()) {
             errorMessages.add(String.format(Locale.ROOT, "Unknown parameter '%s' found", key));
         }
@@ -149,6 +156,44 @@ public class Seismic implements SparseAlgorithm {
             );
         }
         parameters.remove(QUANTIZATION_CEILING_INGEST_FIELD);
+    }
+
+    private void validateForwardIndex(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(FORWARD_INDEX_FIELD)) {
+            return;
+        }
+        if (SparseForwardIndex.fromName(String.valueOf(parameters.get(FORWARD_INDEX_FIELD))) == null) {
+            errorMessages.add(
+                String.format(Locale.ROOT, "Parameter [%s] must be one of [%s]", FORWARD_INDEX_FIELD, SparseForwardIndex.validNames())
+            );
+        }
+        parameters.remove(FORWARD_INDEX_FIELD);
+    }
+
+    private void validateClusteringBatchSize(Map<String, Object> parameters, List<String> errorMessages) {
+        if (!parameters.containsKey(CLUSTERING_BATCH_SIZE_FIELD)) {
+            return;
+        }
+        try {
+            String fieldValueString = parameters.get(CLUSTERING_BATCH_SIZE_FIELD).toString();
+            int clusteringBatchSize = NumberUtils.createInteger(fieldValueString);
+            if (clusteringBatchSize < MIN_CLUSTERING_BATCH_SIZE || clusteringBatchSize > MAX_CLUSTERING_BATCH_SIZE) {
+                errorMessages.add(
+                    String.format(
+                        Locale.ROOT,
+                        "Parameter [%s] must be in [%d, %d]",
+                        CLUSTERING_BATCH_SIZE_FIELD,
+                        MIN_CLUSTERING_BATCH_SIZE,
+                        MAX_CLUSTERING_BATCH_SIZE
+                    )
+                );
+            }
+        } catch (Exception e) {
+            errorMessages.add(
+                String.format(Locale.ROOT, "Parameter [%s] must be of %s type", CLUSTERING_BATCH_SIZE_FIELD, Integer.class.getName())
+            );
+        }
+        parameters.remove(CLUSTERING_BATCH_SIZE_FIELD);
     }
 
     private void validateQuantizationCeilingSearch(Map<String, Object> parameters, List<String> errorMessages) {

@@ -28,11 +28,13 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTERING_BATCH_SIZE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTERING_BATCH_SIZE;
 
 public class SparseFieldUtilsTests extends OpenSearchTestCase {
 
@@ -208,6 +210,25 @@ public class SparseFieldUtilsTests extends OpenSearchTestCase {
 
     public void testGetSparseForwardIndex_withNullFieldInfo_fallsBackToDefault() {
         assertEquals(SparseForwardIndex.DEFAULT, SparseFieldUtils.getSparseForwardIndex(null));
+    }
+
+    public void testGetClusteringBatchSize_withAttribute() {
+        FieldInfo fieldInfo = mock(FieldInfo.class);
+        when(fieldInfo.getAttribute(CLUSTERING_BATCH_SIZE_FIELD)).thenReturn("64");
+
+        assertEquals(64, SparseFieldUtils.getClusteringBatchSize(fieldInfo));
+    }
+
+    public void testGetClusteringBatchSize_withMissingOrUnparseableAttribute_fallsBackToDefault() {
+        FieldInfo fieldInfo = mock(FieldInfo.class);
+        assertEquals(DEFAULT_CLUSTERING_BATCH_SIZE, SparseFieldUtils.getClusteringBatchSize(fieldInfo));
+
+        when(fieldInfo.getAttribute(CLUSTERING_BATCH_SIZE_FIELD)).thenReturn("not_an_integer");
+        assertEquals(DEFAULT_CLUSTERING_BATCH_SIZE, SparseFieldUtils.getClusteringBatchSize(fieldInfo));
+    }
+
+    public void testGetClusteringBatchSize_withNullFieldInfo_fallsBackToDefault() {
+        assertEquals(DEFAULT_CLUSTERING_BATCH_SIZE, SparseFieldUtils.getClusteringBatchSize(null));
     }
 
     private void configureSparseIndexSetting(boolean isSparseIndex) {

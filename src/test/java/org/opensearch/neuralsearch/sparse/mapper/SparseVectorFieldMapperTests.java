@@ -7,6 +7,7 @@ package org.opensearch.neuralsearch.sparse.mapper;
 import org.junit.After;
 import org.junit.Before;
 import org.mockito.MockitoAnnotations;
+import org.opensearch.Version;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -28,6 +29,7 @@ import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,6 +40,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.APPROXIMATE_THRESHOLD_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTERING_BATCH_SIZE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTER_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.ENGINE_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
@@ -48,6 +51,7 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZA
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_SEARCH_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SEISMIC;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.DEFAULT_CLUSTERING_BATCH_SIZE;
 import static org.opensearch.neuralsearch.sparse.mapper.SparseVectorField.SPARSE_FIELD;
 
 public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
@@ -104,6 +108,13 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         SparseSettings.state().initialize(clusterService, nodeSettings);
     }
 
+    /** A parser context for an index created on a cluster whose oldest node was {@code version}. */
+    private static Mapper.TypeParser.ParserContext parserContext(Version version) {
+        Mapper.TypeParser.ParserContext parserContext = mock(Mapper.TypeParser.ParserContext.class);
+        when(parserContext.indexVersionCreated()).thenReturn(version);
+        return parserContext;
+    }
+
     private Map<String, Object> nativeMethodNode() {
         Map<String, Object> method = new HashMap<>();
         method.put(NAME_FIELD, SEISMIC);
@@ -114,35 +125,102 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         return node;
     }
 
+    /** Both native-only knobs are method parameters, so they go in the parameters map. */
+    private static Map<String, Object> methodNode(SparseEngine engine, Map<String, Object> parameters) {
+        Map<String, Object> method = new HashMap<>();
+        method.put(NAME_FIELD, SEISMIC);
+        method.put(ENGINE_FIELD, engine.getName());
+        method.put(PARAMETERS_FIELD, new HashMap<>(parameters));
+        Map<String, Object> node = new HashMap<>();
+        node.put("method", method);
+        return node;
+    }
+
     public void testSparseTypeParser_acceptsPerBlockForwardIndexOnNativeEngine() {
         setNativeEngineFlags(true, true);
 
-        Map<String, Object> node = nativeMethodNode();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> method = (Map<String, Object>) node.get("method");
-        method.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
+        Map<String, Object> node = methodNode(SparseEngine.NATIVE, Map.of(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName()));
 
-        assertNotNull(
-            new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class))
-        );
+        assertNotNull(new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.CURRENT)));
     }
 
     public void testSparseTypeParser_rejectsPerBlockForwardIndexOnLuceneEngine() {
         setNativeEngineFlags(true, true);
 
-        Map<String, Object> method = new HashMap<>();
-        method.put(NAME_FIELD, SEISMIC);
-        method.put(ENGINE_FIELD, SparseEngine.LUCENE.getName());
-        method.put(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName());
-        method.put(PARAMETERS_FIELD, new HashMap<String, Object>());
-        Map<String, Object> node = new HashMap<>();
-        node.put("method", method);
+        Map<String, Object> node = methodNode(SparseEngine.LUCENE, Map.of(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName()));
 
         MapperParsingException exception = expectThrows(
             MapperParsingException.class,
-            () -> new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class))
+            () -> new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.CURRENT))
         );
         assertTrue(exception.getMessage(), exception.getMessage().contains(FORWARD_INDEX_FIELD));
+    }
+
+    public void testSparseTypeParser_acceptsClusteringBatchSizeOnNativeEngine() {
+        setNativeEngineFlags(true, true);
+
+        Map<String, Object> node = methodNode(SparseEngine.NATIVE, Map.of(CLUSTERING_BATCH_SIZE_FIELD, 64));
+
+        assertNotNull(new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.CURRENT)));
+    }
+
+    public void testSparseTypeParser_rejectsClusteringBatchSizeOnLuceneEngine() {
+        setNativeEngineFlags(true, true);
+
+        Map<String, Object> node = methodNode(SparseEngine.LUCENE, Map.of(CLUSTERING_BATCH_SIZE_FIELD, 64));
+
+        MapperParsingException exception = expectThrows(
+            MapperParsingException.class,
+            () -> new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.CURRENT))
+        );
+        assertTrue(exception.getMessage(), exception.getMessage().contains(CLUSTERING_BATCH_SIZE_FIELD));
+    }
+
+    /** The default is what a field that never asked for batching has, whichever engine it runs. */
+    public void testSparseTypeParser_acceptsDefaultClusteringBatchSizeOnLuceneEngine() {
+        setNativeEngineFlags(true, true);
+
+        Map<String, Object> node = methodNode(SparseEngine.LUCENE, Map.of(CLUSTERING_BATCH_SIZE_FIELD, DEFAULT_CLUSTERING_BATCH_SIZE));
+
+        assertNotNull(new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.CURRENT)));
+    }
+
+    /**
+     * The setting being on is not enough: a node that predates these parameters cannot read the
+     * mapping at all, so an index created while one was in the cluster is refused. Each parameter is
+     * rejected on presence alone, whatever it is set to.
+     */
+    public void testSparseTypeParser_rejectsNativeEngineParametersOnAnOlderIndex() {
+        setNativeEngineFlags(true, true);
+
+        for (Map<String, Object> node : List.of(
+            nativeMethodNode(),
+            methodNode(SparseEngine.LUCENE, Map.of()),
+            methodNode(SparseEngine.NATIVE, Map.of(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName())),
+            methodNode(SparseEngine.NATIVE, Map.of(CLUSTERING_BATCH_SIZE_FIELD, 64))
+        )) {
+            MapperParsingException exception = expectThrows(
+                MapperParsingException.class,
+                () -> new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.V_3_8_0))
+            );
+            assertTrue(
+                exception.getMessage(),
+                exception.getMessage().contains("can only be used on indices created on or after version " + Version.V_3_9_0)
+            );
+        }
+    }
+
+    /** A field that asks for none of them is untouched by the gate, however old the index is. */
+    public void testSparseTypeParser_acceptsAMappingWithoutNativeEngineParametersOnAnOlderIndex() {
+        setNativeEngineFlags(true, true);
+
+        Map<String, Object> method = new HashMap<>();
+        method.put(NAME_FIELD, SEISMIC);
+        method.put(PARAMETERS_FIELD, Map.of(N_POSTINGS_FIELD, 10));
+        Map<String, Object> node = new HashMap<>();
+        node.put(SparseVectorFieldMapper.METHOD, method);
+
+        assertNotNull(new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.V_3_8_0)));
     }
 
     public void testSparseTypeParser_rejectsNativeEngineWhenDisabled() {
@@ -150,11 +228,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
 
         MapperParsingException exception = expectThrows(
             MapperParsingException.class,
-            () -> new SparseVectorFieldMapper.SparseTypeParser().parse(
-                "test_field",
-                nativeMethodNode(),
-                mock(Mapper.TypeParser.ParserContext.class)
-            )
+            () -> new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", nativeMethodNode(), parserContext(Version.CURRENT))
         );
         assertTrue(exception.getMessage(), exception.getMessage().contains(SparseSettings.NATIVE_ENGINE_DISABLED_REASON));
     }
@@ -163,11 +237,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         setNativeEngineFlags(true, true);
 
         assertNotNull(
-            new SparseVectorFieldMapper.SparseTypeParser().parse(
-                "test_field",
-                nativeMethodNode(),
-                mock(Mapper.TypeParser.ParserContext.class)
-            )
+            new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", nativeMethodNode(), parserContext(Version.CURRENT))
         );
     }
 
@@ -181,9 +251,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         Map<String, Object> node = new HashMap<>();
         node.put("method", method);
 
-        assertNotNull(
-            new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class))
-        );
+        assertNotNull(new SparseVectorFieldMapper.SparseTypeParser().parse("test_field", node, parserContext(Version.CURRENT)));
     }
 
     public void testParseCreateField_rejectsNativeEngineWhenDisabled() {
@@ -336,6 +404,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         // The engine attribute is what the codec dispatches the field on at write time
         assertEquals(SparseEngine.DEFAULT.getName(), attributes.get(ENGINE_FIELD));
         assertEquals(SparseForwardIndex.DEFAULT.getName(), attributes.get(FORWARD_INDEX_FIELD));
+        assertEquals(String.valueOf(DEFAULT_CLUSTERING_BATCH_SIZE), attributes.get(CLUSTERING_BATCH_SIZE_FIELD));
     }
 
     public void testSparseTypeParser_withValidInput_returnsBuilder() throws MapperParsingException {
@@ -351,7 +420,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         SparseVectorFieldMapper.Builder result = (SparseVectorFieldMapper.Builder) parser.parse(
             "test_field",
             node,
-            mock(Mapper.TypeParser.ParserContext.class)
+            parserContext(Version.CURRENT)
         );
 
         assertNotNull(result);
@@ -363,7 +432,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         Map<String, Object> node = new HashMap<>();
 
         MapperParsingException exception = expectThrows(MapperParsingException.class, () -> {
-            parser.parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class));
+            parser.parse("test_field", node, parserContext(Version.CURRENT));
         });
         assertTrue(exception.getMessage().contains("requires [method] parameter"));
     }
@@ -377,7 +446,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         node.put("method", method);
 
         NullPointerException exception = expectThrows(NullPointerException.class, () -> {
-            parser.parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class));
+            parser.parse("test_field", node, parserContext(Version.CURRENT));
         });
         assertTrue(exception.getMessage().contains("Cannot invoke \"String.isEmpty()\""));
     }
@@ -389,7 +458,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         node.put("method", method);
 
         MapperParsingException exception = expectThrows(MapperParsingException.class, () -> {
-            parser.parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class));
+            parser.parse("test_field", node, parserContext(Version.CURRENT));
         });
         assertTrue(exception.getMessage().contains("name needs to be set"));
     }
@@ -402,7 +471,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         node.put("method", method);
 
         MapperParsingException exception = expectThrows(MapperParsingException.class, () -> {
-            parser.parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class));
+            parser.parse("test_field", node, parserContext(Version.CURRENT));
         });
         assertTrue(exception.getMessage().contains("is not supported"));
     }
@@ -418,7 +487,7 @@ public class SparseVectorFieldMapperTests extends AbstractSparseTestBase {
         node.put("method", method);
 
         MapperParsingException exception = expectThrows(MapperParsingException.class, () -> {
-            parser.parse("test_field", node, mock(Mapper.TypeParser.ParserContext.class));
+            parser.parse("test_field", node, parserContext(Version.CURRENT));
         });
         assertTrue(exception.getMessage().contains("Validation Failed"));
     }

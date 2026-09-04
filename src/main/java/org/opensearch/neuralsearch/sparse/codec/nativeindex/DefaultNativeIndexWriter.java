@@ -13,26 +13,17 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.store.IndexOutput;
-import org.opensearch.core.common.unit.ByteSizeValue;
+import org.opensearch.monitor.jvm.JvmInfo;
 import org.opensearch.neuralsearch.jni.NativeLibrary;
 import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
-import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.codec.CodecUtils;
 import org.opensearch.neuralsearch.sparse.common.BinaryVectorUtils;
-import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
-import org.opensearch.neuralsearch.sparse.common.SparseFieldUtils;
 import org.opensearch.neuralsearch.sparse.io.IndexOutputWrapper;
-import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
-
-import lombok.Getter;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Builds the native engine file for one sparse field of one segment.
@@ -40,13 +31,27 @@ import java.util.Map;
  * The doc values are streamed into off-heap CSR memory, handed to nsparse in a single
  * {@code insertToIndex} call, and the built index is serialized into the segment's
  * {@link SparseEngine#NATIVE} file. Which nsparse index type gets built is derived from the field
- * mapping, so this is also where the mapping's seismic parameters turn into nsparse ones.
+ * mapping by {@link NativeIndexParameters}.
  *
- * One instance writes one field; both flush and merge go through {@link #writeIndex}.
+ * One instance writes one field; both flush and merge go through {@link #writeIndex}. See
+ * {@link CsrFileNativeIndexWriter} for the variant that stages the vectors in a file instead of in
+ * off-heap memory.
  */
 @Log4j2
 @AllArgsConstructor
 public class DefaultNativeIndexWriter {
+
+    /**
+     * How much this writer batches on-heap before transferring a chunk off-heap.
+     *
+     * 1% of the JVM heap, which is what the removed
+     * {@code plugins.neural_search.sparse.vector_streaming_memory.limit} setting defaulted to -- so
+     * behaviour is unchanged, it is simply no longer tunable. The batch size only sets how often the
+     * transfer happens, not how much off-heap memory the segment ends up holding, so there was little
+     * for an operator to gain by moving it.
+     */
+    private static final long STREAMING_MEMORY_LIMIT_BYTES = JvmInfo.jvmInfo().getMem().getHeapMax().getBytes() / 100;
+
     private final SegmentWriteState state;
     private final FieldInfo fieldInfo;
 
@@ -68,14 +73,14 @@ public class DefaultNativeIndexWriter {
             SparseEngine.NATIVE.extension()
         );
         int totalDoc = state.segmentInfo.maxDoc();
-        ByteSizeValue bytesLimit = SparseSettings.state().getSettingValue(SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT);
+        long bytesLimit = STREAMING_MEMORY_LIMIT_BYTES;
         // The buffer is a resource because streaming transfers vectors off-heap as it goes: if the
         // doc values throw partway, closing it is the only thing that can still free them.
         try (
             IndexOutput output = state.directory.createOutput(engineFileName, state.context);
-            OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(bytesLimit.getBytes())
+            OffHeapSparseVectorsBuffer buffer = new OffHeapSparseVectorsBuffer(bytesLimit)
         ) {
-            WriteBufferResult result = new WriteBufferResult();
+            StreamedVectorsMetadata result = new StreamedVectorsMetadata();
             writeToBuffer(binaryDocValues, result, buffer);
             if (result.getDocIds().isEmpty()) {
                 // No document in this segment has the field, so there is no index to
@@ -84,7 +89,7 @@ public class DefaultNativeIndexWriter {
                 return;
             }
             int dimension = result.getDimension();
-            long indexAddress = NativeLibrary.initIndex(totalDoc, dimension, buildIndexParameters());
+            long indexAddress = NativeLibrary.initIndex(totalDoc, dimension, NativeIndexParameters.build(state, fieldInfo));
             // writeIndex takes ownership of indexAddress and frees it. Until it is
             // reached, nothing else will: an exception from insertToIndex would leak
             // the whole segment's native index, and merges retry on every attempt.
@@ -108,7 +113,7 @@ public class DefaultNativeIndexWriter {
         }
     }
 
-    private void writeToBuffer(BinaryDocValues binaryDocValues, WriteBufferResult result, OffHeapSparseVectorsBuffer buffer)
+    private void writeToBuffer(BinaryDocValues binaryDocValues, StreamedVectorsMetadata result, OffHeapSparseVectorsBuffer buffer)
         throws IOException {
         int docId = binaryDocValues.nextDoc();
         while (docId != DocIdSetIterator.NO_MORE_DOCS) {
@@ -121,68 +126,5 @@ public class DefaultNativeIndexWriter {
             docId = binaryDocValues.nextDoc();
         }
         buffer.flush();
-    }
-
-    /**
-     * Translates the field mapping into the nsparse {@code index_factory} parameter map.
-     *
-     * A field that has not reached the seismic threshold gets a plain inverted index, so a small
-     * segment is not clustered; past it, the layout follows the field's {@code forward_index}.
-     */
-    private Map<String, Object> buildIndexParameters() {
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put("idmap", true);
-        if (PredicateUtils.shouldRunSeisPredicate.test(state.segmentInfo, fieldInfo)) {
-            float clusterRatio = SparseFieldUtils.getClusterRatio(fieldInfo);
-            int maxDoc = state.segmentInfo.maxDoc();
-            int nPostings = SparseFieldUtils.getNPostings(fieldInfo, maxDoc);
-            float summaryPruneRatio = SparseFieldUtils.getSummaryPruneRatio(fieldInfo);
-            // Both layouts quantize to 8-bit codes over the same range, so a given weight is
-            // clamped and rounded identically whichever one the field selects -- and identically
-            // to the JVM path. 8-bit codes cut the engine file from 13.9 to 8.0 GiB on base_full,
-            // and both are mmap-able, so a large segment's posting lists land in reclaimable page
-            // cache rather than on the heap.
-            //
-            // They differ in where the forward vectors live: seismic_sq keeps one contiguous
-            // forward index for the whole field, disk_seismic_sq stores each block's vectors
-            // inline next to the block so a query reads only the blocks it selects.
-            if (SparseFieldUtils.getSparseForwardIndex(fieldInfo) == SparseForwardIndex.PER_BLOCK) {
-                parameters.put("index", "disk_seismic_sq");
-            } else {
-                parameters.put("index", "seismic_sq");
-            }
-            parameters.put("quantizer", "8bit");
-            parameters.put("vmin", 0.0f);
-            parameters.put("vmax", ByteQuantizationUtil.getCeilingValueIngest(fieldInfo));
-            parameters.put("lambda", nPostings);
-            parameters.put("beta", clusterRatio * nPostings);
-            parameters.put("alpha", summaryPruneRatio);
-        } else {
-            parameters.put("index", "inverted");
-        }
-        return parameters;
-    }
-
-    /**
-     * Accumulates metadata detected during {@link #writeToBuffer}, such as
-     * doc IDs and the auto-detected dimension (max token ID + 1).
-     */
-    @Getter
-    private static class WriteBufferResult {
-        private final List<Integer> docIds = new ArrayList<>();
-        private int maxTokenId = 0;
-
-        void updateMaxTokenId(List<Integer> tokens) {
-            if (!tokens.isEmpty()) {
-                // Doc-value tokens are stored in parser order, not sorted, so the last
-                // element is not the largest. Undersizing the dimension here makes
-                // nsparse reject the segment with "term_id out of range".
-                maxTokenId = Math.max(maxTokenId, Collections.max(tokens));
-            }
-        }
-
-        int getDimension() {
-            return maxTokenId + 1;
-        }
     }
 }

@@ -9,7 +9,6 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
-import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.neuralsearch.sparse.algorithm.ClusterTrainingExecutor;
 
 import java.util.List;
@@ -23,7 +22,6 @@ import static org.opensearch.common.settings.Setting.Property.UnmodifiableOnRest
  */
 public class SparseSettings {
     public static final String SPARSE_INDEX = "index.sparse";
-    public static final String SPARSE_VECTOR_STREAMING_MEMORY_LIMIT = "plugins.neural_search.sparse.vector_streaming_memory.limit";
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "plugins.neural_search.sparse.algo_param.index_thread_qty";
     public static final String SPARSE_NATIVE_ENGINE_FEATURE_ENABLED = "plugins.neural_search.sparse.native_engine_feature_enabled";
     public static final String SPARSE_NATIVE_ENGINE_ENABLED = "plugins.neural_search.sparse.native_engine_enabled";
@@ -38,8 +36,6 @@ public class SparseSettings {
     public static final int DEFAULT_INDEX_THREAD_QTY = 1; // Choosing 1 as default value to protect safety
     public static final int MINIMUM_INDEX_THREAD_QTY = 1;
     public static final int MAXIMUM_INDEX_THREAD_QTY = 1024;
-
-    private static final String SPARSE_DEFAULT_VECTOR_STREAMING_MEMORY_LIMIT = "1%";
 
     private static SparseSettings INSTANCE;
     private ClusterService clusterService;
@@ -99,10 +95,6 @@ public class SparseSettings {
             });
     }
 
-    public static ByteSizeValue getSparseVectorStreamingMemoryLimit() {
-        return SparseSettings.state().getSettingValue(SPARSE_VECTOR_STREAMING_MEMORY_LIMIT);
-    }
-
     /**
      * Current value of a sparse setting, or its default on a node that never called
      * {@link #initialize}. There is no cluster state to read before then, and every caller wants the
@@ -120,16 +112,13 @@ public class SparseSettings {
         return List.of(
             SparseSettings.IS_SPARSE_INDEX_SETTING,
             SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
-            SparseSettings.SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING,
             SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
             SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING
         );
     }
 
     private Setting<?> getSetting(String key) {
-        if (SPARSE_VECTOR_STREAMING_MEMORY_LIMIT.equals(key)) {
-            return SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING;
-        } else if (SPARSE_ALGO_PARAM_INDEX_THREAD_QTY.equals(key)) {
+        if (SPARSE_ALGO_PARAM_INDEX_THREAD_QTY.equals(key)) {
             return SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING;
         } else if (SPARSE_NATIVE_ENGINE_FEATURE_ENABLED.equals(key)) {
             return SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING;
@@ -182,12 +171,4 @@ public class SparseSettings {
         Setting.Property.Dynamic
     );
 
-    // This setting controls how much memory should be used to transfer vectors from Java to JNI Layer. The default
-    // 1% of the JVM heap
-    public static final Setting<ByteSizeValue> SPARSE_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING = Setting.memorySizeSetting(
-        SPARSE_VECTOR_STREAMING_MEMORY_LIMIT,
-        SPARSE_DEFAULT_VECTOR_STREAMING_MEMORY_LIMIT,
-        Setting.Property.Dynamic,
-        Setting.Property.NodeScope
-    );
 }

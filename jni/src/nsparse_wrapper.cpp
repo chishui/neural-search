@@ -21,6 +21,7 @@
 #include "jni_util.h"
 #include "nsparse/disk_seismic_index.h"
 #include "nsparse/disk_seismic_scalar_quantized_index.h"
+#include "nsparse/id_map_index.h"
 #include "nsparse/id_selector.h"
 #include "nsparse/index.h"
 #include "nsparse/index_factory.h"
@@ -79,6 +80,8 @@ bool jobject_to_bool(JNIEnv* env, jobject obj) {
  *   "lambda"    -> Number  (int)
  *   "beta"      -> Number  (float -> int)
  *   "alpha"     -> Number  (float)
+ *   "inverted_list_batch_size" -> Number (int)
+ *   "batch_file_output_path"   -> String
  *
  * Produces e.g.:
  * "idmap,seismic_sq,quantizer=8bit|vmin=0.0|vmax=1.0|lambda=10|beta=5|alpha=0.4"
@@ -133,6 +136,18 @@ std::string buildDescription(const std::map<std::string, jobject>& params,
     it = params.find("alpha");
     if (it != params.end()) {
         appendParam("alpha", std::to_string(jobject_to_float(env, it->second)));
+    }
+    // A window count and the directory to spill each window into. index_factory
+    // ignores either without the other, so both are forwarded or neither is.
+    it = params.find("inverted_list_batch_size");
+    if (it != params.end()) {
+        appendParam("inverted_list_batch_size",
+                    std::to_string(jobject_to_int(env, it->second)));
+    }
+    it = params.find("batch_file_output_path");
+    if (it != params.end()) {
+        appendParam("batch_file_output_path",
+                    jstring_to_string(env, it->second));
     }
 
     if (!paramStr.empty()) {
@@ -305,6 +320,31 @@ void insertToIndex(int64_t indexAddress, const int32_t* ids, int numIds,
                         reinterpret_cast<const nsparse::idx_t*>(ids));
 
     index->build();
+}
+
+void readCsrAndIdsToIndex(int64_t indexAddress, const std::string& csrPath,
+                          const std::string& idPath, int threadCount) {
+    auto* idMapIndex =
+        dynamic_cast<nsparse::IDMapIndex*>(
+            reinterpret_cast<nsparse::Index*>(indexAddress));
+    // read_csr_and_ids lives on IDMapIndex rather than on Index, because the
+    // row-to-doc-id map it reads has nowhere to go without one.
+    if (idMapIndex == nullptr) {
+        throw std::invalid_argument(
+            "building from a CSR file requires an idmap index");
+    }
+
+    omp_set_num_threads(threadCount);
+    // Mapped, not copied: the vectors stay borrowed from csrPath until the index
+    // is freed, so the caller has to keep the file alive across writeIndex.
+    //
+    // read_csr_and_ids validates the id file before it lets the delegate touch
+    // the CSR, and cross-checks the two row counts afterwards, so a mismatch
+    // throws here rather than mis-mapping doc ids at search time. It does not
+    // build, unlike add_with_ids.
+    idMapIndex->read_csr_and_ids(csrPath.c_str(), idPath.c_str(),
+                                 nsparse::Residency::kMmap);
+    idMapIndex->build();
 }
 
 /**

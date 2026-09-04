@@ -153,6 +153,20 @@ Java_org_opensearch_neuralsearch_jni_NativeLibrary_insertToIndex(
 }
 
 JNIEXPORT void JNICALL
+Java_org_opensearch_neuralsearch_jni_NativeLibrary_readCsrAndIdsToIndex(
+    JNIEnv* env, jclass cls, jlong indexAddress, jstring csrPath,
+    jstring idPath, jint threadCount) {
+    try {
+        std::string csr = neural_search_jni::ScopedStringChars(env, csrPath).toString();
+        std::string ids = neural_search_jni::ScopedStringChars(env, idPath).toString();
+        neural_search_jni::nsparse_wrapper::readCsrAndIdsToIndex(
+            indexAddress, csr, ids, threadCount);
+    } catch (...) {
+        neural_search_jni::CatchCppExceptionAndThrowJava(env);
+    }
+}
+
+JNIEXPORT void JNICALL
 Java_org_opensearch_neuralsearch_jni_NativeLibrary_writeIndex(
     JNIEnv* env, jclass cls, jlong indexAddress, jobject output) {
     try {

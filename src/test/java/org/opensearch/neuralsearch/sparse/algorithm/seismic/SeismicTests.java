@@ -10,8 +10,13 @@ import java.util.Map;
 
 import org.opensearch.common.ValidationException;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.mapper.SparseMethodContext;
 
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.CLUSTERING_BATCH_SIZE_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.FORWARD_INDEX_FIELD;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.MAX_CLUSTERING_BATCH_SIZE;
+import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.MIN_CLUSTERING_BATCH_SIZE;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.SUMMARY_PRUNE_RATIO_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.N_POSTINGS_FIELD;
 import static org.opensearch.neuralsearch.sparse.common.SparseConstants.QUANTIZATION_CEILING_INGEST_FIELD;
@@ -431,6 +436,65 @@ public class SeismicTests extends AbstractSparseTestBase {
                         Float.class.getName()
                     )
                 )
+        );
+    }
+
+    // ---- forward index ----
+
+    public void testValidateMethod_validForwardIndex() {
+        assertNull(validate(Map.of(FORWARD_INDEX_FIELD, SparseForwardIndex.PER_BLOCK.getName())));
+    }
+
+    public void testValidateMethod_invalidForwardIndex() {
+        ValidationException result = validate(Map.of(FORWARD_INDEX_FIELD, "not_a_forward_index"));
+
+        assertNotNull(result);
+        assertTrue(
+            result.validationErrors()
+                .contains(
+                    String.format(Locale.ROOT, "Parameter [%s] must be one of [%s]", FORWARD_INDEX_FIELD, SparseForwardIndex.validNames())
+                )
+        );
+    }
+
+    // ---- clustering batch size ----
+
+    public void testValidateMethod_validClusteringBatchSize() {
+        assertNull(validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, MAX_CLUSTERING_BATCH_SIZE)));
+        assertNull(validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, MIN_CLUSTERING_BATCH_SIZE)));
+        assertNull(validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, "64")));
+    }
+
+    public void testValidateMethod_clusteringBatchSizeBelowRange() {
+        assertTrue(validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, 0)).validationErrors().contains(outOfRangeBatchSizeError()));
+    }
+
+    public void testValidateMethod_clusteringBatchSizeAboveRange() {
+        assertTrue(
+            validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, MAX_CLUSTERING_BATCH_SIZE + 1)).validationErrors()
+                .contains(outOfRangeBatchSizeError())
+        );
+    }
+
+    public void testValidateMethod_clusteringBatchSizeMustBeAnInteger() {
+        String expectedError = String.format(
+            Locale.ROOT,
+            "Parameter [%s] must be of %s type",
+            CLUSTERING_BATCH_SIZE_FIELD,
+            Integer.class.getName()
+        );
+
+        assertTrue(validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, "not_an_integer")).validationErrors().contains(expectedError));
+        assertTrue(validate(Map.of(CLUSTERING_BATCH_SIZE_FIELD, 1.5f)).validationErrors().contains(expectedError));
+    }
+
+    private String outOfRangeBatchSizeError() {
+        return String.format(
+            Locale.ROOT,
+            "Parameter [%s] must be in [%d, %d]",
+            CLUSTERING_BATCH_SIZE_FIELD,
+            MIN_CLUSTERING_BATCH_SIZE,
+            MAX_CLUSTERING_BATCH_SIZE
         );
     }
 

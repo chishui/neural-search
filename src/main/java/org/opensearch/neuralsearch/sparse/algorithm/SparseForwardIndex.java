@@ -5,6 +5,7 @@
 package org.opensearch.neuralsearch.sparse.algorithm;
 
 import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * How the native engine lays out the per-document forward vectors a seismic index scores
@@ -34,6 +35,11 @@ public enum SparseForwardIndex {
 
     public static SparseForwardIndex fromName(String name) {
         return Arrays.stream(values()).filter(f -> f.name.equalsIgnoreCase(name)).findFirst().orElse(null);
+    }
+
+    /** The accepted values, for a validation error message. */
+    public static String validNames() {
+        return Arrays.stream(values()).map(SparseForwardIndex::getName).collect(Collectors.joining(", "));
     }
 
     public static final SparseForwardIndex DEFAULT = SHARED;

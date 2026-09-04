@@ -8,9 +8,6 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.store.FilterDirectory;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.opensearch.neuralsearch.jni.NativeLibrary;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
@@ -131,10 +128,6 @@ public final class SegmentNativeIndex implements Closeable {
         if (engineFiles.isEmpty()) {
             throw new IOException("No native engine file for field [" + fieldName + "] in segment [" + segmentInfo.name + "]");
         }
-        Directory unwrapped = FilterDirectory.unwrap(segmentInfo.dir);
-        if (unwrapped instanceof FSDirectory fsDirectory) {
-            return fsDirectory.getDirectory().resolve(engineFiles.get(0)).toString();
-        }
-        throw new IOException("Cannot resolve a filesystem path from directory type: " + segmentInfo.dir.getClass().getName());
+        return CodecUtils.resolveFilePath(segmentInfo.dir, engineFiles.get(0));
     }
 }
