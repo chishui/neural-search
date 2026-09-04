@@ -27,6 +27,12 @@ import java.util.stream.Collectors;
  * {@code .nsparse} file is copied to a {@code .nsparsec} sibling and removed from the segment's
  * file set, leaving a standalone file for the native side; {@link SparseCompoundDirectory} routes
  * reads of those names back to the real directory. Everything else is the delegate's.
+ *
+ * The copy source is not deleted here, and does not leak: both callers snapshot the segment's file
+ * set before invoking this and delete it afterwards -- {@code DocumentsWriterPerThread
+ * .sealFlushedSegment} on flush, {@code IndexWriter.mergeMiddle} on merge. Rebinding the set via
+ * {@code setFiles} below leaves those snapshots holding the {@code .nsparse} name, so Lucene removes
+ * it once the compound file is written.
  */
 @AllArgsConstructor
 public class SparseCompoundFormat extends CompoundFormat {

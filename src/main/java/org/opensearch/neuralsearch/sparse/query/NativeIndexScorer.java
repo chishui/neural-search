@@ -41,12 +41,13 @@ import static org.opensearch.neuralsearch.sparse.common.SparseConstants.Seismic.
 /**
  * Scores one segment against the native engine index.
  *
- * nsparse has no cursor: the whole top-k comes back from a single {@code queryIndex} call in the
+ * nsparse has no cursor: the whole top-k comes back from a {@code queryIndex} call in the
  * constructor, and this scorer then just replays those hits in doc order. So unlike the Lucene
  * path, k is decided before iteration and the collector cannot make the query stop early.
  *
  * Filters are passed down as a candidate set for nsparse to restrict its search to; deletions are
- * not, and are dropped from the returned hits instead.
+ * not, and are dropped from the returned hits instead -- which can leave the fetch short of k and
+ * send it back to nsparse with a larger one.
  */
 @Log4j2
 public class NativeIndexScorer extends Scorer {
@@ -111,7 +112,6 @@ public class NativeIndexScorer extends Scorer {
         int[] tokens = Ints.toArray(rawQueryVector.keySet());
         float[] weights = Floats.toArray(rawQueryVector.values());
         Map<String, Object> searchParameters = buildSearchParameters(sparseQueryContext, segmentInfo, fieldInfo);
-        SparseQueryResult[] results;
 
         StopWatch loadIndexStopWatch = StopWatch.createStarted();
         try (SegmentNativeIndex nativeIndex = SegmentNativeIndex.open(leafReader, segmentInfo, fieldInfo.getName())) {
@@ -126,36 +126,65 @@ public class NativeIndexScorer extends Scorer {
             // skips deleted docs while traversing postings instead, so drop them from the results below.
             final long[] docsIds = filterBitSetIterator == null ? null : constructFilterList(acceptedDocs, filterBitSetIterator);
             final boolean maskDeletedDocs = docsIds == null && acceptedDocs != null;
-            // Deleted hits are dropped after the fact, so ask for enough of them that they cannot eat
-            // into the k results the caller wanted. Capped at maxDoc, which already covers every doc.
-            final int fetchSize = maskDeletedDocs ? Math.min(segmentInfo.maxDoc(), resultSize + leafReader.numDeletedDocs()) : resultSize;
+            // maxDoc covers every doc in the segment, so no fetch can usefully ask for more.
+            final int maxFetchSize = segmentInfo.maxDoc();
 
-            if (docsIds == null) {
-                results = NativeLibrary.queryIndex(indexAddress, tokens, weights, fetchSize, searchParameters);
-            } else {
-                results = NativeLibrary.queryIndexWithFilter(
-                    indexAddress,
-                    tokens,
-                    weights,
-                    fetchSize,
-                    searchParameters,
-                    docsIds,
-                    FILTER_IDS_TYPE_SET
-                );
-            }
-            Stream<Pair<Integer, Float>> hits = Arrays.stream(results).map(r -> Pair.of(r.getId(), r.getScore()));
-            if (maskDeletedDocs) {
-                hits = hits.filter(hit -> acceptedDocs.get(hit.getLeft())).limit(resultSize);
+            // Deleted hits are dropped after the fact, so a fetch of exactly k can come back short.
+            // Grow and retry rather than budget for every deletion upfront: numDeletedDocs() is
+            // segment-wide, so k + numDeletedDocs() turns a k=10 query on a segment with 10K deletions
+            // into a top-10010 -- and in seismic a larger k also raises the heap's admission threshold
+            // more slowly, so it visits far more blocks. Deletions rarely reach the top k, so the common
+            // case pays exactly k and the loop runs once.
+            int fetchSize = maskDeletedDocs ? Math.min(resultSize, maxFetchSize) : resultSize;
+            List<Pair<Integer, Float>> hits;
+            while (true) {
+                SparseQueryResult[] results = queryNative(indexAddress, tokens, weights, fetchSize, searchParameters, docsIds);
+                Stream<Pair<Integer, Float>> stream = Arrays.stream(results).map(r -> Pair.of(r.getId(), r.getScore()));
+                if (maskDeletedDocs) {
+                    stream = stream.filter(hit -> acceptedDocs.get(hit.getLeft())).limit(resultSize);
+                }
+                hits = stream.toList();
+                // A short result set means nsparse had nothing more to give at this fetch size, so a
+                // bigger one cannot fill the gap either.
+                if (maskDeletedDocs == false || hits.size() >= resultSize || results.length < fetchSize || fetchSize >= maxFetchSize) {
+                    break;
+                }
+                fetchSize = nextFetchSize(fetchSize, hits.size(), resultSize, maxFetchSize);
             }
             // nsparse returns hits in score order, but a DocIdSetIterator must walk doc IDs in ascending
             // order. Emitting them by score trips a Lucene assertion as soon as the scorer is wrapped in
             // a conjunction -- a nested query does that, and the assertion kills the node. The score order
             // has to survive until after the limit above, which keeps the k best rather than k arbitrary.
-            return hits.sorted(Comparator.comparingInt(Pair::getLeft)).toList();
+            return hits.stream().sorted(Comparator.comparingInt(Pair::getLeft)).toList();
         } catch (Exception e) {
             log.error("search parameters: {}", searchParameters);
             throw e;
         }
+    }
+
+    private SparseQueryResult[] queryNative(
+        long indexAddress,
+        int[] tokens,
+        float[] weights,
+        int fetchSize,
+        Map<String, Object> searchParameters,
+        long[] docsIds
+    ) {
+        if (docsIds == null) {
+            return NativeLibrary.queryIndex(indexAddress, tokens, weights, fetchSize, searchParameters);
+        }
+        return NativeLibrary.queryIndexWithFilter(indexAddress, tokens, weights, fetchSize, searchParameters, docsIds, FILTER_IDS_TYPE_SET);
+    }
+
+    /**
+     * Grows the fetch to at least what the surviving fraction implies is needed, so a segment whose top
+     * hits are mostly deleted converges in a call or two instead of doubling from k up to maxDoc.
+     * Doubling is the floor, which keeps the growth geometric when nothing survived to extrapolate from.
+     */
+    private static int nextFetchSize(int fetchSize, int survivors, int resultSize, int maxFetchSize) {
+        long doubled = (long) fetchSize * 2;
+        long projected = survivors == 0 ? doubled : (long) Math.ceil((double) fetchSize * resultSize / survivors);
+        return (int) Math.min(maxFetchSize, Math.max(doubled, projected));
     }
 
     private long[] constructFilterList(Bits acceptedDocs, BitSetIterator filterBitSetIterator) throws IOException {

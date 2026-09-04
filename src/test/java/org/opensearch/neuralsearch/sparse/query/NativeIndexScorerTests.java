@@ -159,13 +159,43 @@ public class NativeIndexScorerTests extends AbstractSparseTestBase {
         FixedBitSet live = new FixedBitSet(DOC_COUNT);
         live.set(0, DOC_COUNT);
         live.clear(DOC_COUNT - 1);
-        when(leafReader.numDeletedDocs()).thenReturn(1);
 
         List<Integer> docs = drain(scorer(2, live, null, 1.0f));
 
-        // The top scorer is deleted; asking for extra hits keeps k intact rather than returning one
+        // The top scorer is deleted; refetching keeps k intact rather than returning one
         assertFalse("the deleted doc must not be returned", docs.contains(DOC_COUNT - 1));
         assertEquals(2, docs.size());
+    }
+
+    /**
+     * The fetch starts at k and grows only when deleted hits ate into it, so a top-k that is entirely
+     * deleted has to come back from a second, larger call -- a single fetch of k would return nothing.
+     */
+    @SneakyThrows
+    public void testFetchGrowsWhenTheWholeTopKIsDeleted() {
+        FixedBitSet live = new FixedBitSet(DOC_COUNT);
+        live.set(0, DOC_COUNT);
+        live.clear(DOC_COUNT - 1);
+        live.clear(DOC_COUNT - 2);
+
+        List<Integer> docs = drain(scorer(2, live, null, 1.0f));
+
+        assertEquals("the best two live docs, not the best two docs", List.of(2, 3), docs);
+    }
+
+    /**
+     * Growth is capped at maxDoc: once the whole segment has been fetched there is nothing left to ask
+     * for, so a k that cannot be filled has to end the retries rather than spin.
+     */
+    @SneakyThrows
+    public void testFetchStopsGrowingWhenTooFewDocsAreLive() {
+        FixedBitSet live = new FixedBitSet(DOC_COUNT);
+        live.set(0);
+        live.set(1);
+
+        List<Integer> docs = drain(scorer(DOC_COUNT, live, null, 1.0f));
+
+        assertEquals(List.of(0, 1), docs);
     }
 
     @SneakyThrows
