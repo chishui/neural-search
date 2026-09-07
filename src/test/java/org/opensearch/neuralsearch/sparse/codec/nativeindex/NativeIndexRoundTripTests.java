@@ -324,6 +324,7 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         );
 
         // Same segment, same file name, so the streamed one has to go before the staged one is written
+        freeLoadedIndex(streamed);
         directory.deleteFile(engineFileName());
         assertTrue("the CSR writer should take a quantized field", CsrFileNativeIndexWriter.supports(writeState(fieldInfo)));
         new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
@@ -349,6 +350,7 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         long streamed = writeAndLoad(fieldInfo, vectors);
         SparseQueryResult[] fromStreaming = NativeLibrary.queryIndex(streamed, new int[] { 7 }, new float[] { 1.0f }, 5, parameters);
 
+        freeLoadedIndex(streamed);
         directory.deleteFile(engineFileName());
         new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
         long staged = NativeLibrary.loadIndex(CodecUtils.resolveFilePath(directory, engineFileName()));
@@ -386,6 +388,7 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         long streamed = writeAndLoad(fieldInfo, vectors);
         SparseQueryResult[] fromStreaming = NativeLibrary.queryIndex(streamed, new int[] { 7 }, new float[] { 1.0f }, 5, new HashMap<>());
 
+        freeLoadedIndex(streamed);
         directory.deleteFile(engineFileName());
         assertTrue("the CSR writer should take a sub-threshold field", CsrFileNativeIndexWriter.supports(writeState(fieldInfo)));
         new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
@@ -423,6 +426,7 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
             searchParameters()
         );
 
+        freeLoadedIndex(streamed);
         directory.deleteFile(engineFileName());
         new CsrFileNativeIndexWriter(writeState(fieldInfo), fieldInfo).writeIndex(docValues(vectors));
         long staged = NativeLibrary.loadIndex(CodecUtils.resolveFilePath(directory, engineFileName()));
@@ -452,6 +456,19 @@ public class NativeIndexRoundTripTests extends AbstractSparseTestBase {
         long address = NativeLibrary.loadIndex(path);
         loadedIndexes.add(address);
         return address;
+    }
+
+    /**
+     * Frees an index and drops it from the teardown list, so nothing is freed twice.
+     *
+     * Has to happen before the file it was loaded from is deleted. nsparse keeps the engine file
+     * mapped for the life of the index, and Windows refuses to delete a mapped file -- FSDirectory
+     * only records the name as pending, so the delete looks like it worked and createOutput for the
+     * same name then fails with FileAlreadyExistsException.
+     */
+    private void freeLoadedIndex(long address) {
+        NativeLibrary.freeIndex(address);
+        loadedIndexes.remove(Long.valueOf(address));
     }
 
     private String engineFileName() {
