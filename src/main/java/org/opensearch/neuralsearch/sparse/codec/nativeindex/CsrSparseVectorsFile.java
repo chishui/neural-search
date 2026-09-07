@@ -9,7 +9,7 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.ArrayUtil;
-import org.apache.lucene.util.IOUtils;
+import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.codec.CodecUtils;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 
@@ -249,12 +249,12 @@ class CsrSparseVectorsFile implements Closeable {
         } finally {
             if (success == false) {
                 IOUtils.closeWhileHandlingException(csrOutput);
-                IOUtils.deleteFilesIgnoringExceptions(directory, csrName);
+                deleteFilesIgnoringExceptions(directory, csrName);
             }
             // Deleted through the directory, not the filesystem: on flush and merge alike this is a
             // TrackingDirectoryWrapper whose created-file set becomes segmentInfo.files(), and only
             // its own deleteFile takes a name back out of that set.
-            IOUtils.deleteFilesIgnoringExceptions(directory, indicesName, valuesName);
+            deleteFilesIgnoringExceptions(directory, indicesName, valuesName);
         }
         csrFileName = csrName;
     }
@@ -273,7 +273,7 @@ class CsrSparseVectorsFile implements Closeable {
         } finally {
             if (success == false) {
                 IOUtils.closeWhileHandlingException(idOutput);
-                IOUtils.deleteFilesIgnoringExceptions(directory, idName);
+                deleteFilesIgnoringExceptions(directory, idName);
             }
         }
         idFileName = idName;
@@ -324,20 +324,35 @@ class CsrSparseVectorsFile implements Closeable {
     public void close() {
         IOUtils.closeWhileHandlingException(indicesScratch, valuesScratch);
         if (indicesScratch != null) {
-            IOUtils.deleteFilesIgnoringExceptions(directory, indicesScratch.getName());
+            deleteFilesIgnoringExceptions(directory, indicesScratch.getName());
             indicesScratch = null;
         }
         if (valuesScratch != null) {
-            IOUtils.deleteFilesIgnoringExceptions(directory, valuesScratch.getName());
+            deleteFilesIgnoringExceptions(directory, valuesScratch.getName());
             valuesScratch = null;
         }
         if (csrFileName != null) {
-            IOUtils.deleteFilesIgnoringExceptions(directory, csrFileName);
+            deleteFilesIgnoringExceptions(directory, csrFileName);
             csrFileName = null;
         }
         if (idFileName != null) {
-            IOUtils.deleteFilesIgnoringExceptions(directory, idFileName);
+            deleteFilesIgnoringExceptions(directory, idFileName);
             idFileName = null;
+        }
+    }
+
+    /**
+     * Deletes each name through the directory, ignoring failures, for the cleanup paths that are
+     * already unwinding an earlier error.
+     *
+     * Local because {@link IOUtils} only deletes by {@link java.nio.file.Path}, and these files have
+     * to go back through the directory that created them -- see {@link #writeCsrFile}.
+     */
+    private static void deleteFilesIgnoringExceptions(Directory directory, String... names) {
+        for (String name : names) {
+            try {
+                directory.deleteFile(name);
+            } catch (Exception ignored) {}
         }
     }
 }
