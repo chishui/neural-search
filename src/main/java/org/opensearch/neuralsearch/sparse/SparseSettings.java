@@ -26,6 +26,8 @@ public class SparseSettings {
     public static final String SPARSE_ALGO_PARAM_INDEX_THREAD_QTY = "plugins.neural_search.sparse.algo_param.index_thread_qty";
     public static final String SPARSE_NATIVE_ENGINE_FEATURE_ENABLED = "plugins.neural_search.sparse.native_engine_feature_enabled";
     public static final String SPARSE_NATIVE_ENGINE_ENABLED = "plugins.neural_search.sparse.native_engine_enabled";
+    public static final String SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED =
+        "plugins.neural_search.sparse.native_engine_index_input_search_enabled";
 
     /** Shared reason string, so every gate rejects with the same wording. */
     public static final String NATIVE_ENGINE_DISABLED_REASON = "the native sparse engine is disabled: both ["
@@ -115,6 +117,18 @@ public class SparseSettings {
         return null;
     }
 
+    /**
+     * Whether a {@code per_block} native field should be searched by reading its engine file through a
+     * Lucene {@code IndexInput} instead of having nsparse map it.
+     *
+     * <p>Off by default, so the native path stays the default where it works. It is not the only way
+     * that reader gets used: a directory from which no filesystem path can be resolved leaves the
+     * native path nothing to map, and the query falls back to the reader whatever this says.
+     */
+    public boolean isIndexInputSearchEnabled() {
+        return Boolean.TRUE.equals(getSettingValue(SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED));
+    }
+
     private void registerSettingsCallbacks(ClusterService clusterService, Settings settings) {
         // Initialize with current values since addSettingsUpdateConsumer only fires on updates
         int initialThreadQty = SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING.get(clusterService.getSettings());
@@ -146,7 +160,8 @@ public class SparseSettings {
             SparseSettings.IS_SPARSE_INDEX_SETTING,
             SparseSettings.SPARSE_ALGO_PARAM_INDEX_THREAD_QTY_SETTING,
             SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING,
-            SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING
+            SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING,
+            SparseSettings.SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED_SETTING
         );
     }
 
@@ -157,6 +172,8 @@ public class SparseSettings {
             return SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING;
         } else if (SPARSE_NATIVE_ENGINE_ENABLED.equals(key)) {
             return SPARSE_NATIVE_ENGINE_ENABLED_SETTING;
+        } else if (SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED.equals(key)) {
+            return SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED_SETTING;
         }
 
         throw new IllegalArgumentException("Cannot find setting by key [" + key + "]");
@@ -190,6 +207,19 @@ public class SparseSettings {
      */
     public static final Setting<Boolean> SPARSE_NATIVE_ENGINE_ENABLED_SETTING = Setting.boolSetting(
         SPARSE_NATIVE_ENGINE_ENABLED,
+        false,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
+
+    /**
+     * Searches a {@code per_block} native field by parsing its engine file through a Lucene
+     * {@code IndexInput} rather than by having nsparse map it. Defaults to false: the native path is
+     * what ships, and this is for a store the native path cannot map -- or for comparing the two on a
+     * node where it can.
+     */
+    public static final Setting<Boolean> SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED_SETTING = Setting.boolSetting(
+        SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED,
         false,
         Setting.Property.NodeScope,
         Setting.Property.Dynamic

@@ -198,8 +198,14 @@ public class SparseSettingsTests extends AbstractSparseTestBase {
     public void testGetSettingsListsEverySparseSetting() {
         // An unlisted setting is unregistered at node start, and reading one then throws rather than
         // falling back to its default -- so the list, not the field count, is what has to be complete.
-        assertEquals(4, SparseSettings.state().getSettings().size());
+        assertEquals(5, SparseSettings.state().getSettings().size());
         assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_ENABLED_SETTING));
         assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_FEATURE_ENABLED_SETTING));
+        assertTrue(SparseSettings.state().getSettings().contains(SparseSettings.SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED_SETTING));
+    }
+
+    /** Off until an operator asks for it, so the native path is what a node searches with by default. */
+    public void testIndexInputSearchIsOffByDefault() {
+        assertFalse(SparseSettings.state().isIndexInputSearchEnabled());
     }
 }

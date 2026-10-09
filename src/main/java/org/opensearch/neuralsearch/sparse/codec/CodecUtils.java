@@ -90,6 +90,22 @@ public class CodecUtils {
     }
 
     /**
+     * Whether {@link #resolveDirectoryPath} can serve this directory, without paying an exception to
+     * find out. Asked per query on the read path, so the answer has to be cheap.
+     *
+     * <p>A true here means only that a path exists, not that the file at that path is the index: a
+     * directory that decrypts in {@code openInput} can still be an {@link FSDirectory} underneath, and
+     * mapping its bytes would map ciphertext. So this rules the native path out, it does not rule it
+     * in.
+     *
+     * @param directory the directory to test
+     * @return true if a filesystem path can be resolved from it
+     */
+    public static boolean isFileSystemBacked(Directory directory) {
+        return FilterDirectory.unwrap(directory) instanceof FSDirectory;
+    }
+
+    /**
      * The filesystem path of one file in a {@link Directory}. The file is not required to exist.
      *
      * @param directory the directory holding the file

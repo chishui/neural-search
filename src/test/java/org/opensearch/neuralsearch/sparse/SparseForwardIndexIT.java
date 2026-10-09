@@ -138,6 +138,47 @@ public class SparseForwardIndexIT extends SparseBaseIT {
     }
 
     /**
+     * The same per_block index searched both ways: nsparse mapping the engine file, and the plugin
+     * reading it through a Lucene {@code IndexInput}. Same hits, same scores -- the reader exists so a
+     * store the native path cannot map can still be searched, not so it can answer differently.
+     *
+     * <p>End to end because the unit-level parity test cannot see the parts that only exist in a
+     * cluster: that the setting is registered and read live, and that
+     * {@code SparseQueryWeight#selectScorer} routes a per_block segment on it.
+     */
+    public void testPerBlockSearchThroughIndexInputMatchesTheNativePath() throws Exception {
+        int docCount = 500;
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, SparseForwardIndex.PER_BLOCK, docCount, 0.4f, 0.1f, docCount);
+        ingestDocumentsAndForceMergeForSingleShard(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            prepareIngestDocuments(docCount)
+        );
+
+        NeuralSparseQueryBuilder queryBuilder = getNeuralSparseQueryBuilder(
+            TEST_SPARSE_FIELD_NAME,
+            2,
+            1.0f,
+            10,
+            Map.of("1000", 1.0f, "2000", 0.5f)
+        );
+        Map<String, Object> nativeResults = search(TEST_INDEX_NAME, queryBuilder, 10);
+        assertFalse("the query has to match something, or the comparison is vacuous", getDocIDs(nativeResults).isEmpty());
+
+        try {
+            updateClusterSettings(SparseSettings.SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED, true);
+
+            Map<String, Object> indexInputResults = search(TEST_INDEX_NAME, queryBuilder, 10);
+
+            assertEquals(getDocIDs(nativeResults), getDocIDs(indexInputResults));
+            assertEquals(getNormalizationScoreList(nativeResults), getNormalizationScoreList(indexInputResults));
+        } finally {
+            updateClusterSettings(SparseSettings.SPARSE_NATIVE_ENGINE_INDEX_INPUT_SEARCH_ENABLED, false);
+        }
+    }
+
+    /**
      * per_block does not prune with a relative threshold: it scores the globally best k' block
      * summaries and reads exactly those, so {@code NativeIndexScorer} converts heap_factor into k'
      * through {@code DiskSeismicKPrime} (20 blocks at 1.0, 120 at 2.0). k' bounds how many documents

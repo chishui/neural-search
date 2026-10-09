@@ -25,10 +25,13 @@ import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.opensearch.common.lucene.Lucene;
+import org.opensearch.neuralsearch.sparse.SparseSettings;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorForwardIndex;
 import org.opensearch.neuralsearch.sparse.accessor.SparseVectorReader;
 import org.opensearch.neuralsearch.sparse.algorithm.SparseEngine;
+import org.opensearch.neuralsearch.sparse.algorithm.SparseForwardIndex;
 import org.opensearch.neuralsearch.sparse.cache.CacheGatedForwardIndexReader;
+import org.opensearch.neuralsearch.sparse.codec.CodecUtils;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCache;
 import org.opensearch.neuralsearch.sparse.cache.ForwardIndexCacheItem;
@@ -186,6 +189,18 @@ public class SparseQueryWeight extends Weight {
             }
         }
         if (SparseEngine.NATIVE == SparseFieldUtils.getSparseEngine(fieldInfo)) {
+            if (shouldSearchThroughIndexInput(fieldInfo, segmentInfo)) {
+                return new DiskSeismicSqScorer(
+                    fieldInfo,
+                    query.getQueryContext(),
+                    query.getRawQueryTokens(),
+                    context.reader(),
+                    segmentInfo,
+                    context.reader().getLiveDocs(),
+                    filterBitIterator,
+                    boost
+                );
+            }
             return new NativeIndexScorer(
                 fieldInfo,
                 query.getQueryContext(),
@@ -221,6 +236,32 @@ public class SparseQueryWeight extends Weight {
             simScorer,
             filterBitIterator
         );
+    }
+
+    /**
+     * Whether this segment's native engine file should be searched through an {@link
+     * org.apache.lucene.store.IndexInput} instead of by nsparse mapping it.
+     *
+     * <p>Only where the file actually holds a {@code disk_seismic_sq} index, which is a
+     * {@code per_block} field at or above its approximate threshold -- below it the writer builds an
+     * nsparse {@code inverted} index, which {@link DiskSeismicSqScorer} does not parse.
+     *
+     * <p>Then either because an operator asked for it, or because the native path has nothing to map:
+     * a store with no resolvable filesystem path leaves nsparse no way to load the index at all, so the
+     * fallback turns a failing query into a working one. Note the converse is not covered -- a store
+     * whose bytes at that path are not the plaintext index (an encrypting directory that is still an
+     * {@code FSDirectory} underneath) resolves a path and takes the native path, which is what the
+     * setting is for.
+     */
+    @VisibleForTesting
+    static boolean shouldSearchThroughIndexInput(FieldInfo fieldInfo, SegmentInfo segmentInfo) {
+        if (segmentInfo == null || SparseFieldUtils.getSparseForwardIndex(fieldInfo) != SparseForwardIndex.PER_BLOCK) {
+            return false;
+        }
+        if (PredicateUtils.shouldRunSeisPredicate.test(segmentInfo, fieldInfo) == false) {
+            return false;
+        }
+        return SparseSettings.state().isIndexInputSearchEnabled() || CodecUtils.isFileSystemBacked(segmentInfo.dir) == false;
     }
 
     private SparseVectorReader getCacheGatedForwardIndexReader(SparseVectorForwardIndex index, LeafReader leafReader, String fieldName)
