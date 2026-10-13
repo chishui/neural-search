@@ -48,6 +48,12 @@ import java.util.Locale;
 @Log4j2
 public final class DiskSeismicSqIndexReader implements Closeable {
 
+    /**
+     * Opening walks every posting list's summary header front to back, one page per list; without
+     * readahead that is one storage round trip per page, which on network storage made opening a
+     * segment take minutes.
+     */
+    private static final IOContext OPEN_CONTEXT = IOContext.DEFAULT.withHints(FileTypeHint.DATA, DataAccessHint.SEQUENTIAL);
     /** A block payload is random-access, so the directory should not read ahead of it. */
     private static final IOContext CONTEXT = IOContext.DEFAULT.withHints(FileTypeHint.DATA, DataAccessHint.RANDOM);
 
@@ -117,10 +123,12 @@ public final class DiskSeismicSqIndexReader implements Closeable {
      * @param fileName  the engine file's name in that directory
      */
     public static DiskSeismicSqIndexReader open(Directory directory, String fileName) throws IOException {
-        IndexInput input = directory.openInput(fileName, CONTEXT);
+        IndexInput input = directory.openInput(fileName, OPEN_CONTEXT);
         boolean success = false;
         try {
             DiskSeismicSqIndexReader reader = parse(input);
+            // Queries read scattered blocks; readahead there would evict the cache they rely on.
+            input.updateIOContext(CONTEXT);
             success = true;
             return reader;
         } finally {
