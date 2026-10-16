@@ -46,6 +46,15 @@ public class SparseSearchingIT extends SparseBaseIT {
     private static final String TEST_SPARSE_FIELD_NAME = "sparse_field";
     private static final String TEST_TEXT_FIELD_NAME = "text";
     private static final String PIPELINE_NAME = "seismic_test_pipeline";
+    private static final String FOLDED_POSTINGS_ARE_LUCENE_ONLY = "the native engine folds its own index, not clustered postings";
+    /** Doc 4 holds two ids that fold together; doc 5 holds none of them. */
+    private static final List<Map<String, Float>> FOLDED_CORPUS = List.of(
+        Map.of("0", 0.25f),
+        Map.of("32768", 0.5f),
+        Map.of("65536", 0.75f),
+        Map.of("0", 0.125f, "32768", 1.0f),
+        Map.of("1000", 1.0f)
+    );
 
     @ParametersFactory(argumentFormatting = "engine=%s")
     public static Collection<Object[]> parameters() {
@@ -93,6 +102,66 @@ public class SparseSearchingIT extends SparseBaseIT {
         assertEquals(4, getHitCount(searchResults));
         List<String> actualIds = getDocIDs(searchResults);
         assertEquals(List.of("8", "7", "6", "5"), actualIds);
+    }
+
+    /** One segment at the approximate threshold, so its clustered postings are built at flush. */
+    public void testSearchFoldedTokenIdsMatchEachOther_clusteredAtFlush() throws Exception {
+        assumeLuceneEngine(FOLDED_POSTINGS_ARE_LUCENE_ONLY);
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, FOLDED_CORPUS.size());
+        ingestDocumentsAndForceMergeForSingleShard(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, FOLDED_CORPUS);
+
+        assertFoldedTokenIdsMatchEachOther();
+    }
+
+    /**
+     * Two segments below the approximate threshold keep raw FeatureField terms; merging them crosses
+     * it, so the clustered postings are built from those raw terms at merge.
+     */
+    public void testSearchFoldedTokenIdsMatchEachOther_clusteredAtMerge() throws Exception {
+        assumeLuceneEngine(FOLDED_POSTINGS_ARE_LUCENE_ONLY);
+        createSparseIndex(TEST_INDEX_NAME, TEST_SPARSE_FIELD_NAME, 4, 0.4f, 0.5f, FOLDED_CORPUS.size());
+        ingestDocuments(TEST_INDEX_NAME, TEST_TEXT_FIELD_NAME, TEST_SPARSE_FIELD_NAME, FOLDED_CORPUS.subList(0, 2), null, 1);
+        ingestDocuments(
+            TEST_INDEX_NAME,
+            TEST_TEXT_FIELD_NAME,
+            TEST_SPARSE_FIELD_NAME,
+            FOLDED_CORPUS.subList(2, FOLDED_CORPUS.size()),
+            null,
+            3
+        );
+        forceMerge(TEST_INDEX_NAME);
+        waitForSegmentMerge(TEST_INDEX_NAME);
+        assertEquals(1, getSegmentCount(TEST_INDEX_NAME));
+
+        assertFoldedTokenIdsMatchEachOther();
+    }
+
+    /**
+     * Token ids fold modulo 32768 on the query and in the forward index, so 0, 32768 and 65536 are one
+     * term: a query for any of them has to reach every document holding one, the document holding two
+     * exactly once, and nothing else. Before the clustered postings were folded, only the query's own
+     * raw id was ever a candidate.
+     */
+    @SuppressWarnings("unchecked")
+    private void assertFoldedTokenIdsMatchEachOther() {
+        for (String queryToken : List.of("0", "32768", "65536")) {
+            NeuralSparseQueryBuilder neuralSparseQueryBuilder = getNeuralSparseQueryBuilder(
+                TEST_SPARSE_FIELD_NAME,
+                1,
+                1.0f,
+                10,
+                Map.of(queryToken, 1.0f)
+            );
+
+            Map<String, Object> searchResults = searchWithExplain(TEST_INDEX_NAME, neuralSparseQueryBuilder, 10);
+            List<String> ids = getDocIDs(searchResults);
+            assertEquals("query token " + queryToken + " returned " + ids, 4, ids.size());
+            assertEquals("query token " + queryToken, Set.of("1", "2", "3", "4"), new HashSet<>(ids));
+            Map<String, Object> hitsMap = (Map<String, Object>) searchResults.get("hits");
+            for (Map<String, Object> hit : (List<Map<String, Object>>) hitsMap.get("hits")) {
+                assertExplanationScoreMatchesHit(hit);
+            }
+        }
     }
 
     public void testSearchDocumentsMixSeismicWithRankFeatures() throws Exception {

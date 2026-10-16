@@ -29,6 +29,8 @@ import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -39,6 +41,7 @@ import java.util.function.Supplier;
 public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, PostingClusters>>> {
     @Getter
     private final List<BytesRef> terms;
+    private final Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm;
     private final CacheKey key;
     private final float summaryPruneRatio;
     private final float clusterRatio;
@@ -51,6 +54,8 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
      * Creates a batch clustering task.
      *
      * @param terms list of terms to cluster
+     * @param rawTermsByFoldedTerm the source terms each of {@code terms} folds from; a term absent from it
+     *                             is read as itself
      * @param key cache key for storing results
      * @param summaryPruneRatio ratio for pruning summary vectors
      * @param clusterRatio ratio for clustering algorithm
@@ -60,6 +65,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
      */
     public BatchClusteringTask(
         List<BytesRef> terms,
+        Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm,
         CacheKey key,
         float summaryPruneRatio,
         float clusterRatio,
@@ -69,6 +75,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
         MergeHelper mergeHelper
     ) {
         this.terms = terms.stream().map(BytesRef::deepCopyOf).toList();
+        this.rawTermsByFoldedTerm = rawTermsByFoldedTerm;
         this.key = key;
         this.summaryPruneRatio = summaryPruneRatio;
         this.clusterRatio = clusterRatio;
@@ -96,7 +103,7 @@ public class BatchClusteringTask implements Supplier<List<Pair<BytesRef, Posting
                 int[] newIdToOldId = new int[maxDocs];
                 List<DocWeight> docWeights = mergeHelper.getMergedPostingForATerm(
                     this.mergeStateFacade,
-                    term,
+                    rawTermsByFoldedTerm.getOrDefault(term, Set.of(term)),
                     this.fieldInfo,
                     newIdToFieldProducerIndex,
                     newIdToOldId

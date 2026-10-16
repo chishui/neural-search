@@ -12,6 +12,7 @@ import org.opensearch.neuralsearch.query.NeuralSparseQueryBuilder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -88,6 +89,66 @@ public class SparseAnnIT extends AbstractRestartUpgradeRestTestCase {
                 wipeOfTestResources(indexName, null, null, null);
             }
         }
+    }
+
+    /**
+     * Seismic segments written before clustered postings were folded key them by raw token id, so the
+     * old cluster's 40000 sits apart from 7232 even though the query folds 40000 onto 7232. The
+     * upgraded node folds the terms as it loads them and has to find both, with no reindex.
+     */
+    public void testSparseAnnFoldsRawTermsOfOldSegments_E2EFlow() throws Exception {
+        waitForClusterHealthGreen(NODES_BWC_CLUSTER);
+        String indexName = getIndexNameForTest();
+        if (isRunningAgainstOldCluster()) {
+            createIndexWithConfiguration(
+                indexName,
+                Files.readString(Path.of(classLoader.getResource("processor/SparseAnnIndexMappings.json").toURI())),
+                null
+            );
+            int docs = ingestDocsWithFoldingTokenIds(indexName);
+            SparseTestCommon.forceMerge(client(), indexName);
+            SparseTestCommon.waitForSegmentMerge(client(), indexName, 3, 1);
+            validateDocCountAndInfo(indexName, docs, () -> getDocById(indexName, "4"), EMBEDDING_FIELD_NAME, Map.class);
+        } else {
+            try {
+                NeuralSparseQueryBuilder neuralSparseQueryBuilder = SparseTestCommon.getNeuralSparseQueryBuilder(
+                    EMBEDDING_FIELD_NAME,
+                    1,
+                    1.0f,
+                    10,
+                    Map.of("40000", 1.0f)
+                );
+                // Per shard, one document holds 40000 and one holds 7232.
+                assertEquals(6, getHitCount(search(indexName, neuralSparseQueryBuilder, 10)));
+            } finally {
+                wipeOfTestResources(indexName, null, null, null);
+            }
+        }
+    }
+
+    /** Ten documents per shard, so every shard's segment reaches the mapping's approximate threshold. */
+    private int ingestDocsWithFoldingTokenIds(String indexName) {
+        int shards = 3;
+        int count = 10;
+        List<String> routingIds = SparseTestCommon.generateUniqueRoutingIds(shards);
+        for (int i = 0; i < shards; ++i) {
+            List<Map<String, Float>> docs = new ArrayList<>(count);
+            docs.add(Map.of("40000", 0.5f));
+            docs.add(Map.of("7232", 0.4f));
+            for (int j = 2; j < count; ++j) {
+                docs.add(Map.of(String.valueOf(1000 + j), 0.1f));
+            }
+            SparseTestCommon.ingestDocuments(
+                indexName,
+                TEXT_FIELD_NAME,
+                EMBEDDING_FIELD_NAME,
+                docs,
+                null,
+                1 + i * count,
+                routingIds.get(i)
+            );
+        }
+        return shards * count;
     }
 
     private int ingestDocs(String indexName) {

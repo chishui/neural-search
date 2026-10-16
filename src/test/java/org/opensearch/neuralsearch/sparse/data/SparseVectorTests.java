@@ -371,4 +371,11 @@ public class SparseVectorTests extends AbstractSparseTestBase {
         byte[] bytes = baos.toByteArray();
         return new BytesRef(bytes);
     }
+
+    public void testPrepareTermForShortType_foldsAndCanonicalizes() {
+        assertEquals(new BytesRef("7232"), SparseVector.prepareTermForShortType(new BytesRef("40000")));
+        assertEquals(new BytesRef("0"), SparseVector.prepareTermForShortType(new BytesRef("65536")));
+        assertEquals(new BytesRef("32767"), SparseVector.prepareTermForShortType(new BytesRef("32767")));
+        assertEquals(new BytesRef("7"), SparseVector.prepareTermForShortType(new BytesRef("007")));
+    }
 }

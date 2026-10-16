@@ -15,9 +15,11 @@ import org.apache.lucene.codecs.PushPostingsWriterBase;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
@@ -81,6 +83,44 @@ public class ClusteredPostingTermsWriter extends PushPostingsWriterBase {
     public BlockTermState write(BytesRef text, TermsEnum termsEnum, NormsProducer norms) throws IOException {
         this.currentTerm = text;
         return super.writeTerm(text, termsEnum, docsSeen, norms);
+    }
+
+    /**
+     * Writes one clustered posting under a folded term, built from the postings of every raw term that
+     * folds onto it. A document under more than one of them keeps its largest weight.
+     *
+     * @param foldedTerm the term the posting is written and cached under
+     * @param rawTerms   the terms of {@code termsEnum} that fold onto {@code foldedTerm}
+     * @param termsEnum  the field's terms, positioned anywhere
+     * @param norms      the norms producer, as for {@link #write(BytesRef, TermsEnum, NormsProducer)}
+     */
+    public BlockTermState write(BytesRef foldedTerm, List<BytesRef> rawTerms, TermsEnum termsEnum, NormsProducer norms) throws IOException {
+        if (rawTerms.size() == 1) {
+            if (termsEnum.seekExact(rawTerms.getFirst()) == false) {
+                throw new IllegalStateException("term [" + rawTerms.getFirst().utf8ToString() + "] is not in the field being flushed");
+            }
+            return write(foldedTerm, termsEnum, norms);
+        }
+        this.currentTerm = foldedTerm;
+        startTerm(null);
+        PostingsEnum postings = null;
+        for (BytesRef rawTerm : rawTerms) {
+            if (termsEnum.seekExact(rawTerm) == false) {
+                throw new IllegalStateException("term [" + rawTerm.utf8ToString() + "] is not in the field being flushed");
+            }
+            postings = termsEnum.postings(postings, PostingsEnum.FREQS);
+            for (int docId = postings.nextDoc(); docId != DocIdSetIterator.NO_MORE_DOCS; docId = postings.nextDoc()) {
+                docsSeen.set(docId);
+                startDoc(docId, postings.freq());
+            }
+        }
+        List<DocWeight> merged = DocWeight.mergeByMaxWeight(docWeights);
+        docWeights.clear();
+        docWeights.addAll(merged);
+        BlockTermState state = newTermState();
+        state.docFreq = merged.size();
+        finishTerm(state);
+        return state;
     }
 
     public BlockTermState write(BytesRef text, PostingClusters postingClusters) throws IOException {

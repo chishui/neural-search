@@ -192,66 +192,78 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
         when(docValuesProducer.getBinary(any())).thenReturn(binaryDocValues);
 
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(
+            mergeStateFacade,
+            List.of(term),
+            mockFieldInfo,
+            new int[2],
+            new int[2]
+        );
         verify(docValuesProducer).getBinary(any());
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_nullTerm() throws IOException {
         when(mockFieldsProducer.terms(anyString())).thenReturn(null);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         verify(mockFieldsProducer).terms(anyString());
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_nullTermsEnum() throws IOException {
         when(mockTerms.iterator()).thenReturn(null);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         verify(mockTerms).iterator();
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_seekExactFalse() throws IOException {
         when(mockTermsEnum.seekExact(any())).thenReturn(false);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         verify(mockTermsEnum).seekExact(any());
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_postingIsNull() throws IOException {
         when(mockTermsEnum.postings(isNull())).thenReturn(null);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         verify(mockTermsEnum).postings(isNull());
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_postingNextDocNoMoreDocs() throws IOException {
         when(mockSparsePostingsEnum.nextDoc()).thenReturn(PostingsEnum.NO_MORE_DOCS);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_postingNextDocIsMinus1() throws IOException {
         when(mockSparsePostingsEnum.nextDoc()).thenReturn(-1).thenReturn(PostingsEnum.NO_MORE_DOCS);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_postingNewDocIsMinus1() throws IOException {
         when(mockSparsePostingsEnum.nextDoc()).thenReturn(1).thenReturn(PostingsEnum.NO_MORE_DOCS);
         when(mockDocMap.get(eq(1))).thenReturn(-1);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]);
         assertTrue(CollectionUtils.isEmpty(result));
     }
 
     public void test_getMergedPostingForATerm_postingNewDocOutOfBound() throws IOException {
         when(mockSparsePostingsEnum.nextDoc()).thenReturn(1).thenReturn(PostingsEnum.NO_MORE_DOCS);
         when(mockDocMap.get(eq(1))).thenReturn(10000);
-        expectThrows(IndexOutOfBoundsException.class, () -> mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[2], new int[2]));
+        expectThrows(IndexOutOfBoundsException.class, () -> mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[2], new int[2]));
     }
 
     public void test_getMergedPostingForATerm_happyCase_expectedType() throws IOException {
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[3], new int[3]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(
+            mergeStateFacade,
+            List.of(term),
+            mockFieldInfo,
+            new int[3],
+            new int[3]
+        );
         assertEquals(2, result.size());
         assertEquals(1, result.get(0).getDocID());
         assertEquals(1, result.get(0).getIntWeight());
@@ -263,7 +275,7 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         when(mockPostingsEnum.nextDoc()).thenReturn(1).thenReturn(2).thenReturn(PostingsEnum.NO_MORE_DOCS);
         when(mockPostingsEnum.freq()).thenReturn(32512).thenReturn(32768);
         when(mockTermsEnum.postings(isNull())).thenReturn(mockPostingsEnum);
-        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, term, mockFieldInfo, new int[3], new int[3]);
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(mergeStateFacade, List.of(term), mockFieldInfo, new int[3], new int[3]);
         assertEquals(2, result.size());
         assertEquals(1, result.get(0).getDocID());
         assertEquals(85, result.get(0).getIntWeight());
@@ -271,33 +283,73 @@ public class MergeHelperTests extends AbstractSparseTestBase {
         assertEquals(170, result.get(1).getIntWeight());
     }
 
-    public void test_getAllTerms_emptyFieldProducer() throws IOException {
-        when(mergeStateFacade.getFieldsProducers()).thenReturn(new FieldsProducer[0]);
-        assertTrue(CollectionUtils.isEmpty(mergeHelper.getAllTerms(mergeStateFacade, mockFieldInfo)));
+    public void test_getMergedPostingForATerm_collapsesADocumentUnderTwoRawTerms() throws IOException {
+        // "0" and "32768" fold together; doc 1 is under both and keeps the larger weight, compared
+        // unsigned: (byte) 200 is negative signed but outweighs 1.
+        SparsePostingsEnum first = mock(SparsePostingsEnum.class);
+        when(first.nextDoc()).thenReturn(1).thenReturn(2).thenReturn(PostingsEnum.NO_MORE_DOCS);
+        when(first.freq()).thenReturn(1).thenReturn(2);
+        SparsePostingsEnum second = mock(SparsePostingsEnum.class);
+        when(second.nextDoc()).thenReturn(1).thenReturn(PostingsEnum.NO_MORE_DOCS);
+        when(second.freq()).thenReturn(200);
+        when(mockTermsEnum.postings(isNull())).thenReturn(first).thenReturn(second);
+
+        List<DocWeight> result = mergeHelper.getMergedPostingForATerm(
+            mergeStateFacade,
+            List.of(new BytesRef("0"), new BytesRef("32768")),
+            mockFieldInfo,
+            new int[3],
+            new int[3]
+        );
+
+        assertEquals(2, result.size());
+        assertEquals(1, result.get(0).getDocID());
+        assertEquals(200, result.get(0).getIntWeight());
+        assertEquals(2, result.get(1).getDocID());
+        assertEquals(2, result.get(1).getIntWeight());
     }
 
-    public void test_getAllTerms_unexpectedBinaryDocValueType() throws IOException {
+    public void test_getRawTermsByFoldedTerm_emptyFieldProducer() throws IOException {
+        when(mergeStateFacade.getFieldsProducers()).thenReturn(new FieldsProducer[0]);
+        assertTrue(mergeHelper.getRawTermsByFoldedTerm(mergeStateFacade, mockFieldInfo).isEmpty());
+    }
+
+    public void test_getRawTermsByFoldedTerm_unexpectedBinaryDocValueType() throws IOException {
         BinaryDocValues binaryDocValues = mock(BinaryDocValues.class);
         when(docValuesProducer.getBinary(any())).thenReturn(binaryDocValues);
-        Set<BytesRef> allTerms = mergeHelper.getAllTerms(mergeStateFacade, mockFieldInfo);
-        assertTrue(CollectionUtils.isEmpty(allTerms));
+        assertTrue(mergeHelper.getRawTermsByFoldedTerm(mergeStateFacade, mockFieldInfo).isEmpty());
         verify(docValuesProducer).getBinary(any());
     }
 
-    public void test_getAllTerms_isNotSparseTerm() throws IOException {
-        when(mockTermsEnum.next()).thenReturn(term).thenReturn(null);
-        Set<BytesRef> allTerms = mergeHelper.getAllTerms(mergeStateFacade, mockFieldInfo);
-        assertEquals(terms, allTerms);
+    public void test_getRawTermsByFoldedTerm_isNotSparseTerm() throws IOException {
+        // A segment below the approximate threshold keeps raw FeatureField terms: 40000 folds onto 7232.
+        when(mockTermsEnum.next()).thenReturn(new BytesRef("40000"))
+            .thenReturn(new BytesRef("5"))
+            .thenReturn(new BytesRef("7232"))
+            .thenReturn(null);
+        Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm = mergeHelper.getRawTermsByFoldedTerm(mergeStateFacade, mockFieldInfo);
+        assertEquals(
+            Map.of(
+                new BytesRef("7232"),
+                Set.of(new BytesRef("40000"), new BytesRef("7232")),
+                new BytesRef("5"),
+                Set.of(new BytesRef("5"))
+            ),
+            rawTermsByFoldedTerm
+        );
     }
 
-    public void test_getAllTerms_isSparseTerm() throws IOException {
+    public void test_getRawTermsByFoldedTerm_isSparseTerm() throws IOException {
         SparseTerms sparseTerms = mock(SparseTerms.class);
         when(mockFieldsProducer.terms(anyString())).thenReturn(sparseTerms);
         when(sparseTerms.iterator()).thenReturn(mockTermsEnum);
         when(sparseTerms.getReader()).thenReturn(mockCacheGatedPostingsReader);
-        when(mockCacheGatedPostingsReader.getTerms()).thenReturn(terms);
-        Set<BytesRef> allTerms = mergeHelper.getAllTerms(mergeStateFacade, mockFieldInfo);
-        assertEquals(terms, allTerms);
+        when(mockCacheGatedPostingsReader.getTerms()).thenReturn(Set.of(new BytesRef("7232"), new BytesRef("5")));
+        Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm = mergeHelper.getRawTermsByFoldedTerm(mergeStateFacade, mockFieldInfo);
+        assertEquals(
+            Map.of(new BytesRef("7232"), Set.of(new BytesRef("7232")), new BytesRef("5"), Set.of(new BytesRef("5"))),
+            rawTermsByFoldedTerm
+        );
     }
 
     public void test_convertToMergeStateFacade() {

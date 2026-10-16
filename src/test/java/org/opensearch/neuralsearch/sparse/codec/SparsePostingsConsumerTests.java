@@ -212,8 +212,8 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
         when(mockFields.terms(TEST_SPARSE_FIELD_NAME)).thenReturn(mockedTerms);
         TermsEnum mockedTermsEnum = mock(TermsEnum.class);
         when(mockedTerms.iterator()).thenReturn(mockedTermsEnum);
-        BytesRef term1 = new BytesRef("term1");
-        BytesRef term2 = new BytesRef("term2");
+        BytesRef term1 = new BytesRef("1000");
+        BytesRef term2 = new BytesRef("2000");
         when(mockedTermsEnum.next()).thenReturn(term1).thenReturn(term2).thenReturn(null);
 
         // Call write
@@ -221,6 +221,58 @@ public class SparsePostingsConsumerTests extends AbstractSparseTestBase {
 
         verify(mockSparseTermsWriter, times(1)).writeFieldCount(1);
         verify(mockSparseTermsWriter, times(1)).writeTermsSize(2);
+    }
+
+    /**
+     * Raw terms folding onto one id become one clustered posting, written under the folded id.
+     */
+    @SneakyThrows
+    public void test_write_foldsRawTermsIntoOnePostingPerFoldedId() {
+        FieldInfo mockFieldInfo = mock(FieldInfo.class);
+        when(mockFieldInfo.getName()).thenReturn(SPARSE_FIELD);
+        Map<String, String> sparseAttributes = new HashMap<>();
+        sparseAttributes.put(SPARSE_FIELD, String.valueOf(true));
+        sparseAttributes.put(APPROXIMATE_THRESHOLD_FIELD, String.valueOf(1));
+        when(mockFieldInfo.attributes()).thenReturn(sparseAttributes);
+        when(mockFieldInfos.fieldInfo(anyString())).thenReturn(mockFieldInfo);
+        when(mockFields.iterator()).thenReturn(List.of(TEST_SPARSE_FIELD_NAME).iterator());
+        Terms mockedTerms = mock(Terms.class);
+        when(mockFields.terms(TEST_SPARSE_FIELD_NAME)).thenReturn(mockedTerms);
+        TermsEnum mockedTermsEnum = mock(TermsEnum.class);
+        when(mockedTerms.iterator()).thenReturn(mockedTermsEnum);
+        // Term order, as Lucene hands them over: 0 and 32768 fold together but are not adjacent, and
+        // "007" is another spelling of 7.
+        when(mockedTermsEnum.next()).thenReturn(new BytesRef("0"))
+            .thenReturn(new BytesRef("007"))
+            .thenReturn(new BytesRef("1"))
+            .thenReturn(new BytesRef("32768"))
+            .thenReturn(new BytesRef("7"))
+            .thenReturn(null);
+
+        sparsePostingsConsumer.write(mockFields, mockNormsProducer);
+
+        verify(mockSparseTermsWriter, times(1)).writeTermsSize(3);
+        verify(mockClusteredWriter).write(
+            eq(new BytesRef("0")),
+            eq(List.of(new BytesRef("0"), new BytesRef("32768"))),
+            any(TermsEnum.class),
+            eq(mockNormsProducer)
+        );
+        verify(mockClusteredWriter).write(
+            eq(new BytesRef("7")),
+            eq(List.of(new BytesRef("007"), new BytesRef("7"))),
+            any(TermsEnum.class),
+            eq(mockNormsProducer)
+        );
+        verify(mockClusteredWriter).write(
+            eq(new BytesRef("1")),
+            eq(List.of(new BytesRef("1"))),
+            any(TermsEnum.class),
+            eq(mockNormsProducer)
+        );
+        verify(mockSparseTermsWriter).writeTerm(eq(new BytesRef("0")), any());
+        verify(mockSparseTermsWriter).writeTerm(eq(new BytesRef("7")), any());
+        verify(mockSparseTermsWriter).writeTerm(eq(new BytesRef("1")), any());
     }
 
     /**

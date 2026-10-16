@@ -6,6 +6,8 @@ package org.opensearch.neuralsearch.sparse.data;
 
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 
+import java.util.List;
+
 public class DocWeightTests extends AbstractSparseTestBase {
 
     public void testGetDocID_afterConstruction_returnsCorrectValue() {
@@ -109,5 +111,20 @@ public class DocWeightTests extends AbstractSparseTestBase {
     public void testCompareTo_withSameObject_returnsZero() {
         DocWeight docWeight = new DocWeight(1, (byte) 10);
         assertEquals(0, docWeight.compareTo(docWeight));
+    }
+
+    public void testMergeByMaxWeight_keepsTheLargerUnsignedWeightPerDoc() {
+        // (byte) 200 is negative signed, so a signed comparison would keep 10.
+        List<DocWeight> merged = DocWeight.mergeByMaxWeight(
+            List.of(new DocWeight(5, (byte) 10), new DocWeight(2, (byte) 7), new DocWeight(5, (byte) 200), new DocWeight(5, (byte) 3))
+        );
+
+        assertEquals(List.of(new DocWeight(2, (byte) 7), new DocWeight(5, (byte) 200)), merged);
+    }
+
+    public void testMergeByMaxWeight_withDistinctDocs_sortsThem() {
+        List<DocWeight> merged = DocWeight.mergeByMaxWeight(List.of(new DocWeight(3, (byte) 1), new DocWeight(1, (byte) 2)));
+
+        assertEquals(List.of(new DocWeight(1, (byte) 2), new DocWeight(3, (byte) 1)), merged);
     }
 }

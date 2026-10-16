@@ -14,6 +14,7 @@ import org.apache.lucene.backward_codecs.lucene101.Lucene101PostingsFormat;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
@@ -27,15 +28,23 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.opensearch.neuralsearch.sparse.AbstractSparseTestBase;
 import org.opensearch.neuralsearch.sparse.TestsPrepareUtils;
+import org.opensearch.neuralsearch.sparse.cache.CacheKey;
+import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
+import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
 import org.opensearch.neuralsearch.sparse.data.DocumentCluster;
 import org.opensearch.neuralsearch.sparse.data.PostingClusters;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
+import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
@@ -124,6 +133,67 @@ public class ClusteredPostingTermsWriterTests extends AbstractSparseTestBase {
 
         assertSame("Should return the BlockTermState from writeTerm", expectedState, result);
         verify(clusteredPostingTermsWriter).writeTerm(eq(testText), eq(mockTermsEnum), any(FixedBitSet.class), eq(mockNormsProducer));
+    }
+
+    @SneakyThrows
+    public void test_write_withOneRawTerm_writesItUnderTheFoldedTerm() {
+        clusteredPostingTermsWriter = spy(clusteredPostingTermsWriter);
+        TermsEnum mockTermsEnum = mock(TermsEnum.class);
+        NormsProducer mockNormsProducer = mock(NormsProducer.class);
+        when(mockTermsEnum.seekExact(new BytesRef("40000"))).thenReturn(true);
+        BlockTermState expectedState = new Lucene101PostingsFormat.IntBlockTermState();
+        doReturn(expectedState).when(clusteredPostingTermsWriter)
+            .writeTerm(eq(new BytesRef("7232")), eq(mockTermsEnum), any(FixedBitSet.class), eq(mockNormsProducer));
+
+        BlockTermState result = clusteredPostingTermsWriter.write(
+            new BytesRef("7232"),
+            List.of(new BytesRef("40000")),
+            mockTermsEnum,
+            mockNormsProducer
+        );
+
+        assertSame(expectedState, result);
+        verify(mockTermsEnum).seekExact(new BytesRef("40000"));
+    }
+
+    @SneakyThrows
+    public void test_write_withRawTermsFoldingTogether_mergesTheirPostingsByMaxWeight() {
+        // init sizes the docs-seen bitset from the segment, which the shared mock reports as empty.
+        when(mockSegmentInfo.maxDoc()).thenReturn(100);
+        clusteredPostingTermsWriter.init(mockIndexOutput, mockWriteState);
+        clusteredPostingTermsWriter.setFieldAndMaxDoc(mockFieldInfo, 100, false);
+        TermsEnum mockTermsEnum = mock(TermsEnum.class);
+        when(mockTermsEnum.seekExact(any(BytesRef.class))).thenReturn(true);
+        // Doc 1 is under both raw terms, with the larger weight under the second.
+        PostingsEnum first = mock(PostingsEnum.class);
+        when(first.nextDoc()).thenReturn(1).thenReturn(2).thenReturn(PostingsEnum.NO_MORE_DOCS);
+        when(first.freq()).thenReturn(ValueEncoder.encodeFeatureValue(0.5f)).thenReturn(ValueEncoder.encodeFeatureValue(1.0f));
+        PostingsEnum second = mock(PostingsEnum.class);
+        when(second.nextDoc()).thenReturn(1).thenReturn(PostingsEnum.NO_MORE_DOCS);
+        when(second.freq()).thenReturn(ValueEncoder.encodeFeatureValue(2.0f));
+        when(mockTermsEnum.postings(any(), anyInt())).thenReturn(first).thenReturn(second);
+
+        BytesRef foldedTerm = new BytesRef("0");
+        BlockTermState state = clusteredPostingTermsWriter.write(
+            foldedTerm,
+            List.of(new BytesRef("0"), new BytesRef("32768")),
+            mockTermsEnum,
+            mock(NormsProducer.class)
+        );
+
+        assertNotNull(state);
+        assertEquals(2, state.docFreq);
+        PostingClusters cached = ClusteredPostingCache.getInstance()
+            .getOrCreate(new CacheKey(mockWriteState.segmentInfo, mockFieldInfo))
+            .getReader()
+            .read(foldedTerm);
+        assertNotNull("the merged posting is cached under the folded term", cached);
+        Map<Integer, Byte> weightByDoc = new HashMap<>();
+        for (DocumentCluster cluster : cached.getClusters()) {
+            cluster.iterator().forEachRemaining(docWeight -> assertNull(weightByDoc.put(docWeight.getDocID(), docWeight.getWeight())));
+        }
+        ByteQuantizer quantizer = ByteQuantizationUtil.getByteQuantizerIngest(mockFieldInfo);
+        assertEquals(Map.of(1, quantizer.quantize(2.0f), 2, quantizer.quantize(1.0f)), weightByDoc);
     }
 
     @SneakyThrows

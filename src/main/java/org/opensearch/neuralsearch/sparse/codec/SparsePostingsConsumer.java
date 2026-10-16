@@ -23,12 +23,15 @@ import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.neuralsearch.sparse.cache.ClusteredPostingCache;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.PredicateUtils;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 import org.opensearch.neuralsearch.sparse.mapper.SparseVectorField;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This class is responsible for writing sparse postings to the index
@@ -132,17 +135,16 @@ public class SparsePostingsConsumer extends FieldsConsumer {
                 false
             );
 
+            // The query folds token ids modulo MODULUS_FOR_SHORT, so each clustered posting is keyed by a
+            // folded id and holds every raw term folding onto it. Those are not adjacent in term order
+            // ("1" and "32769" sort apart), hence grouping them before anything is written.
+            Map<BytesRef, List<BytesRef>> rawTermsByFoldedTerm = groupByFoldedTerm(terms.iterator());
             TermsEnum termsEnum = terms.iterator();
-            List<BytesRef> termsList = new ArrayList<>();
-            List<BlockTermState> states = new ArrayList<>();
-            while (true) {
-                BytesRef term = termsEnum.next();
-                if (term == null) {
-                    break;
-                }
-                BytesRef clonedTerm = term.clone();
-                BlockTermState state = this.clusteredPostingTermsWriter.write(clonedTerm, termsEnum, norms);
-                termsList.add(clonedTerm);
+            List<BytesRef> termsList = new ArrayList<>(rawTermsByFoldedTerm.size());
+            List<BlockTermState> states = new ArrayList<>(rawTermsByFoldedTerm.size());
+            for (Map.Entry<BytesRef, List<BytesRef>> entry : rawTermsByFoldedTerm.entrySet()) {
+                BlockTermState state = this.clusteredPostingTermsWriter.write(entry.getKey(), entry.getValue(), termsEnum, norms);
+                termsList.add(entry.getKey());
                 states.add(state);
             }
             this.sparseTermsLuceneWriter.writeTermsSize(termsList.size());
@@ -150,6 +152,15 @@ public class SparsePostingsConsumer extends FieldsConsumer {
                 this.sparseTermsLuceneWriter.writeTerm(termsList.get(i), states.get(i));
             }
         }
+    }
+
+    private static Map<BytesRef, List<BytesRef>> groupByFoldedTerm(TermsEnum termsEnum) throws IOException {
+        Map<BytesRef, List<BytesRef>> rawTermsByFoldedTerm = new LinkedHashMap<>();
+        for (BytesRef term = termsEnum.next(); term != null; term = termsEnum.next()) {
+            BytesRef rawTerm = BytesRef.deepCopyOf(term);
+            rawTermsByFoldedTerm.computeIfAbsent(SparseVector.prepareTermForShortType(rawTerm), k -> new ArrayList<>(1)).add(rawTerm);
+        }
+        return rawTermsByFoldedTerm;
     }
 
     @Override

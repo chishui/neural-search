@@ -24,11 +24,15 @@ import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class BatchClusteringTaskTests extends AbstractSparseTestBase {
@@ -73,7 +77,17 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         List<BytesRef> originalTerms = Arrays.asList(new BytesRef("term1"), new BytesRef("term2"));
 
         // Execute - create task with null mergeState to test constructor
-        BatchClusteringTask task = new BatchClusteringTask(originalTerms, key, 0.5f, 0.3f, 10, mergeStateFacade, null, mergeHelper);
+        BatchClusteringTask task = new BatchClusteringTask(
+            originalTerms,
+            Map.of(),
+            key,
+            0.5f,
+            0.3f,
+            10,
+            mergeStateFacade,
+            null,
+            mergeHelper
+        );
 
         // Verify task is created
         assertNotNull("Task should be created successfully", task);
@@ -92,13 +106,13 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
     }
 
     public void testGetWithNullMergeStateThenThrowException() {
-        assertThrows(NullPointerException.class, () -> new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, null, null, null));
+        assertThrows(NullPointerException.class, () -> new BatchClusteringTask(terms, Map.of(), key, 0.5f, 0.3f, 10, null, null, null));
     }
 
     @SneakyThrows
     public void testGetWithNonNullMergeState() {
         // Create BatchClusteringTask
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
+        BatchClusteringTask task = new BatchClusteringTask(terms, Map.of(), key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
 
         // Execute and examine the result
         List<Pair<BytesRef, PostingClusters>> result = task.get();
@@ -125,7 +139,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
     public void testGetWithNonNullMergeStateZeroMaxDocs() {
         when(mergeStateFacade.getMaxDocs()).thenReturn(new int[]{0});
         // Create BatchClusteringTask
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
+        BatchClusteringTask task = new BatchClusteringTask(terms, Map.of(), key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
 
         // Execute and examine the result
         List<Pair<BytesRef, PostingClusters>> result = task.get();
@@ -139,7 +153,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
     public void testThrowIOException() throws IOException {
         doThrow(new IOException()).when(mergeHelper).getMergedPostingForATerm(any(), any(), any(), any(), any());
         // Create BatchClusteringTask
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
+        BatchClusteringTask task = new BatchClusteringTask(terms, Map.of(), key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
 
         // Execute and examine the result
         assertThrows(RuntimeException.class, () -> task.get());
@@ -149,7 +163,7 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         BinaryDocValues docValues = mock(BinaryDocValues.class);
         when(docValuesProducer.getBinary(any())).thenReturn(docValues);
         // Create BatchClusteringTask
-        BatchClusteringTask task = new BatchClusteringTask(terms, key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
+        BatchClusteringTask task = new BatchClusteringTask(terms, Map.of(), key, 0.5f, 0.3f, 10, mergeStateFacade, fieldInfo, mergeHelper);
 
         // Execute and examine the result
         List<Pair<BytesRef, PostingClusters>> result = task.get();
@@ -159,11 +173,44 @@ public class BatchClusteringTaskTests extends AbstractSparseTestBase {
         }
     }
 
+    @SneakyThrows
+    public void testGetReadsEveryRawTermFoldingOntoATerm() {
+        Set<BytesRef> rawTerms = Set.of(new BytesRef("0"), new BytesRef("32768"));
+        List<BytesRef> foldedTerms = List.of(new BytesRef("0"), new BytesRef("1"));
+        BatchClusteringTask task = new BatchClusteringTask(
+            foldedTerms,
+            Map.of(new BytesRef("0"), rawTerms),
+            key,
+            0.5f,
+            0.3f,
+            10,
+            mergeStateFacade,
+            fieldInfo,
+            mergeHelper
+        );
+
+        task.get();
+
+        verify(mergeHelper).getMergedPostingForATerm(eq(mergeStateFacade), eq(rawTerms), eq(fieldInfo), any(), any());
+        // A term the map does not group is read as itself.
+        verify(mergeHelper).getMergedPostingForATerm(eq(mergeStateFacade), eq(Set.of(new BytesRef("1"))), eq(fieldInfo), any(), any());
+    }
+
     public void testTermsDeepCopyInGet() {
         // Test that the terms are properly deep copied and used in get() method
         List<BytesRef> originalTerms = Arrays.asList(new BytesRef("original1"), new BytesRef("original2"));
 
-        BatchClusteringTask task = new BatchClusteringTask(originalTerms, key, 0.5f, 0.3f, 10, mergeStateFacade, null, mergeHelper);
+        BatchClusteringTask task = new BatchClusteringTask(
+            originalTerms,
+            Map.of(),
+            key,
+            0.5f,
+            0.3f,
+            10,
+            mergeStateFacade,
+            null,
+            mergeHelper
+        );
 
         // Modify original terms
         originalTerms.get(0).bytes[0] = (byte) 'M';

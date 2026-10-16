@@ -91,7 +91,7 @@ public class SparsePostingsReaderTests extends AbstractSparseTestBase {
         when(mockMergeState.getMaxDocs()).thenReturn(new int[] { 5, 5 });
         when(mockMergeState.getSegmentInfo()).thenReturn(mockSegmentInfo);
         when(mockSegmentInfo.maxDoc()).thenReturn(10);
-        when(mergeHelper.getAllTerms(any(), any())).thenReturn(TERMS);
+        when(mergeHelper.getRawTermsByFoldedTerm(any(), any())).thenReturn(Map.of(new BytesRef("term"), TERMS));
         reader = new SparsePostingsReader(mockMergeState, mergeHelper);
     }
 

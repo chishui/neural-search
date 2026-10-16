@@ -4,6 +4,7 @@
  */
 package org.opensearch.neuralsearch.sparse.codec;
 
+import com.google.common.primitives.Longs;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.index.IndexFileNames;
@@ -28,10 +29,16 @@ import java.util.Set;
 /**
  * This class read terms and clustered posting from lucene index.
  * It stores the posting to the cache data structure.
+ *
+ * Terms are folded as they are loaded, the way the writer folds them, so a segment written before the
+ * writer folded still answers the query's folded ids: raw terms colliding on one folded term have
+ * their postings read back to back as one. That is a valid posting for the folded term, since every
+ * cluster summary already comes from folded vectors and the scorer skips a document it has visited;
+ * it only keeps up to {@code n_postings} documents per raw term rather than in all.
  */
 @Log4j2
 public class SparseTermsLuceneReader extends FieldsProducer {
-    private final Map<String, Map<BytesRef, Long>> fieldToTerms = new HashMap<>();
+    private final Map<String, Map<BytesRef, long[]>> fieldToTerms = new HashMap<>();
     private IndexInput termsIn;
     private IndexInput postingIn;
     private final CodecUtilWrapper codecUtilWrapper;
@@ -77,7 +84,7 @@ public class SparseTermsLuceneReader extends FieldsProducer {
             for (int i = 0; i < numberOfFields; i++) {
                 int fieldId = termsIn.readVInt();
                 int numberOfTerms = (int) termsIn.readVLong();
-                Map<BytesRef, Long> terms = new HashMap<>(numberOfTerms);
+                Map<BytesRef, long[]> terms = new HashMap<>(numberOfTerms);
                 for (int j = 0; j < numberOfTerms; j++) {
                     int byteLength = termsIn.readVInt();
                     BytesRef term = new BytesRef(byteLength);
@@ -88,7 +95,7 @@ public class SparseTermsLuceneReader extends FieldsProducer {
                         throw e;
                     }
                     long fileOffset = termsIn.readVLong();
-                    terms.put(term, fileOffset);
+                    terms.merge(SparseVector.prepareTermForShortType(term), new long[] { fileOffset }, Longs::concat);
                 }
                 fieldToTerms.put(state.fieldInfos.fieldInfo(fieldId).getName(), terms);
             }
@@ -119,7 +126,7 @@ public class SparseTermsLuceneReader extends FieldsProducer {
     }
 
     public Set<BytesRef> getTerms(String field) {
-        Map<BytesRef, Long> termsMapping = fieldToTerms.get(field);
+        Map<BytesRef, long[]> termsMapping = fieldToTerms.get(field);
         if (termsMapping == null) {
             return Set.of();
         }
@@ -127,15 +134,18 @@ public class SparseTermsLuceneReader extends FieldsProducer {
     }
 
     public PostingClusters read(String field, BytesRef term) throws IOException {
-        Map<BytesRef, Long> termsMapping = fieldToTerms.get(field);
+        Map<BytesRef, long[]> termsMapping = fieldToTerms.get(field);
         if (termsMapping == null) {
             return null;
         }
-        if (!termsMapping.containsKey(term)) {
+        long[] offsets = termsMapping.get(term);
+        if (offsets == null) {
             return null;
         }
-        long offset = termsMapping.get(term);
-        List<DocumentCluster> clusters = readClusters(offset);
+        List<DocumentCluster> clusters = readClusters(offsets[0]);
+        for (int i = 1; i < offsets.length; i++) {
+            clusters.addAll(readClusters(offsets[i]));
+        }
         if (clusters.isEmpty()) {
             return null;
         }

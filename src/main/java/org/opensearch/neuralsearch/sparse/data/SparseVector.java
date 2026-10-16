@@ -83,6 +83,18 @@ public class SparseVector implements Accountable {
         return token % MODULUS_FOR_SHORT;
     }
 
+    /**
+     * Folds a posting term the way {@link #prepareTokenForShortType} folds a token id, so a clustered
+     * posting is keyed by the same id the query seeks. Also canonicalizes the decimal form: the mapper
+     * keeps the document's key as written, so "007" is a posting term of its own.
+     *
+     * @param term a token id in decimal, as the mapper writes it
+     * @return the folded id in canonical decimal
+     */
+    public static BytesRef prepareTermForShortType(BytesRef term) {
+        return new BytesRef(String.valueOf(prepareTokenForShortType(Integer.parseInt(term.utf8ToString()))));
+    }
+
     public byte[] toDenseVector() {
         int size = getSize();
         if (size == 0) {

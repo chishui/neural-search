@@ -21,6 +21,7 @@ import org.opensearch.neuralsearch.sparse.mapper.SparseVectorField;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -75,8 +76,10 @@ public class SparsePostingsReader {
                 }
                 float summaryPruneRatio = Float.parseFloat(fieldInfo.attributes().get(SUMMARY_PRUNE_RATIO_FIELD));
 
-                // get all terms of old segments from CacheClusteredPosting
-                Set<BytesRef> allTerms = mergeHelper.getAllTerms(mergeStateFacade, fieldInfo);
+                // The merged segment holds one posting per folded term; the sources' terms are grouped
+                // under the term they fold onto, as some sources keep raw ones.
+                Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm = mergeHelper.getRawTermsByFoldedTerm(mergeStateFacade, fieldInfo);
+                Set<BytesRef> allTerms = rawTermsByFoldedTerm.keySet();
                 sparseTermsLuceneWriter.writeTermsSize(allTerms.size());
                 clusteredPostingTermsWriter.setFieldAndMaxDoc(fieldInfo, docCount, true);
 
@@ -93,6 +96,7 @@ public class SparsePostingsReader {
                                 CompletableFuture.completedFuture(
                                     new BatchClusteringTask(
                                         termBatch,
+                                        rawTermsByFoldedTerm,
                                         key,
                                         summaryPruneRatio,
                                         clusterRatio,
@@ -108,6 +112,7 @@ public class SparsePostingsReader {
                                 CompletableFuture.supplyAsync(
                                     new BatchClusteringTask(
                                         termBatch,
+                                        rawTermsByFoldedTerm,
                                         key,
                                         summaryPruneRatio,
                                         clusterRatio,

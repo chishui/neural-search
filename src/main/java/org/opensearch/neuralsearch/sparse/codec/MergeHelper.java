@@ -16,19 +16,24 @@ import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.FixedBitSet;
 import org.opensearch.common.Nullable;
 import org.opensearch.neuralsearch.sparse.cache.CacheKey;
 import org.opensearch.neuralsearch.sparse.common.MergeStateFacade;
 import org.opensearch.neuralsearch.sparse.common.ValueEncoder;
 import org.opensearch.neuralsearch.sparse.data.DocWeight;
+import org.opensearch.neuralsearch.sparse.data.SparseVector;
 import org.opensearch.neuralsearch.sparse.mapper.SparseVectorField;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizer;
 import org.opensearch.neuralsearch.sparse.quantization.ByteQuantizationUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -69,24 +74,30 @@ public class MergeHelper {
     }
 
     /**
-     * Retrieves merged posting list for a specific term across all segments.
+     * Retrieves the merged posting list for one folded term across all segments.
      *
      * @param mergeStateFacade merge state containing producers and doc maps
-     * @param term the term to retrieve postings for
+     * @param rawTerms every term folding onto the posting being built, as {@link #getRawTermsByFoldedTerm} groups them
      * @param fieldInfo field information for the sparse vector field
      * @param newIdToFieldProducerIndex array to store field producer index for each new doc ID
      * @param newIdToOldId array to store old doc ID mapping for each new doc ID
-     * @return list of document weights for the term
+     * @return the document weights, one per document: a document under more than one of {@code rawTerms}
+     *         keeps its largest weight
      * @throws IOException if postings cannot be accessed
      */
     public List<DocWeight> getMergedPostingForATerm(
         MergeStateFacade mergeStateFacade,
-        BytesRef term,
+        Collection<BytesRef> rawTerms,
         FieldInfo fieldInfo,
         int[] newIdToFieldProducerIndex,
         int[] newIdToOldId
     ) throws IOException {
         List<DocWeight> docWeights = new ArrayList<>();
+        // A document reached twice -- under two of the raw terms, or twice in a posting the reader folded
+        // from an older segment's raw terms -- has to collapse to one entry, or it takes two of the
+        // n_postings slots. Rare, so the collapse only runs once one is seen.
+        FixedBitSet seen = new FixedBitSet(newIdToOldId.length);
+        boolean hasDuplicates = false;
         ByteQuantizer byteQuantizer = ByteQuantizationUtil.getByteQuantizerIngest(fieldInfo);
         for (int i = 0; i < mergeStateFacade.getFieldsProducers().length; i++) {
             // we need this SparseBinaryDocValuesPassThrough to get segment info
@@ -105,53 +116,59 @@ public class MergeHelper {
                 continue;
             }
 
-            if (!termsEnum.seekExact(term)) {
-                continue;
-            }
-            PostingsEnum postings = termsEnum.postings(null);
-            if (postings == null) {
-                continue;
-            }
-            boolean isSparsePostings = postings instanceof SparsePostingsEnum;
-            int docId = postings.nextDoc();
-            for (; docId != PostingsEnum.NO_MORE_DOCS; docId = postings.nextDoc()) {
-                if (docId == -1) {
+            for (BytesRef term : rawTerms) {
+                if (!termsEnum.seekExact(term)) {
                     continue;
                 }
-                int newDocId = mergeStateFacade.getDocMaps()[i].get(docId);
-                if (newDocId == -1) {
+                PostingsEnum postings = termsEnum.postings(null);
+                if (postings == null) {
                     continue;
                 }
-                if (newDocId >= newIdToFieldProducerIndex.length) {
-                    throw new IndexOutOfBoundsException("newDocId is larger than array size!");
+                boolean isSparsePostings = postings instanceof SparsePostingsEnum;
+                int docId = postings.nextDoc();
+                for (; docId != PostingsEnum.NO_MORE_DOCS; docId = postings.nextDoc()) {
+                    if (docId == -1) {
+                        continue;
+                    }
+                    int newDocId = mergeStateFacade.getDocMaps()[i].get(docId);
+                    if (newDocId == -1) {
+                        continue;
+                    }
+                    if (newDocId >= newIdToFieldProducerIndex.length) {
+                        throw new IndexOutOfBoundsException("newDocId is larger than array size!");
+                    }
+                    newIdToFieldProducerIndex[newDocId] = i;
+                    newIdToOldId[newDocId] = docId;
+                    int freq = postings.freq();
+                    byte freqByte = 0;
+                    if (isSparsePostings) {
+                        // SparsePostingsEnum.freq() already transform byte freq to int
+                        freqByte = (byte) freq;
+                    } else {
+                        // decode to float first
+                        freqByte = byteQuantizer.quantize(ValueEncoder.decodeFeatureValue(freq));
+                    }
+                    hasDuplicates |= seen.getAndSet(newDocId);
+                    docWeights.add(new DocWeight(newDocId, freqByte));
                 }
-                newIdToFieldProducerIndex[newDocId] = i;
-                newIdToOldId[newDocId] = docId;
-                int freq = postings.freq();
-                byte freqByte = 0;
-                if (isSparsePostings) {
-                    // SparsePostingsEnum.freq() already transform byte freq to int
-                    freqByte = (byte) freq;
-                } else {
-                    // decode to float first
-                    freqByte = byteQuantizer.quantize(ValueEncoder.decodeFeatureValue(freq));
-                }
-                docWeights.add(new DocWeight(newDocId, freqByte));
             }
         }
-        return docWeights;
+        return hasDuplicates ? DocWeight.mergeByMaxWeight(docWeights) : docWeights;
     }
 
     /**
-     * Collects all unique terms from segments being merged.
+     * Collects the terms of the segments being merged, grouped under the folded term each one becomes
+     * in the merged segment. A source keeps raw terms if it is below the approximate threshold, or a
+     * seismic segment written before the clustered postings were folded.
      *
      * @param mergeStateFacade merge state containing field producers
      * @param fieldInfo field information for the sparse vector field
-     * @return set of all unique terms across segments
+     * @return every folded term, mapped to the source terms that fold onto it (itself included when a
+     *         source has it)
      * @throws IOException if terms cannot be accessed
      */
-    public Set<BytesRef> getAllTerms(MergeStateFacade mergeStateFacade, FieldInfo fieldInfo) throws IOException {
-        Set<BytesRef> allTerms = new HashSet<>();
+    public Map<BytesRef, Set<BytesRef>> getRawTermsByFoldedTerm(MergeStateFacade mergeStateFacade, FieldInfo fieldInfo) throws IOException {
+        Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm = new HashMap<>();
         for (int i = 0; i < mergeStateFacade.getFieldsProducers().length; i++) {
             FieldsProducer fieldsProducer = mergeStateFacade.getFieldsProducers()[i];
             // we need this SparseBinaryDocValuesPassThrough to get segment info
@@ -162,7 +179,9 @@ public class MergeHelper {
 
             Terms terms = fieldsProducer.terms(fieldInfo.getName());
             if (terms instanceof SparseTerms sparseTerms) {
-                allTerms.addAll(sparseTerms.getReader().getTerms());
+                for (BytesRef term : sparseTerms.getReader().getTerms()) {
+                    addRawTerm(rawTermsByFoldedTerm, term);
+                }
             } else {
                 // fieldsProducer could be a delegate one as we need to merge normal segments into seis segment
                 TermsEnum termsEnum = terms.iterator();
@@ -171,11 +190,15 @@ public class MergeHelper {
                     if (term == null) {
                         break;
                     }
-                    allTerms.add(BytesRef.deepCopyOf(term));
+                    addRawTerm(rawTermsByFoldedTerm, BytesRef.deepCopyOf(term));
                 }
             }
         }
-        return allTerms;
+        return rawTermsByFoldedTerm;
+    }
+
+    private static void addRawTerm(Map<BytesRef, Set<BytesRef>> rawTermsByFoldedTerm, BytesRef rawTerm) {
+        rawTermsByFoldedTerm.computeIfAbsent(SparseVector.prepareTermForShortType(rawTerm), k -> new HashSet<>(2)).add(rawTerm);
     }
 
     /**

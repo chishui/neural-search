@@ -23,6 +23,7 @@ import org.opensearch.neuralsearch.sparse.data.PostingClusters;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -37,7 +38,7 @@ import static org.mockito.Mockito.when;
 
 public class SparseTermsLuceneReaderTests extends AbstractSparseTestBase {
 
-    private final static String TERM_NAME = "test_term";
+    private final static String TERM_NAME = "1000";
     private final static String TEST_FIELD = "test_field";
 
     @Mock
@@ -132,6 +133,42 @@ public class SparseTermsLuceneReaderTests extends AbstractSparseTestBase {
         PostingClusters clusters = reader.read(TEST_FIELD, term);
 
         assertNotNull(clusters);
+    }
+
+    /**
+     * A segment written before clustered postings were folded holds 0 and 32768 as two terms. They
+     * load as one folded term whose posting is both of theirs, read back to back.
+     */
+    @SneakyThrows
+    public void testRead_foldsRawTermsWrittenBeforeFolding() {
+        List<BytesRef> rawTerms = List.of(new BytesRef("0"), new BytesRef("32768"));
+        // numberOfFields, fieldId, then each term's byteLength
+        when(mockTermsInput.readVInt()).thenReturn(1).thenReturn(0).thenReturn(rawTerms.get(0).length).thenReturn(rawTerms.get(1).length);
+        // numberOfTerms, then each term's fileOffset
+        when(mockTermsInput.readVLong()).thenReturn(2L).thenReturn(50L).thenReturn(90L);
+        Iterator<BytesRef> termBytes = rawTerms.iterator();
+        doAnswer(invocation -> {
+            BytesRef next = termBytes.next();
+            System.arraycopy(next.bytes, next.offset, invocation.getArgument(0), invocation.getArgument(1), next.length);
+            return null;
+        }).when(mockTermsInput).readBytes(any(byte[].class), anyInt(), anyInt());
+        // Each offset holds one cluster of one doc with a one-item summary: clusterSize, docSize, summarySize.
+        when(mockPostingInput.readVLong()).thenReturn(1L, 1L, 1L, 1L, 1L, 1L);
+        // doc id then summary token, per offset
+        when(mockPostingInput.readVInt()).thenReturn(3, 0, 4, 0);
+        when(mockPostingInput.readByte()).thenReturn((byte) 1);
+
+        SparseTermsLuceneReader reader = new SparseTermsLuceneReader(segmentReadState, mockCodecUtilWrapper);
+
+        assertEquals(Set.of(new BytesRef("0")), reader.getTerms(TEST_FIELD));
+        assertNull("the raw id is not a term of its own any more", reader.read(TEST_FIELD, new BytesRef("32768")));
+        PostingClusters clusters = reader.read(TEST_FIELD, new BytesRef("0"));
+        assertNotNull(clusters);
+        assertEquals(2, clusters.getClusters().size());
+        verify(mockPostingInput).seek(50L);
+        verify(mockPostingInput).seek(90L);
+        assertEquals(3, clusters.getClusters().get(0).iterator().next().getDocID());
+        assertEquals(4, clusters.getClusters().get(1).iterator().next().getDocID());
     }
 
     @SneakyThrows
